@@ -43,7 +43,7 @@ git commit -m "Extract notifications behind its service boundary"
 git push -u origin feat/a-notifications-extraction
 ```
 
-เปิด PR เข้า main และให้ @digi1450 review/approve ก่อน merge ตาม CODEOWNERS เมื่อ push เพิ่มเข้า branch เดิม PR จะอัปเดตตาม อย่าใส่ secrets, tokens, .env, SQLite runtime, node_modules หรือ .next ใน commit
+เปิด PR เข้า main และให้สมาชิกที่มี write access ซึ่งไม่ใช่ผู้เปิด PR อย่างน้อย 1 คน review/approve ก่อน merge ไม่จำเป็นต้องเป็น @digi1450 เมื่อ push เพิ่มเข้า branch เดิม PR จะอัปเดตตาม อย่าใส่ secrets, tokens, .env, SQLite runtime, node_modules หรือ .next ใน commit
 
 ## เกณฑ์ merge
 
@@ -51,8 +51,8 @@ git push -u origin feat/a-notifications-extraction
 - แจ้งว่าเปลี่ยนอะไร กระทบใคร และทดสอบอะไรจริง รวมผลและสิ่งที่ยังไม่ทดสอบ
 - รัน inherited tests เมื่อแก้ business logic หรือส่วนเชื่อมต่อที่กระทบ monolith และรัน tests ของส่วนที่แก้
 - ถ้าเปลี่ยน API/events/auth ต้องแก้ contracts และทดสอบร่วมกับ consumer/provider ที่เกี่ยวข้อง การทดสอบ service เดี่ยวผ่านไม่ได้รับรองว่าระบบรวมผ่าน
-- ขอ feedback จากเจ้าของ area ที่ได้รับผลกระทบได้ แต่ approval ของคนอื่นแทน approval ที่บังคับจาก @digi1450 ไม่ได้
-- CODEOWNERS กำหนด @digi1450 สำหรับทุกไฟล์ รวมถึง CODEOWNERS เอง; main ใช้ Require Code Owner Review และ approval อย่างน้อย 1 คน ถ้ามี code changes เพิ่ม approval เก่าจะถูกยกเลิกและต้อง review ใหม่
+- ขอ feedback จากเจ้าของ area ที่ได้รับผลกระทบ และมี approval อย่างน้อย 1 คนจากผู้มี write access ที่ไม่ใช่ผู้เปิด PR; ไม่บังคับว่าต้องเป็นเจ้าของ repo
+- ปิด Require Code Owner Review แล้ว CODEOWNERS ยังคงระบุ @digi1450 เป็นผู้ติดต่อ review โดยปริยาย แต่ approval ของสมาชิกที่มีสิทธิ์คนอื่นก็ผ่านเงื่อนไขได้ ถ้ามี code changes เพิ่ม approval เก่าจะถูกยกเลิกและต้อง review ใหม่
 - เจ้าของ repo @digi1450 มี admin bypass ตามที่ทีมผู้ดูแลเลือก จึง merge PR ของตัวเองได้โดยไม่ต้อง approve ตัวเอง สิทธิ์นี้ยังอนุญาตให้ Owner ข้ามข้อบังคับ PR/review ของ main ได้; สมาชิกทั่วไปไม่มีข้อยกเว้นนี้ ใช้ branch/PR เป็น workflow ปกติแม้เป็น Owner
 - เมื่อได้รับ approval ที่จำเป็นแล้ว สมาชิกที่มี write access อาจกด merge ได้ กฎนี้กำหนดผู้อนุมัติ ไม่ได้จำกัดปุ่ม merge ให้คนเดียว
 - ต้อง resolve conversations ก่อน merge สำหรับสมาชิกทั่วไป และไม่อนุญาต force push/delete main ตาม protection rule; Owner มี admin bypass จึงไม่ถือว่ากฎเหล่านี้บังคับกับ Owner

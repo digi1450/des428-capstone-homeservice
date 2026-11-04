@@ -43,5 +43,5 @@ Within the team's agreed schedule, demonstrate one real authenticated operation 
 - The assignment allows a different seam when defended in the dossier. Document why these two boundaries are chosen; its summary table and the detailed Homeservice README differ.
 - B and D must identify real inherited BOLA/race candidates. Existing guards already cover several examples in this source. If no matching candidate is found, clarify acceptable evidence with the lecturer; do not introduce a defect and claim it was inherited.
 - Baseline tests are historical evidence only. New measurements, traces and tests must come from the team's actual implementation runs.
-- The private GitHub remote and starter branches are published. Main requires owner review via CODEOWNERS, with the repository owner's explicitly chosen admin bypass; see CONTRIBUTING.md.
+- The private GitHub remote and starter branches are published. Main requires one approving review from a reviewer with write access other than the PR author, with the repository owner's explicitly chosen admin bypass. Code-owner approval is not mandatory; see CONTRIBUTING.md.
 - The root full-stack Compose, four final demo scripts, dossier, recording and CI remain future tasks, not completed scaffolding.
