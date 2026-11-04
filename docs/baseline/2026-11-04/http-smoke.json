@@ -1,0 +1,61 @@
+[
+  {
+    "method": "GET",
+    "path": "/",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/provider/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/admin/login",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/health",
+    "status": 200,
+    "body": {
+      "status": "ok"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/ready",
+    "status": 200,
+    "body": {
+      "status": "ok"
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/categories",
+    "status": 200,
+    "items": 4
+  },
+  {
+    "method": "GET",
+    "path": "/api/services",
+    "status": 200,
+    "items": 4
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/customer/login",
+    "status": 200,
+    "token_issued": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/me",
+    "status": 200
+  }
+]

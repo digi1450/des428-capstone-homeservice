@@ -1,0 +1,36 @@
+# Dependencies and generated builds (at any depth)
+node_modules/
+.next/
+coverage/
+dist/
+*.tsbuildinfo
+
+# Local environment and credentials; examples must contain placeholders only
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# Runtime databases, logs and editor/OS files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.log
+.DS_Store
+._*
+.idea/
+.vscode/
+
+# Local planning and scratch evidence; reviewed evidence goes under docs/
+/output/
+/tmp/

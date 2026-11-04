@@ -1,0 +1,342 @@
+#17 exporting layers 8.1s done
+#17 exporting manifest sha256:ef76c18d590f8b4cbf40f34fb484366a10c3598db90dc1109be23b92abb5ae65 0.0s done
+#17 exporting config sha256:62a0e4a14b49524243ad5af32a61053817f9fa33ca459e262951f5d7fce8b667 done
+#17 exporting attestation manifest sha256:850a99ba3165e0f9957efa6bf90d7937edea5ea5f153ed7ef1b6d1f38900a94d done
+#17 exporting manifest list sha256:bdb6fad899811b76e036644864097bafbe571217bb25842ede2817943116de5d done
+#17 naming to docker.io/library/edemand-test:latest done
+#17 unpacking to docker.io/library/edemand-test:latest
+#17 unpacking to docker.io/library/edemand-test:latest 3.9s done
+#17 DONE 12.0s
+
+#18 resolving provenance for metadata file
+#18 DONE 0.1s
+ Image edemand-test Built
+ Container edemand-test-run-4e4594a96d9b Creating
+ Container edemand-test-run-4e4594a96d9b Created
+
+> edemand@1.0.0 test
+> node --test
+
+TAP version 13
+# Subtest: admin
+    # Subtest: a non-admin is forbidden
+    ok 1 - a non-admin is forbidden
+      ---
+      duration_ms: 159.528041
+      ...
+    # Subtest: admin approves the pending provider (Glow) -> is_approved + notification
+    ok 2 - admin approves the pending provider (Glow) -> is_approved + notification
+      ---
+      duration_ms: 1.223833
+      ...
+    # Subtest: admin sets a provider's commission
+    ok 3 - admin sets a provider's commission
+      ---
+      duration_ms: 1.143542
+      ...
+    # Subtest: GET /api/admin/bookings lists all bookings with pagination headers
+    ok 4 - GET /api/admin/bookings lists all bookings with pagination headers
+      ---
+      duration_ms: 1.133542
+      ...
+    1..4
+ok 1 - admin
+  ---
+  duration_ms: 285.397125
+  ...
+# Subtest: bidding
+    # Subtest: setup
+    ok 1 - setup
+      ---
+      duration_ms: 344.356583
+      ...
+    # Subtest: customer posts a job (201, open); provider bids (201); duplicate bid -> 409
+    ok 2 - customer posts a job (201, open); provider bids (201); duplicate bid -> 409
+      ---
+      duration_ms: 3.612917
+      ...
+    # Subtest: BID-ACCEPT RACE: two concurrent accepts of two bids -> one 200, one 409; job booked; losers rejected
+    ok 3 - BID-ACCEPT RACE: two concurrent accepts of two bids -> one 200, one 409; job booked; losers rejected
+      ---
+      duration_ms: 6.487333
+      ...
+    # Subtest: accept-vs-withdraw of the same bid -> exactly one succeeds
+    ok 4 - accept-vs-withdraw of the same bid -> exactly one succeeds
+      ---
+      duration_ms: 3.0875
+      ...
+    # Subtest: provider sees a job's own bid + count; a bid on a non-open job -> 409
+    ok 5 - provider sees a job's own bid + count; a bid on a non-open job -> 409
+      ---
+      duration_ms: 2.736
+      ...
+    1..5
+ok 2 - bidding
+  ---
+  duration_ms: 361.110167
+  ...
+# Subtest: booking lifecycle
+    # Subtest: setup
+    ok 1 - setup
+      ---
+      duration_ms: 278.036334
+      ...
+    # Subtest: place the first booking -> id 8001, awaiting, OTP present, 3 slot_holds
+    ok 2 - place the first booking -> id 8001, awaiting, OTP present, 3 slot_holds
+      ---
+      duration_ms: 2.594334
+      ...
+    # Subtest: validation: missing items -> 400; bad service_date -> 400
+    ok 3 - validation: missing items -> 400; bad service_date -> 400
+      ---
+      duration_ms: 2.385375
+      ...
+    # Subtest: idempotency: same key replays the same order, no second row
+    ok 4 - idempotency: same key replays the same order, no second row
+      ---
+      duration_ms: 2.180875
+      ...
+    # Subtest: SLOT DOUBLE-BOOK RACE: two concurrent bookings on the same slot -> one 201, one 409
+    ok 5 - SLOT DOUBLE-BOOK RACE: two concurrent bookings on the same slot -> one 201, one 409
+      ---
+      duration_ms: 2.518542
+      ...
+    # Subtest: state machine: confirm, wrong-provider start 403, complete-before-start 409, start, illegal restart 409
+    ok 6 - state machine: confirm, wrong-provider start 403, complete-before-start 409, start, illegal restart 409
+      ---
+      duration_ms: 5.302875
+      ...
+    # Subtest: OTP-gated complete: wrong 409, missing 400, correct 200; wallet credited exactly once
+    ok 7 - OTP-gated complete: wrong 409, missing 400, correct 200; wallet credited exactly once
+      ---
+      duration_ms: 4.907875
+      ...
+    # Subtest: cancel releases slot_holds; a cancelled slot is bookable again; cancel a completed booking -> 409
+    ok 8 - cancel releases slot_holds; a cancelled slot is bookable again; cancel a completed booking -> 409
+      ---
+      duration_ms: 4.579667
+      ...
+    # Subtest: reschedule onto a taken slot -> 409 (old holds intact); onto a free slot -> 200 rescheduled
+    ok 9 - reschedule onto a taken slot -> 409 (old holds intact); onto a free slot -> 200 rescheduled
+      ---
+      duration_ms: 2.265
+      ...
+    # Subtest: GET /api/bookings/:id is participant-only, and shows OTP to the customer only
+    ok 10 - GET /api/bookings/:id is participant-only, and shows OTP to the customer only
+      ---
+      duration_ms: 1.976459
+      ...
+    1..10
+ok 3 - booking lifecycle
+  ---
+  duration_ms: 308.381375
+  ...
+# Subtest: catalog
+    # Subtest: GET /api/categories lists the 4 active categories
+    ok 1 - GET /api/categories lists the 4 active categories
+      ---
+      duration_ms: 15.361542
+      ...
+    # Subtest: category -> services lists only approved providers' services
+    ok 2 - category -> services lists only approved providers' services
+      ---
+      duration_ms: 5.10525
+      ...
+    # Subtest: service detail 404 on a missing id
+    ok 3 - service detail 404 on a missing id
+      ---
+      duration_ms: 1.235417
+      ...
+    # Subtest: provider creates a service; duration must be a multiple of 30 else 400
+    ok 4 - provider creates a service; duration must be a multiple of 30 else 400
+      ---
+      duration_ms: 191.930167
+      ...
+    # Subtest: a provider cannot edit another provider's service -> 403
+    ok 5 - a provider cannot edit another provider's service -> 403
+      ---
+      duration_ms: 151.684666
+      ...
+    # Subtest: a provider can edit their own service
+    ok 6 - a provider can edit their own service
+      ---
+      duration_ms: 74.190792
+      ...
+    # Subtest: GET /api/services paginates with X-Total-Count / X-Page
+    ok 7 - GET /api/services paginates with X-Total-Count / X-Page
+      ---
+      duration_ms: 0.991458
+      ...
+    1..7
+ok 4 - catalog
+  ---
+  duration_ms: 441.969001
+  ...
+# Subtest: GET /api/health is a liveness check returning {status:ok}
+ok 5 - GET /api/health is a liveness check returning {status:ok}
+  ---
+  duration_ms: 17.955042
+  ...
+# Subtest: GET /api/ready reports the database is reachable
+ok 6 - GET /api/ready reports the database is reachable
+  ---
+  duration_ms: 0.465166
+  ...
+# Subtest: idempotency keys are scoped per actor
+ok 7 - idempotency keys are scoped per actor
+  ---
+  duration_ms: 1.08075
+  ...
+# Subtest: same actor + same key on a different endpoint conflicts
+ok 8 - same actor + same key on a different endpoint conflicts
+  ---
+  duration_ms: 0.329375
+  ...
+# Subtest: identity
+    # Subtest: customer register -> 201 + Location, then login -> token
+    ok 1 - customer register -> 201 + Location, then login -> token
+      ---
+      duration_ms: 199.841375
+      ...
+    # Subtest: duplicate customer email -> 409
+    ok 2 - duplicate customer email -> 409
+      ---
+      duration_ms: 75.0865
+      ...
+    # Subtest: bad credentials -> 401
+    ok 3 - bad credentials -> 401
+      ---
+      duration_ms: 199.359042
+      ...
+    # Subtest: register password < 8 chars -> 400
+    ok 4 - register password < 8 chars -> 400
+      ---
+      duration_ms: 1.048333
+      ...
+    # Subtest: provider register also creates provider_profiles + provider_wallets
+    ok 5 - provider register also creates provider_profiles + provider_wallets
+      ---
+      duration_ms: 120.529875
+      ...
+    # Subtest: /api/me is 401 without a token, 200 with one
+    ok 6 - /api/me is 401 without a token, 200 with one
+      ---
+      duration_ms: 121.750041
+      ...
+    # Subtest: a customer token on a provider-only route -> 403
+    ok 7 - a customer token on a provider-only route -> 403
+      ---
+      duration_ms: 121.228041
+      ...
+    # Subtest: a bad token -> 401
+    ok 8 - a bad token -> 401
+      ---
+      duration_ms: 0.331125
+      ...
+    # Subtest: malformed JSON body -> 400, not a crash
+    ok 9 - malformed JSON body -> 400, not a crash
+      ---
+      duration_ms: 113.376917
+      ...
+    1..9
+ok 9 - identity
+  ---
+  duration_ms: 954.531959
+  ...
+# Subtest: payment webhook idempotency
+    # Subtest: a gateway booking creates a requires_payment intent
+    ok 1 - a gateway booking creates a requires_payment intent
+      ---
+      duration_ms: 6.529875
+      ...
+    # Subtest: bad X-Webhook-Secret -> 401
+    ok 2 - bad X-Webhook-Secret -> 401
+      ---
+      duration_ms: 1.357666
+      ...
+    # Subtest: first webhook settles the intent, marks the order paid, records one charge + event
+    ok 3 - first webhook settles the intent, marks the order paid, records one charge + event
+      ---
+      duration_ms: 1.160375
+      ...
+    # Subtest: replaying the same gateway_event_id is a 200 no-op — no double credit
+    ok 4 - replaying the same gateway_event_id is a 200 no-op — no double credit
+      ---
+      duration_ms: 0.626375
+      ...
+    1..4
+ok 10 - payment webhook idempotency
+  ---
+  duration_ms: 215.2635
+  ...
+# Subtest: reviews + outbox eventual consistency
+    # Subtest: a review before completion -> 409
+    ok 1 - a review before completion -> 409
+      ---
+      duration_ms: 4.007375
+      ...
+    # Subtest: complete then review (201) writes the review + event but the aggregate stays stale
+    ok 2 - complete then review (201) writes the review + event but the aggregate stays stale
+      ---
+      duration_ms: 3.960834
+      ...
+    # Subtest: running the relay recomputes the aggregate and notifies the provider
+    ok 3 - running the relay recomputes the aggregate and notifies the provider
+      ---
+      duration_ms: 0.46075
+      ...
+    # Subtest: a duplicate review -> 409
+    ok 4 - a duplicate review -> 409
+      ---
+      duration_ms: 2.744958
+      ...
+    # Subtest: the relay is idempotent: a second pass does not double-apply
+    ok 5 - the relay is idempotent: a second pass does not double-apply
+      ---
+      duration_ms: 0.817625
+      ...
+    1..5
+ok 11 - reviews + outbox eventual consistency
+  ---
+  duration_ms: 198.656917
+  ...
+# Subtest: available slots
+    # Subtest: a closed weekday (Sunday) yields no slots
+    ok 1 - a closed weekday (Sunday) yields no slots
+      ---
+      duration_ms: 1.2515
+      ...
+    # Subtest: an open weekday reflects 09:00–18:00 hours for a 60-min service
+    ok 2 - an open weekday reflects 09:00–18:00 hours for a 60-min service
+      ---
+      duration_ms: 0.608209
+      ...
+    # Subtest: a 180-min service near closing yields no late start
+    ok 3 - a 180-min service near closing yields no late start
+      ---
+      duration_ms: 0.484666
+      ...
+    # Subtest: held slots are excluded
+    ok 4 - held slots are excluded
+      ---
+      duration_ms: 63.984375
+      ...
+    # Subtest: past starts today are excluded
+    ok 5 - past starts today are excluded
+      ---
+      duration_ms: 0.41525
+      ...
+    1..5
+ok 12 - available slots
+  ---
+  duration_ms: 144.130917
+  ...
+1..12
+# tests 61
+# suites 0
+# pass 61
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1869.396459
