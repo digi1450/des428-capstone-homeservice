@@ -7,15 +7,16 @@
 3. อ่าน OWNERS.md และ docs/team-plan.md แล้วรับงานกับเจ้าของ area
 4. ตกลง API/event/auth contracts กับผู้ใช้ interface นั้นก่อนเริ่มแก้
 
-ตอนนี้ยังไม่มี GitHub remote: คำสั่งที่ใช้ origin/PR จะใช้ได้หลังเชื่อม GitHub แล้ว
+Private repository: https://github.com/digi1450/des428-capstone-homeservice ใช้บัญชี GitHub ของตัวเองเมื่อได้รับเชิญ ห้ามแชร์บัญชีหรือ token
 
 ## Branch ต่อชิ้นงาน
 
-เตรียม local branches สำหรับงานแรก A–E ตาม docs/team-plan.md ไว้จาก baseline เดียวกัน โดยยังไม่ได้ publish ไป GitHub หลังเชื่อม remote และ publish แล้ว สมาชิกที่ clone repo สามารถเลือก branch งานแรก เช่น:
+เผยแพร่ branches งานแรก A–E ตาม docs/team-plan.md บน GitHub แล้ว สมาชิกที่ clone repo ให้ดึง main ล่าสุดและอัปเดต branch ก่อนเริ่มงาน เช่น:
 
 ```sh
 git fetch origin
 git switch feat/b-keycloak
+git merge origin/main
 ```
 
 เปลี่ยนชื่อ branch ตาม area ของตัวเองและรับงานกับทีมก่อน ตัวอย่างถัดไปใช้สำหรับสร้าง branch งานใหม่ ไม่ใช่สร้างชื่อซ้ำกับ branch ที่มีแล้ว
@@ -42,7 +43,7 @@ git commit -m "Extract notifications behind its service boundary"
 git push -u origin feat/a-notifications-extraction
 ```
 
-เปิด PR เข้า main และให้สมาชิกอื่นอย่างน้อยหนึ่งคน review เมื่อ push เพิ่มเข้า branch เดิม PR จะอัปเดตตาม อย่าใส่ secrets, tokens, .env, SQLite runtime, node_modules หรือ .next ใน commit
+เปิด PR เข้า main และให้ @digi1450 review/approve ก่อน merge ตาม CODEOWNERS เมื่อ push เพิ่มเข้า branch เดิม PR จะอัปเดตตาม อย่าใส่ secrets, tokens, .env, SQLite runtime, node_modules หรือ .next ใน commit
 
 ## เกณฑ์ merge
 
@@ -50,8 +51,12 @@ git push -u origin feat/a-notifications-extraction
 - แจ้งว่าเปลี่ยนอะไร กระทบใคร และทดสอบอะไรจริง รวมผลและสิ่งที่ยังไม่ทดสอบ
 - รัน inherited tests เมื่อแก้ business logic หรือส่วนเชื่อมต่อที่กระทบ monolith และรัน tests ของส่วนที่แก้
 - ถ้าเปลี่ยน API/events/auth ต้องแก้ contracts และทดสอบร่วมกับ consumer/provider ที่เกี่ยวข้อง การทดสอบ service เดี่ยวผ่านไม่ได้รับรองว่าระบบรวมผ่าน
-- ขอ review จากเจ้าของไฟล์/area ที่ได้รับผลกระทบ ไม่อนุมัติ PR ของตัวเองแทน peer review
-- ยังไม่มี automated CI หรือ branch protection ใน baseline นี้ E จะเพิ่ม checks; ผู้ดูแลต้องตั้ง GitHub ให้ require PR, peer review และ required checks ที่มีอยู่จริงก่อนเริ่มทำงานร่วมกัน
+- ขอ feedback จากเจ้าของ area ที่ได้รับผลกระทบได้ แต่ approval ของคนอื่นแทน approval ที่บังคับจาก @digi1450 ไม่ได้
+- CODEOWNERS กำหนด @digi1450 สำหรับทุกไฟล์ รวมถึง CODEOWNERS เอง; main ใช้ Require Code Owner Review และ approval อย่างน้อย 1 คน ถ้ามี code changes เพิ่ม approval เก่าจะถูกยกเลิกและต้อง review ใหม่
+- เจ้าของ repo @digi1450 มี admin bypass ตามที่ทีมผู้ดูแลเลือก จึง merge PR ของตัวเองได้โดยไม่ต้อง approve ตัวเอง สิทธิ์นี้ยังอนุญาตให้ Owner ข้ามข้อบังคับ PR/review ของ main ได้; สมาชิกทั่วไปไม่มีข้อยกเว้นนี้ ใช้ branch/PR เป็น workflow ปกติแม้เป็น Owner
+- เมื่อได้รับ approval ที่จำเป็นแล้ว สมาชิกที่มี write access อาจกด merge ได้ กฎนี้กำหนดผู้อนุมัติ ไม่ได้จำกัดปุ่ม merge ให้คนเดียว
+- ต้อง resolve conversations ก่อน merge สำหรับสมาชิกทั่วไป และไม่อนุญาต force push/delete main ตาม protection rule; Owner มี admin bypass จึงไม่ถือว่ากฎเหล่านี้บังคับกับ Owner
+- ยังไม่มี automated CI/required status checks ใน baseline นี้ E จะเพิ่ม workflow และตั้ง required checks หลังมีชื่อ check ที่รันจริง
 
 ## อัปเดต branch ที่กำลังทำ
 

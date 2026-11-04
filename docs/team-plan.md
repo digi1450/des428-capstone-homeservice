@@ -22,7 +22,7 @@ A and C lead a short meeting with B/D/E to record:
 
 Suggested events include booking.placed and payment.succeeded; verify actual source semantics before freezing names/schemas. Do not treat a timeout as proof that a payment failed.
 
-## First tasks (initial local branches; not published to GitHub yet)
+## First tasks (starter branches published to the private GitHub repository)
 
 | Area | First branch | Start now | Dependency for real integration |
 |---|---|---|---|
@@ -43,4 +43,5 @@ Within the team's agreed schedule, demonstrate one real authenticated operation 
 - The assignment allows a different seam when defended in the dossier. Document why these two boundaries are chosen; its summary table and the detailed Homeservice README differ.
 - B and D must identify real inherited BOLA/race candidates. Existing guards already cover several examples in this source. If no matching candidate is found, clarify acceptable evidence with the lecturer; do not introduce a defect and claim it was inherited.
 - Baseline tests are historical evidence only. New measurements, traces and tests must come from the team's actual implementation runs.
-- The root full-stack Compose, four final demo scripts, dossier, recording, CI, branch protection and remote are future tasks, not completed scaffolding.
+- The private GitHub remote and starter branches are published. Main requires owner review via CODEOWNERS, with the repository owner's explicitly chosen admin bypass; see CONTRIBUTING.md.
+- The root full-stack Compose, four final demo scripts, dossier, recording and CI remain future tasks, not completed scaffolding.
