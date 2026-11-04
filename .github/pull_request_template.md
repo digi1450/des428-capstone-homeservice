@@ -12,7 +12,7 @@ Record actual commands/results and integration checks. Label checks not run; lin
 
 ## Review
 
-- [ ] @digi1450 approved the change, or the repository owner explicitly used admin bypass for their own PR.
+- [ ] At least one reviewer with write access other than the PR author approved, or the repository owner explicitly used admin bypass.
 - [ ] Relevant area owners provided feedback where needed.
 - [ ] Appropriate tests passed and the documented boot path still works.
 - [ ] Consumer/provider changes are coordinated where needed.

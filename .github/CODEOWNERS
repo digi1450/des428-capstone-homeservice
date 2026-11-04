@@ -1,3 +1,4 @@
-# Required GitHub merge-review owner for every path, including this file.
+# Suggested review contact for every path; code-owner approval is not required.
+# Main requires one eligible peer approval, with repository-owner admin bypass.
 # Academic area accountability remains in OWNERS.md.
 * @digi1450
