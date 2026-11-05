@@ -62,6 +62,8 @@ Never start a second pool/transaction inside `withTransaction` to write the asso
 
 Prepared monolith transport/mapping: [Payments adapter handoff](../docs/payment-adapter-handoff.md). Existing callers are still unchanged.
 
+Prepared notification projections/batch writer: [Notifications mappings handoff](../docs/notification-mappings-handoff.md). C still owns live broker delivery/dedupe and provider-approval production.
+
 ## Health and business integration status
 
 `GET /health/live` checks only that HTTP is alive; `GET /health/ready` checks the service's database migration version and returns 503 on failure. Responses disable caching and carry X-Request-Id. A healthy scaffold does not mean extraction is finished. Payments wallet/history read routes return 503 until B supplies a verifier; financial mutation routes remain unmounted. See [Payments business handoff](../docs/payments-business-handoff.md) for C hooks and the pending command/fence integration. Notifications GET /api/notifications and POST /api/notifications/{id}/read are implemented but return 503 until B supplies a real verifier. There is no public notification-creation endpoint. See [Notifications handoff](../docs/notifications-handoff.md) for B/C hooks, the prepared monolith client and remaining cutover work.

@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:homeservice:notification-projection-input:v1",
+  "title": "Notification projection input \u2014 draft for C integration",
+  "description": "Only the event_type/data projection pair. C owns the actual versioned/authenticated broker envelope. Extra data fields are accepted but not persisted by mappings; bid winner must also be absent from losers (business validator).",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "const": "review.created"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "order_id",
+            "provider_id",
+            "rating"
+          ],
+          "properties": {
+            "order_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "provider_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "rating": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "const": "booking.status_changed"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "order_id",
+            "customer_id",
+            "provider_id",
+            "to",
+            "actor_role"
+          ],
+          "properties": {
+            "order_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "customer_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "provider_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "to": {
+              "enum": [
+                "awaiting",
+                "confirmed",
+                "started",
+                "completed",
+                "cancelled",
+                "rescheduled"
+              ]
+            },
+            "actor_role": {
+              "enum": [
+                "customer",
+                "provider",
+                "admin"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "const": "booking.completed"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "order_id",
+            "customer_id"
+          ],
+          "properties": {
+            "order_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "customer_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "const": "bid.accepted"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "order_id",
+            "job_request_id",
+            "winner_provider_id"
+          ],
+          "properties": {
+            "order_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "job_request_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "winner_provider_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "loser_provider_ids": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  },
+                  "uniqueItems": true
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "const": "payment.succeeded"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "order_id",
+            "provider_id",
+            "amount_cents"
+          ],
+          "properties": {
+            "order_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "provider_id": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "amount_cents": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_type": {
+          "const": "provider.approved"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "provider_id"
+          ],
+          "properties": {
+            "provider_id": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          "description": "PROPOSED event replacing direct provider approval notification; producer/outbox not implemented yet."
+        }
+      }
+    }
+  ]
+}

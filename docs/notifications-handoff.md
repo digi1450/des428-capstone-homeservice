@@ -44,7 +44,7 @@ await database.withTransaction(async client => {
 });
 ```
 
-`record()` with a client joins the transaction; without a client it opens its own. This method alone provides no event dedupe. C's outbox/inbox and consumer lifecycle remain C's implementation. The original relay's five notification mappings still live in the monolith; coordinate their movement with A. Review-created rating recomputations stay with Catalog/Provider data owners. Provider approval's direct notification must also become durable service-owned delivery before retiring SQLite writes.
+`record()` with a client joins the transaction; without a client it opens its own. This method alone provides no event dedupe. C's outbox/inbox and consumer lifecycle remain C's implementation. A now provides [pure notification mappings and an atomic batch writer](notification-mappings-handoff.md) for C. The original relay still runs in the monolith; transport/dedupe and active cutover remain pending. Review-created rating recomputations stay with Catalog/Provider data owners. Provider approval's direct notification must also become durable service-owned delivery before retiring SQLite writes.
 
 ## Remaining cutover acceptance
 
