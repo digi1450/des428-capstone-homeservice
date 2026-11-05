@@ -1,6 +1,6 @@
 # A extraction inventory — initial source audit
 
-Status: source inventory for the first scaffold, not a completed extraction. All existing callers below still run in the monolith. Preserve their public paths, authorization, field types and behavior when replacing direct imports/SQL with authorized service clients. See [migration handoff](migration-handoff.md) for selected boundaries and saga rules.
+Status: source inventory for the first scaffold, not a completed extraction. Notifications repository/service/router and an unused monolith HTTP client are now implemented; see [Notifications handoff](notifications-handoff.md). All existing callers below still run in the monolith. Preserve their public paths, authorization, field types and behavior when replacing direct imports/SQL with authorized service clients. See [migration handoff](migration-handoff.md) for selected boundaries and saga rules.
 
 | Existing path | Current access/effect | Required destination / coordination |
 |---|---|---|
