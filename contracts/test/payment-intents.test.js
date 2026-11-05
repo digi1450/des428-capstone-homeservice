@@ -38,3 +38,21 @@ test("contract rejects negative money, unknown fields and invalid command identi
   assert.equal(create({ ...fixtures.create.body, raw_role: "admin" }), false);
   assert.equal(create({ ...fixtures.create.body, saga_id: "" }), false);
 });
+
+test("command/saga contract rejects URL dot segments without banning normal dotted IDs",()=>{
+  const createBody=validator("CreatePaymentIntent");
+  const createdBody=validator("CreatedOperation");
+  const cancelBody=validator("CancelPaymentIntent");
+  const keySchemas=[
+    spec.paths["/internal/payment-intents"].post.parameters[0].schema,
+    spec.paths["/internal/payment-intents/cancel-by-command"].post.parameters[0].schema,
+    spec.paths["/internal/payment-operations/{create_command_id}"].get.parameters[0].schema,
+  ];
+  for(const dot of [".",".."]) {
+    assert.equal(createBody({...fixtures.create.body,saga_id:dot}),false);
+    assert.equal(createdBody({...fixtures.created,create_command_id:dot}),false);
+    assert.equal(cancelBody({...fixtures.cancel.body,create_command_id:dot}),false);
+    for(const schema of keySchemas)assert.equal(ajv.compile(schema)(dot),false);
+  }
+  for(const schema of keySchemas)assert.equal(ajv.compile(schema)("..booking-42"),true);
+});

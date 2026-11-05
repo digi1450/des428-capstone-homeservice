@@ -44,6 +44,6 @@ Gateway receipt replay checks event ID and normalized payload; an existing unpro
 
 ## Next integration work
 
-B/C review these interfaces and add their adapters. A still needs the monolith Payments client/callers, migration/backfill and compatible UI serialization; E/D integrate gateway/Compose, auth, retries and real fault/contract/trace evidence. Keep original readers/writers active together until a coordinated cutover; do not switch only reads and leave new writes in SQLite.
+B/C review these interfaces and add their adapters. A now has a [prepared monolith Payments client and Booking adapter](payment-adapter-handoff.md); active callers, migration/backfill and coordinated UI cutover remain pending; E/D integrate gateway/Compose, auth, retries and real fault/contract/trace evidence. Keep original readers/writers active together until a coordinated cutover; do not switch only reads and leave new writes in SQLite.
 
 Test staging uses a temporary SQL probe table and synthetic eligibility/auth callbacks to verify atomicity. That is not a RabbitMQ outbox implementation, actual Keycloak verification, saga recovery or D's required fault/race evidence. See [recorded validation](validation/payments-business-2026-11-05.md) for observed checks and reproduction.
