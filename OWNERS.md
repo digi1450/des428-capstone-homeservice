@@ -4,7 +4,7 @@ Ownership records accountability across the full area, not exclusive permission 
 
 | Area | Owner | Scope | Work evidence |
 |---|---|---|---|
-| A — Extract and route | Thumathorn Rungratana | Implement both business services/APIs/databases, nginx, monolith adapters and compatibility; coordinate C consistency, B auth, D resilience and E delivery | [Scaffold PR #5](https://github.com/digi1450/des428-capstone-homeservice/pull/5) merged; [Notifications business slice](docs/notifications-handoff.md) implemented with auth/events/cutover pending |
+| A — Extract and route | Thumathorn Rungratana | Implement both business services/APIs/databases, nginx, monolith adapters and compatibility; coordinate C consistency, B auth, D resilience and E delivery | [Scaffold PR #5](https://github.com/digi1450/des428-capstone-homeservice/pull/5) merged; [Notifications business slice](docs/notifications-handoff.md) and [Payments primitives](docs/payments-business-handoff.md) implemented with auth/consistency/cutover pending |
 | B — Secure | Nattapat Lertsiritam | Keycloak, validation in both services, ownership and inherited BOLA evidence | Pending |
 | C — Keep data correct | Peerawit Amnartpanich | Outbox, RabbitMQ, dedupe, Booking-orchestrated saga/compensation and recovery worker; integrate with A-owned business APIs/transaction hooks | Pending |
 | D — Survive failure | Chanakan Maiain | HTTP retry/idempotency, 3 faults, inherited race fix/concurrency evidence across A-owned services; coordinate C command/event semantics | Pending |
