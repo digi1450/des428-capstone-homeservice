@@ -37,6 +37,12 @@ Observed against the running containers:
 
 The script stopped/started only `notifications-db` inside the `homeservice-a-check` project and restored it in a finally block. This demonstrates health/dependency isolation of the scaffold. It does not establish business recovery, message delivery, saga correctness or the final system's memory use. The temporary validation stack is stopped after validation; its database volumes are retained.
 
+## Pre-merge review fix: image port defaults
+
+Automated PR review identified that the initial Docker healthcheck read PORT directly while the apps had fallback ports. Running an image without `-e PORT` made HTTP work but Docker health fail. Set image defaults to PORT=3001 (Notifications) and PORT=3002 (Payments & Wallet), matching `readConfig()`; explicit environment overrides still take precedence.
+
+Rebuilt both images and booted the isolated Compose project with `--wait`: passed. Then ran each image using `docker run -d --network homeservice-a-check_default -e DATABASE_URL=... homeservice-a-check-SERVICE`, deliberately **without** a PORT override. Both reached Docker `healthy` and returned HTTP 200 / ready at their default internal ports. The temporary containers were removed afterward. This is a real image-level regression check; the 11 prior source/contract tests remain applicable because no JavaScript, SQL, contracts or dependencies changed in this fix.
+
 ## Remaining work
 
 B/C/D/E must review the draft contract and wire their authentication, command/outbox/dedupe, retry and deployment requirements. Business routers are not mounted; external business requests receive 404. The monolith still owns/serves all original flows pending cutover. New PostgreSQL schemas are initial business schemas; migration/backfill, compatible serialization, command fences and actual business writes remain subsequent A/C work. No final root Compose, nginx, broker, Keycloak, observability or end-to-end proof is claimed here.
