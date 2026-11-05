@@ -6,7 +6,7 @@ Private team repository for migrating the supplied Homeservice monolith into two
 
 - Original monolith is preserved in `bangkok-homeservice/`.
 - The initial Docker baseline passed 61 tests and HTTP smoke checks on 4 November 2026. See [recorded evidence](docs/baseline/2026-11-04/README.md).
-- Notifications and Payments & Wallet are the proposed extraction boundaries. New services, gateway, Keycloak, RabbitMQ, saga and observability are not implemented yet.
+- Notifications and Payments & Wallet are the selected extraction boundaries. Their initial Express/PostgreSQL scaffold is in [services/](services/README.md); business extraction, gateway, Keycloak, RabbitMQ, saga and observability are pending.
 - Team ownership: [OWNERS.md](OWNERS.md). Branch/PR instructions: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Run the original system
@@ -62,7 +62,7 @@ OWNERS.md                 owners A–E and contribution links
 CONTRIBUTING.md            branch, review and integration workflow
 ```
 
-Planned additions: `services/notifications/`, `services/payments-wallet/`, `infra/`, contract/resilience tests, root `docker-compose.yml`, final demo scripts and `docs/dossier.md`. Create these with the first implementation PRs after agreeing on interfaces; empty directories do not mean features are implemented.
+Initial additions: `services/notifications/`, `services/payments-wallet/`, isolated `services/compose.dev.yml`, [caller inventory](docs/extraction-inventory.md) and draft contracts in `contracts/`. See [service setup and handoff](services/README.md). Planned: final `infra/`, contract/resilience integration tests, root `docker-compose.yml`, final demo scripts and `docs/dossier.md`. A scaffold does not mean extraction is complete.
 
 ## Capstone completion work
 

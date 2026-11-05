@@ -1,0 +1,703 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Homeservice payment provisioning \u2014 DRAFT",
+    "version": "0.1.0",
+    "description": "Proposed A/C/D interface for review by B/C/D/E. No business routes are implemented in the first scaffold. B must finalize Keycloak audience/scopes and service identity. Normal public booking API remains separate."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3002",
+      "description": "Proposed local endpoint; scaffold currently returns 404 for business routes"
+    }
+  ],
+  "security": [
+    {
+      "serviceBearer": []
+    }
+  ],
+  "paths": {
+    "/internal/payment-intents": {
+      "post": {
+        "operationId": "createPaymentIntent",
+        "description": "DRAFT, unimplemented. First accepted command returns 201; identical replay returns 200 with the same body. Persist result and effect atomically. Same booking cannot get a second intent. No charge occurs.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Stable command ID scoped to the verified service caller and operation; create and cancel use different keys. Retries reuse the original key and body.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentIntent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Intent durably created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOperation"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Stored successful command replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOperation"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Keycloak token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller or operation not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command/body conflict, fenced create, or settled intent requiring reconciliation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unknown or temporary outcome; retain original command and reconcile, never infer safe cancellation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Bounded delay in seconds before retrying with the SAME command key. Not a terminal business result.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/payment-operations/{create_command_id}": {
+      "get": {
+        "operationId": "getPaymentOperation",
+        "description": "DRAFT, unimplemented. A completed operation returns created/cancelled. In-progress or inconclusive state returns retryable 503. A 404 is only a lookup miss and does not prove an earlier create cannot still commit.",
+        "parameters": [
+          {
+            "name": "create_command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Durable terminal result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CreatedOperation"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CancelledOperation"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown command; NOT safe-to-release proof",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Keycloak token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller or operation not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command/body conflict, fenced create, or settled intent requiring reconciliation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unknown or temporary outcome; retain original command and reconcile, never infer safe cancellation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Bounded delay in seconds before retrying with the SAME command key. Not a terminal business result.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/payment-intents/cancel-by-command": {
+      "post": {
+        "operationId": "cancelPaymentIntentByCommand",
+        "description": "DRAFT, unimplemented. Atomically fence even an absent create command against future activation; void an unpaid intent if present. 200 means safe cancellation is durably recorded. A settled payment returns 409 and needs refund/reconciliation. Concurrent create/cancel must serialize by the create command and booking.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Stable command ID scoped to the verified service caller and operation; create and cancel use different keys. Retries reuse the original key and body.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelPaymentIntent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Durable cancellation fence, including replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelledOperation"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid Keycloak token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller or operation not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Command/body conflict, fenced create, or settled intent requiring reconciliation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unknown or temporary outcome; retain original command and reconcile, never infer safe cancellation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Bounded delay in seconds before retrying with the SAME command key. Not a terminal business result.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "serviceBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Keycloak service caller token; exact roles/audience mapping requires B review."
+      }
+    },
+    "schemas": {
+      "PaymentIntent": {
+        "type": "object",
+        "required": [
+          "id",
+          "order_id",
+          "amount_cents",
+          "gateway_ref",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "order_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "gateway_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requires_payment",
+              "succeeded",
+              "failed"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreatePaymentIntent": {
+        "type": "object",
+        "required": [
+          "order_id",
+          "customer_id",
+          "provider_id",
+          "amount_cents",
+          "currency",
+          "saga_id"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "customer_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "provider_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "THB"
+            ]
+          },
+          "saga_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CancelPaymentIntent": {
+        "type": "object",
+        "required": [
+          "create_command_id",
+          "saga_id",
+          "reason"
+        ],
+        "properties": {
+          "create_command_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "saga_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "booking_setup_failed",
+              "booking_finalization_failed"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreatedOperation": {
+        "type": "object",
+        "required": [
+          "create_command_id",
+          "saga_id",
+          "outcome",
+          "payment_intent"
+        ],
+        "properties": {
+          "create_command_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "saga_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created"
+            ]
+          },
+          "payment_intent": {
+            "$ref": "#/components/schemas/PaymentIntent"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CancelledOperation": {
+        "type": "object",
+        "required": [
+          "create_command_id",
+          "saga_id",
+          "outcome"
+        ],
+        "properties": {
+          "create_command_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "saga_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "cancelled"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error",
+          "requestId"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

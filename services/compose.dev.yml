@@ -1,0 +1,58 @@
+# A's isolated scaffold. E owns the final root Compose (nginx/IdP/broker/telemetry).
+name: homeservice-a-dev
+services:
+  notifications-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifications
+      POSTGRES_USER: notifications
+      POSTGRES_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:${NOTIFICATIONS_DB_PORT:-5433}:5432"
+    volumes:
+      - notifications-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifications -d notifications"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  payments-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payments_wallet
+      POSTGRES_USER: payments_wallet
+      POSTGRES_PASSWORD: ${PAYMENTS_DB_PASSWORD:?Set PAYMENTS_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:${PAYMENTS_DB_PORT:-5434}:5432"
+    volumes:
+      - payments-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments_wallet -d payments_wallet"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  notifications:
+    build: ./notifications
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://notifications:${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD}@notifications-db:5432/notifications
+    command: ["sh", "-c", "node src/migrate.js && exec node src/server.js"]
+    ports:
+      - "127.0.0.1:${NOTIFICATIONS_PORT:-3001}:3001"
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+  payments-wallet:
+    build: ./payments-wallet
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgresql://payments_wallet:${PAYMENTS_DB_PASSWORD:?Set PAYMENTS_DB_PASSWORD}@payments-db:5432/payments_wallet
+    command: ["sh", "-c", "node src/migrate.js && exec node src/server.js"]
+    ports:
+      - "127.0.0.1:${PAYMENTS_PORT:-3002}:3002"
+    depends_on:
+      payments-db:
+        condition: service_healthy
+volumes:
+  notifications-data:
+  payments-data:
