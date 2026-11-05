@@ -1,11 +1,11 @@
 # Initial team plan — Homeservice
 
-Status: selected system; proposed service boundaries, pending source-level interface agreement. This file is a work plan, not a completed architecture dossier or defence.
+Status: the lead selected the scope, PostgreSQL deployment, saga and work split on 5 November 2026. See [migration-handoff.md](migration-handoff.md) for selected decisions and draft implementation interfaces. Interfaces still need implementation review; this is not a completed architecture dossier or defence. No individual deadlines are assigned.
 
 ## Scope
 
 - Preserve Booking and Bidding together initially, including their shared slot-hold invariant.
-- Extract Notifications and Payments & Wallet as two Express services with separately owned PostgreSQL or MySQL databases.
+- A implements Notifications and Payments & Wallet as two Express services with separately owned PostgreSQL databases in two PostgreSQL containers; C primarily implements consistency/saga/recovery modules and coordinates their integration with A.
 - Keep unrelated capabilities in the Next.js monolith. Move all callers of migrated tables; do not leave cross-service SQL or shared database writes.
 - The notification relay also updates Catalog/Provider ratings: leave each aggregate write with its data owner rather than moving the whole relay into a service that writes monolith tables.
 - Next.js Server Components call business code directly; routing HTTP endpoints alone does not complete extraction.
@@ -20,19 +20,19 @@ A and C lead a short meeting with B/D/E to record:
 4. Keycloak subject to existing user ID mapping, roles/audiences and ownership rules.
 5. Idempotency scope, timeout/retry semantics and durable saga state/compensation.
 
-Suggested events include booking.placed and payment.succeeded; verify actual source semantics before freezing names/schemas. Do not treat a timeout as proof that a payment failed.
+The source-grounded first evidence pair is booking.status_changed and payment.succeeded; see migration-handoff.md for draft schemas, durable provisioning saga and compensation rules. Do not equate payment-intent creation with charging money, or a timeout with a failed write.
 
 ## First tasks (starter branches published to the private GitHub repository)
 
 | Area | First branch | Start now | Dependency for real integration |
 |---|---|---|---|
-| A | feat/a-service-extraction | Caller/table map, service/gateway skeletons, Notifications extraction | B auth contract, C payment/events, E Compose |
-| B | feat/b-keycloak | Keycloak setup and identity/ownership mapping | A/C endpoints for validation tests |
-| C | feat/c-payment-outbox | Payment transactions, contracts, outbox/broker/dedupe; help build Payments & Wallet | A Booking adapters, E service wiring |
-| D | feat/d-resilience | Existing guard inspection, retry/fault harness; help Notifications | A/C write paths for real fault tests |
-| E | feat/e-compose-ci | Compose plan, health, CI/telemetry skeleton and Pact from agreed contracts | A/C implementations and B tokens for final verification |
+| A | feat/a-extract-and-route | Both business services/repositories/APIs, nginx and monolith adapters; hand off schema/transaction hooks and payment interfaces early | B auth contract, C consistency/saga modules, E Compose |
+| B | feat/b-secure | Keycloak setup and identity/ownership mapping | A/C endpoints for validation tests |
+| C | feat/c-keep-data-correct | Outbox/broker/dedupe, Booking orchestration and recovery against agreed interfaces; no need to wait for complete extraction | A payment APIs/transaction hooks and Booking adapters, E wiring |
+| D | feat/d-survive-failure | Retry/idempotency and fault/concurrency harness across both A-owned services | A/C write paths for real fault tests |
+| E | feat/e-observe-and-ship | Compose plan, health, CI/telemetry skeleton and Pact from agreed contracts | A/C implementations and B tokens for final verification |
 
-Use stubs/fixtures matching agreed contracts during development, then verify with actual services before claiming integration complete. E starts early; A does not implement two full services alone.
+Use stubs/fixtures matching agreed contracts during development, then verify with actual services before claiming integration complete. A implements both business services by the lead's choice; C integrates messaging/saga code in coordinated PRs, while B/D/E supply cross-cutting modules. E starts early.
 
 ## Early integration target
 

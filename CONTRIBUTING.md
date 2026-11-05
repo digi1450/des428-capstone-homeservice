@@ -4,7 +4,7 @@
 
 1. Clone private repository จาก URL จริงของทีม แล้วเข้าโฟลเดอร์ repository
 2. รัน monolith และ tests ตาม README ให้ได้ก่อน
-3. อ่าน OWNERS.md และ docs/team-plan.md แล้วรับงานกับเจ้าของ area
+3. อ่าน OWNERS.md, docs/team-plan.md และ [migration handoff](docs/migration-handoff.md) แล้วรับงานกับเจ้าของ area
 4. ตกลง API/event/auth contracts กับผู้ใช้ interface นั้นก่อนเริ่มแก้
 
 Private repository: https://github.com/digi1450/des428-capstone-homeservice ใช้บัญชี GitHub ของตัวเองเมื่อได้รับเชิญ ห้ามแชร์บัญชีหรือ token
@@ -15,13 +15,13 @@ Private repository: https://github.com/digi1450/des428-capstone-homeservice ใ�
 
 ```sh
 git fetch origin
-git switch feat/b-keycloak
+git switch feat/b-secure
 git merge origin/main
 ```
 
 เปลี่ยนชื่อ branch ตาม area ของตัวเองและรับงานกับทีมก่อน ตัวอย่างถัดไปใช้สำหรับสร้าง branch งานใหม่ ไม่ใช่สร้างชื่อซ้ำกับ branch ที่มีแล้ว
 
-ไม่ push ตรงเข้า main ใช้ branch สั้นตามงาน เช่น feat/a-notifications-extraction หรือ feat/b-keycloak งานใหม่หลัง PR เดิมจบให้สร้าง branch ใหม่จาก main ล่าสุด ไม่ใช้ branch ประจำคนยาวจนจบโปรเจกต์
+ไม่ push ตรงเข้า main ใช้ branch สั้นตามงาน เช่น feat/a-notifications-extraction หรือ feat/b-secure งานใหม่หลัง PR เดิมจบให้สร้าง branch ใหม่จาก main ล่าสุด ไม่ใช้ branch ประจำคนยาวจนจบโปรเจกต์
 
 ก่อนเริ่ม ตรวจว่าไม่มีงานค้างที่ยังไม่ commit:
 
@@ -76,8 +76,9 @@ git merge origin/main
 | ส่วน | ผู้ประสานหลัก | ผู้ร่วม review |
 |---|---|---|
 | Gateway, monolith callers, ขอบเขตการย้ายทั้งสอง services | A | C และผู้ใช้ interface |
-| Notifications extraction | A โดย D ช่วย | B/C/E ตามผลกระทบ |
-| Payments & Wallet implementation, events, saga | C ร่วม A | A/D |
+| Notifications business implementation/extraction | A | B/C/D/E ตามผลกระทบ |
+| Payments & Wallet business implementation/extraction | A | B/C/D ตามผลกระทบ |
+| Outbox, events, dedupe, Booking saga/recovery | C ประสาน API/transaction hooks กับ A | A/D/E |
 | Keycloak และ token/user mapping | B | A/C |
 | Retry, idempotency, fault/concurrency tests | D | A/C |
 | Root Compose, observability, CI | E | ทุก area ที่เกี่ยวข้อง |
