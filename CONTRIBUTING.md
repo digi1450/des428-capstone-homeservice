@@ -43,7 +43,7 @@ git commit -m "Extract notifications behind its service boundary"
 git push -u origin feat/a-notifications-extraction
 ```
 
-เปิด PR เข้า main และให้สมาชิกที่มี write access ซึ่งไม่ใช่ผู้เปิด PR อย่างน้อย 1 คน review/approve ก่อน merge ไม่จำเป็นต้องเป็น @digi1450 เมื่อ push เพิ่มเข้า branch เดิม PR จะอัปเดตตาม อย่าใส่ secrets, tokens, .env, SQLite runtime, node_modules หรือ .next ใน commit
+เปิด PR เข้า main ก่อนเสมอ แต่ไม่บังคับให้มี approval (required approvals = 0) สมาชิกที่มี write access merge PR ของตัวเองหรือของเพื่อนได้เมื่อเงื่อนไขอื่นผ่าน GitHub ไม่ให้ผู้เปิด PR กด Approve ตัวเอง จึงใช้การ merge โดยไม่ต้องรอ approval แทน เมื่อ push เพิ่มเข้า branch เดิม PR จะอัปเดตตาม อย่าใส่ secrets, tokens, .env, SQLite runtime, node_modules หรือ .next ใน commit
 
 ## เกณฑ์ merge
 
@@ -51,10 +51,10 @@ git push -u origin feat/a-notifications-extraction
 - แจ้งว่าเปลี่ยนอะไร กระทบใคร และทดสอบอะไรจริง รวมผลและสิ่งที่ยังไม่ทดสอบ
 - รัน inherited tests เมื่อแก้ business logic หรือส่วนเชื่อมต่อที่กระทบ monolith และรัน tests ของส่วนที่แก้
 - ถ้าเปลี่ยน API/events/auth ต้องแก้ contracts และทดสอบร่วมกับ consumer/provider ที่เกี่ยวข้อง การทดสอบ service เดี่ยวผ่านไม่ได้รับรองว่าระบบรวมผ่าน
-- ขอ feedback จากเจ้าของ area ที่ได้รับผลกระทบ และมี approval อย่างน้อย 1 คนจากผู้มี write access ที่ไม่ใช่ผู้เปิด PR; ไม่บังคับว่าต้องเป็นเจ้าของ repo
-- ปิด Require Code Owner Review แล้ว CODEOWNERS ยังคงระบุ @digi1450 เป็นผู้ติดต่อ review โดยปริยาย แต่ approval ของสมาชิกที่มีสิทธิ์คนอื่นก็ผ่านเงื่อนไขได้ ถ้ามี code changes เพิ่ม approval เก่าจะถูกยกเลิกและต้อง review ใหม่
+- ประสานเจ้าของ area ที่ได้รับผลกระทบและตรวจ diff/ผลทดสอบก่อน merge; ขอ review จากเพื่อนได้ แต่ไม่บังคับให้มี approval
+- ปิด Require Code Owner Review แล้ว CODEOWNERS ระบุ @digi1450 เป็นผู้ติดต่อ review โดยปริยาย ไม่ใช่ผู้ที่ต้องอนุมัติ เงื่อนไข dismiss stale reviews ยังเก็บไว้ แต่ไม่ได้ทำให้ต้องมี approval เมื่อ required approvals เป็น 0
 - เจ้าของ repo @digi1450 มี admin bypass ตามที่ทีมผู้ดูแลเลือก จึง merge PR ของตัวเองได้โดยไม่ต้อง approve ตัวเอง สิทธิ์นี้ยังอนุญาตให้ Owner ข้ามข้อบังคับ PR/review ของ main ได้; สมาชิกทั่วไปไม่มีข้อยกเว้นนี้ ใช้ branch/PR เป็น workflow ปกติแม้เป็น Owner
-- เมื่อได้รับ approval ที่จำเป็นแล้ว สมาชิกที่มี write access อาจกด merge ได้ กฎนี้กำหนดผู้อนุมัติ ไม่ได้จำกัดปุ่ม merge ให้คนเดียว
+- สมาชิกที่มี write access merge PR ของตัวเองหรือของสมาชิกคนอื่นได้โดยไม่ต้องรอ approval; ยังคงต้องแก้ conflicts และ resolve conversations รวมถึงผ่าน required checks หากทีมเพิ่มภายหลัง
 - ต้อง resolve conversations ก่อน merge สำหรับสมาชิกทั่วไป และไม่อนุญาต force push/delete main ตาม protection rule; Owner มี admin bypass จึงไม่ถือว่ากฎเหล่านี้บังคับกับ Owner
 - ยังไม่มี automated CI/required status checks ใน baseline นี้ E จะเพิ่ม workflow และตั้ง required checks หลังมีชื่อ check ที่รันจริง
 

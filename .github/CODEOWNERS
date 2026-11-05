@@ -1,4 +1,5 @@
 # Suggested review contact for every path; code-owner approval is not required.
-# Main requires one eligible peer approval, with repository-owner admin bypass.
+# Main requires a PR with zero mandatory approvals; writers may merge their own PRs.
+# Repository-owner admin bypass remains enabled.
 # Academic area accountability remains in OWNERS.md.
 * @digi1450
