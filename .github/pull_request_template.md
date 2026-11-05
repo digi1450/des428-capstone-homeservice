@@ -12,7 +12,7 @@ Record actual commands/results and integration checks. Label checks not run; lin
 
 ## Review
 
-- [ ] At least one reviewer with write access other than the PR author approved, or the repository owner explicitly used admin bypass.
+- [ ] The author checked the diff and evidence; peer review is optional (zero mandatory approvals). A writer may merge their own PR after other requirements pass.
 - [ ] Relevant area owners provided feedback where needed.
 - [ ] Appropriate tests passed and the documented boot path still works.
 - [ ] Consumer/provider changes are coordinated where needed.

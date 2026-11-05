@@ -47,7 +47,7 @@ docker compose -f bangkok-homeservice/docker-compose.yml run --rm test
 
 - Inspect `git status` and the current branch first. Preserve others' changes and use a task branch from current `main`; do not force-push, rewrite others' history or resolve conflicts by discarding their work.
 - Stage only reviewed files for the task. Keep commits and PRs small; document interface changes, validation and remaining limitations.
-- Follow `CONTRIBUTING.md`: collaborator PRs into `main` require at least one approving review from someone with write access other than the PR author. `.github/CODEOWNERS` suggests a review contact but does not make their approval mandatory. `OWNERS.md` describes academic responsibilities, not GitHub access control.
+- Follow `CONTRIBUTING.md`: changes to `main` still go through a PR, but zero approving reviews are required. Any collaborator with write access may merge their own or another member's PR when other applicable requirements pass. GitHub does not allow authors to approve their own PR; this policy removes the approval requirement instead. `.github/CODEOWNERS` suggests an optional review contact. `OWNERS.md` describes academic responsibilities, not GitHub access control.
 - The repository owner has explicitly enabled admin bypass, but that is not standing authorization for an agent to use it. A request to commit/push does not authorize merging a PR, bypassing review or pushing directly to `main`; do those only when explicitly requested for the task.
 - Do not change repository visibility, branch protection or collaborator access without user direction. Keep this repository private.
 
