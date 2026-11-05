@@ -2,7 +2,7 @@
 
 Recorded checks: [first scaffold validation](../docs/validation/a-scaffold-2026-11-05.md).
 
-Implemented here: two independently installable Express apps, PostgreSQL pools and same-client transaction hooks, additive/checksummed migrations, liveness/readiness and container builds. Notifications now has repository/business logic and read/mark-read routes behind an authentication integration seam; business access fails closed until B wires it. Payments business routes, real auth, brokers, saga and gateway routing remain pending. The original monolith still serves every user flow from SQLite; these new databases are not yet authoritative for production traffic.
+Implemented here: two independently installable Express apps, PostgreSQL pools and same-client transaction hooks, additive/checksummed migrations, liveness/readiness and container builds. Notifications now has repository/business logic and read/mark-read routes behind an authentication integration seam; business access fails closed until B wires it. Payments now has financial business primitives and wallet/history read routers; real auth, HTTP payment mutations, C consistency integration, brokers, saga and gateway routing remain pending. The original monolith still serves every user flow from SQLite; these new databases are not yet authoritative for production traffic.
 
 ## Start the isolated development stack
 
@@ -62,7 +62,7 @@ Never start a second pool/transaction inside `withTransaction` to write the asso
 
 ## Health and business integration status
 
-`GET /health/live` checks only that HTTP is alive; `GET /health/ready` checks the service's database migration version and returns 503 on failure. Responses disable caching and carry X-Request-Id. A healthy scaffold does not mean extraction is finished. Payments business routes remain unmounted (404). Notifications GET /api/notifications and POST /api/notifications/{id}/read are implemented but return 503 until B supplies a real verifier. There is no public notification-creation endpoint. See [Notifications handoff](../docs/notifications-handoff.md) for B/C hooks, the prepared monolith client and remaining cutover work.
+`GET /health/live` checks only that HTTP is alive; `GET /health/ready` checks the service's database migration version and returns 503 on failure. Responses disable caching and carry X-Request-Id. A healthy scaffold does not mean extraction is finished. Payments wallet/history read routes return 503 until B supplies a verifier; financial mutation routes remain unmounted. See [Payments business handoff](../docs/payments-business-handoff.md) for C hooks and the pending command/fence integration. Notifications GET /api/notifications and POST /api/notifications/{id}/read are implemented but return 503 until B supplies a real verifier. There is no public notification-creation endpoint. See [Notifications handoff](../docs/notifications-handoff.md) for B/C hooks, the prepared monolith client and remaining cutover work.
 
 From the repository root, validate the draft document and fixtures with `npm --prefix contracts ci` then `npm --prefix contracts test`. These are schema checks, not Pact or provider integration tests.
 

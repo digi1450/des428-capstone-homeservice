@@ -1,0 +1,25 @@
+{
+  "wallet": {
+    "provider_id": 3,
+    "balance_cents": 900,
+    "commission_owed_cents": 150,
+    "transactions": [
+      {
+        "id": 1,
+        "order_id": 42,
+        "kind": "payout_credit",
+        "amount_cents": 900,
+        "method": "gateway",
+        "gateway_ref": null,
+        "status": "succeeded",
+        "created_at": "2026-11-05T00:00:00.000Z"
+      }
+    ]
+  },
+  "empty": {
+    "provider_id": 4,
+    "balance_cents": 0,
+    "commission_owed_cents": 0,
+    "transactions": []
+  }
+}

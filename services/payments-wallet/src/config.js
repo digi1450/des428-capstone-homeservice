@@ -1,5 +1,5 @@
 export const serviceName = "payments-wallet";
-export const schemaVersion = "001_initial.sql";
+export const schemaVersion = "002_ledger_invariants.sql";
 
 export function readConfig(env = process.env) {
   const port = Number(env.PORT ?? 3002);
