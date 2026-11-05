@@ -1,0 +1,106 @@
+[
+  {
+    "name": "review",
+    "input": {
+      "event_type": "review.created",
+      "data": {
+        "order_id": 42,
+        "provider_id": 3,
+        "rating": 5,
+        "service_id": 1
+      }
+    },
+    "expected_count": 1
+  },
+  {
+    "name": "provider transition",
+    "input": {
+      "event_type": "booking.status_changed",
+      "data": {
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "from": "awaiting",
+        "to": "confirmed",
+        "actor_role": "provider"
+      }
+    },
+    "expected_count": 1
+  },
+  {
+    "name": "customer transition",
+    "input": {
+      "event_type": "booking.status_changed",
+      "data": {
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "from": null,
+        "to": "awaiting",
+        "actor_role": "customer"
+      }
+    },
+    "expected_count": 1
+  },
+  {
+    "name": "completion",
+    "input": {
+      "event_type": "booking.completed",
+      "data": {
+        "order_id": 42,
+        "customer_id": 7
+      }
+    },
+    "expected_count": 1
+  },
+  {
+    "name": "accepted bid",
+    "input": {
+      "event_type": "bid.accepted",
+      "data": {
+        "order_id": 42,
+        "job_request_id": 9,
+        "winner_provider_id": 3,
+        "loser_provider_ids": [
+          4,
+          5
+        ]
+      }
+    },
+    "expected_count": 3
+  },
+  {
+    "name": "payment",
+    "input": {
+      "event_type": "payment.succeeded",
+      "data": {
+        "order_id": 42,
+        "provider_id": 3,
+        "amount_cents": 150000
+      }
+    },
+    "expected_count": 1
+  },
+  {
+    "name": "legacy no provider",
+    "input": {
+      "event_type": "payment.succeeded",
+      "data": {
+        "order_id": 42,
+        "provider_id": null,
+        "amount_cents": 150000
+      }
+    },
+    "expected_count": 0
+  },
+  {
+    "name": "approval proposal",
+    "input": {
+      "event_type": "provider.approved",
+      "data": {
+        "provider_id": 3
+      }
+    },
+    "expected_count": 1
+  }
+]
