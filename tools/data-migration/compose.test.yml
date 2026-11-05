@@ -1,0 +1,34 @@
+# Disposable migration test databases only. No host ports, application servers or durable volumes.
+services:
+  notifications-db:
+    image: postgres:16-alpine
+    environment: {POSTGRES_USER: notifications, POSTGRES_PASSWORD: migration-fixture-only, POSTGRES_DB: notifications}
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U notifications -d notifications]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+  payments-db:
+    image: postgres:16-alpine
+    environment: {POSTGRES_USER: payments_wallet, POSTGRES_PASSWORD: migration-fixture-only, POSTGRES_DB: payments_wallet}
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U payments_wallet -d payments_wallet]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+  test:
+    image: node:22-slim
+    profiles: [test]
+    environment:
+      NOTIFICATIONS_TEST_URL: postgresql://notifications:migration-fixture-only@notifications-db:5432/notifications
+      PAYMENTS_TEST_URL: postgresql://payments_wallet:migration-fixture-only@payments-db:5432/payments_wallet
+      SNAPSHOT_FIXTURE_DIR: /fixtures
+    volumes:
+      - ./:/workspace/tools/data-migration:ro
+      - ../../services/notifications:/workspace/services/notifications:ro
+      - ../../services/payments-wallet:/workspace/services/payments-wallet:ro
+      - ${SNAPSHOT_FIXTURE_DIR:?Create synthetic snapshots first}:/fixtures:ro
+    working_dir: /workspace/tools/data-migration
+    command: [node, --test, import.test.mjs]
