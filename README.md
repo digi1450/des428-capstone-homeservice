@@ -4,9 +4,11 @@ Private team repository for migrating the supplied Homeservice monolith into two
 
 ## Current status
 
+Start with the [shared project status and handoff](docs/project-status.md): merged PRs #5–11, what is prepared versus active, and B/C/D/E integration entry points. This snapshot does not claim completed extraction.
+
 - Original monolith is preserved in `bangkok-homeservice/`.
 - The initial Docker baseline passed 61 tests and HTTP smoke checks on 4 November 2026. See [recorded evidence](docs/baseline/2026-11-04/README.md).
-- Notifications and Payments & Wallet are the selected extraction boundaries. Their Express/PostgreSQL scaffold is in [services/](services/README.md). [Notifications business logic/read API and a prepared monolith client](docs/notifications-handoff.md) are implemented; real auth, event delivery and monolith cutover remain pending. [Payments financial primitives and wallet/history reads](docs/payments-business-handoff.md) are implemented with C/B integration pending. Gateway, full business cutover, Keycloak, saga and observability are pending.
+- Notifications and Payments & Wallet are the selected extraction boundaries. Their Express/PostgreSQL scaffold is in [services/](services/README.md). [Notifications business logic/read API and a prepared monolith client](docs/notifications-handoff.md) are implemented; real auth, event delivery and monolith cutover remain pending. [Payments financial primitives and wallet/history reads](docs/payments-business-handoff.md) are implemented with C/B integration pending. Live gateway wiring, full business cutover, Keycloak, saga and observability are pending.
 - Prepared [Payments client/Booking adapters](docs/payment-adapter-handoff.md) are tested; active monolith callers and service command/auth integration remain pending.
 - Prepared [Notifications event mappings](docs/notification-mappings-handoff.md) preserve inherited recipients/messages; broker delivery and active cutover remain pending.
 - Prepared [nginx routing](docs/nginx-handoff.md) includes baseline/candidate modes and isolated real-nginx tests; live gateway wiring/cutover remains pending with B/C/D/E.
@@ -58,18 +60,26 @@ Back up data you need before resetting. The initial image build downloads depend
 ## Repository layout
 
 ```text
-bangkok-homeservice/       supplied monolith, original README and tests
-docs/baseline/             recorded baseline evidence
-docs/team-plan.md          initial scope, interfaces and first tasks
-.github/                  pull request template
-OWNERS.md                 owners A–E and contribution links
+bangkok-homeservice/       original monolith plus prepared service clients/Booking adapter
+services/                 two Express/PostgreSQL services and isolated dev Compose
+contracts/                draft HTTP/event schemas, fixtures and contract checks
+infra/nginx/              prepared baseline/candidate gateway configs
+tests/integration/        service boundary and notification parity tests
+tests/gateway/            isolated real-nginx routing fixtures/tests
+tools/data-migration/     offline snapshot/import preparation and rehearsal tests
+docs/project-status.md    shared merged-work/dependency/remaining-work map
+docs/baseline/            historical original-system evidence
+docs/validation/          recorded validation for subsequent implementation slices
+.github/                  review contacts and pull request template
+AGENTS.md                 coding-agent entry points and repository guidance
+OWNERS.md                 owners A–E and contribution evidence
 CONTRIBUTING.md            branch, review and integration workflow
 ```
 
-Initial additions: `services/notifications/`, `services/payments-wallet/`, isolated `services/compose.dev.yml`, [caller inventory](docs/extraction-inventory.md) and draft contracts in `contracts/`. See [service setup and handoff](services/README.md). Planned: final `infra/`, contract/resilience integration tests, root `docker-compose.yml`, final demo scripts and `docs/dossier.md`. A scaffold does not mean extraction is complete.
+See [service setup](services/README.md), [caller inventory](docs/extraction-inventory.md) and the [shared status map](docs/project-status.md). Still pending: final root full-stack Compose and telemetry infrastructure, integrated resilience/Pact/CI evidence, real data/caller cutover, final demo scripts and dossier. Existing schemas/fixtures/prepared configs do not complete those requirements.
 
 ## Capstone completion work
 
-The final submission must include a root Compose command that starts the full migration stack, two extracted services with their own databases, Keycloak, messaging/outbox/saga, resilience tests, observability, Pact/act, the four required demo scripts, a dossier, ownership evidence and the recording. None of those migration requirements is claimed complete by this initial baseline.
+The final submission must include a root Compose command that starts the full migration stack, two extracted services with their own databases, Keycloak, messaging/outbox/saga, resilience tests, observability, Pact/act, the four required demo scripts, a dossier, ownership evidence and the recording. The shared status map distinguishes merged preparation from the integrated requirements that remain unfinished.
 
 Each member must understand their code and use evidence from actual runs in the dossier. Record AI assistance in the final dossier according to the assignment.
