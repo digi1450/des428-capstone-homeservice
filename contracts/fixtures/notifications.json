@@ -1,0 +1,25 @@
+{
+  "status": "Contract examples, not live endpoint data",
+  "unread": {
+    "id": 1,
+    "type": "booking_status",
+    "title": "Booking awaiting",
+    "body": "Booking #42 is now awaiting.",
+    "order_id": 42,
+    "read_at": null,
+    "created_at": "2026-11-05T00:00:00.000Z"
+  },
+  "read": {
+    "id": 1,
+    "type": "booking_status",
+    "title": "Booking awaiting",
+    "body": "Booking #42 is now awaiting.",
+    "order_id": 42,
+    "read_at": "2026-11-05T01:00:00.000Z",
+    "created_at": "2026-11-05T00:00:00.000Z"
+  },
+  "forbidden": {
+    "error": "not your notification",
+    "requestId": "notify-example-1"
+  }
+}

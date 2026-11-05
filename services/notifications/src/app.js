@@ -1,8 +1,11 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { serviceName } from "./config.js";
+import { createNotificationsService } from "./service.js";
+import { createNotificationsRouter } from "./router.js";
+import { errorHandler } from "./errors.js";
 
-export function createApp({ database }) {
+export function createApp({ database, authenticate }) {
   const app = express();
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -21,8 +24,10 @@ export function createApp({ database }) {
       res.status(503).json({ service: serviceName, status: "not_ready", requestId: req.requestId });
     }
   });
-  // Business endpoints remain unmounted until A's implementations and B's
-  // token validation are ready. Contract fixtures must never be served as writes.
+  app.use("/api/notifications", createNotificationsRouter({
+    notifications: createNotificationsService(database), authenticate,
+  }));
   app.use((req, res) => res.status(404).json({ error: "NOT_FOUND", requestId: req.requestId }));
+  app.use(errorHandler);
   return app;
 }
