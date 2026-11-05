@@ -4,7 +4,7 @@ Ownership records accountability across the full area, not exclusive permission 
 
 | Area | Owner | Scope | Work evidence |
 |---|---|---|---|
-| A — Extract and route | Thumathorn Rungratana | Implement both business services/APIs/databases, nginx, monolith adapters and compatibility; coordinate C consistency, B auth, D resilience and E delivery | Pending — add implementation PR/commit links |
+| A — Extract and route | Thumathorn Rungratana | Implement both business services/APIs/databases, nginx, monolith adapters and compatibility; coordinate C consistency, B auth, D resilience and E delivery | Initial scaffold and [validation](docs/validation/a-scaffold-2026-11-05.md); extraction/cutover pending — add merged PR/commit links |
 | B — Secure | Nattapat Lertsiritam | Keycloak, validation in both services, ownership and inherited BOLA evidence | Pending |
 | C — Keep data correct | Peerawit Amnartpanich | Outbox, RabbitMQ, dedupe, Booking-orchestrated saga/compensation and recovery worker; integrate with A-owned business APIs/transaction hooks | Pending |
 | D — Survive failure | Chanakan Maiain | HTTP retry/idempotency, 3 faults, inherited race fix/concurrency evidence across A-owned services; coordinate C command/event semantics | Pending |

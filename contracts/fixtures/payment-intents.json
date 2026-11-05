@@ -1,0 +1,47 @@
+{
+  "status": "DRAFT \u2014 fixtures only, not actual HTTP results",
+  "create": {
+    "headers": {
+      "Idempotency-Key": "intent-create:booking-42"
+    },
+    "body": {
+      "order_id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "amount_cents": 150000,
+      "currency": "THB",
+      "saga_id": "booking-saga:42"
+    }
+  },
+  "created": {
+    "create_command_id": "intent-create:booking-42",
+    "saga_id": "booking-saga:42",
+    "outcome": "created",
+    "payment_intent": {
+      "id": 1,
+      "order_id": 42,
+      "amount_cents": 150000,
+      "gateway_ref": "mock_intent_example_1",
+      "status": "requires_payment"
+    }
+  },
+  "cancel": {
+    "headers": {
+      "Idempotency-Key": "intent-cancel:booking-42"
+    },
+    "body": {
+      "create_command_id": "intent-create:booking-42",
+      "saga_id": "booking-saga:42",
+      "reason": "booking_finalization_failed"
+    }
+  },
+  "cancelled": {
+    "create_command_id": "intent-create:booking-42",
+    "saga_id": "booking-saga:42",
+    "outcome": "cancelled"
+  },
+  "pending": {
+    "error": "PAYMENT_OPERATION_PENDING",
+    "requestId": "example-request-1"
+  }
+}
