@@ -2,7 +2,7 @@
 
 Scope: prepared monolith Payments HTTP client and Booking mapping adapter. No existing caller or runtime configuration was switched. Internal command paths remain service-side drafts awaiting C/B integration.
 
-## Observed checks
+## Original slice checks (before the pre-merge fix)
 
 | Check | Result |
 |---|---|
@@ -30,3 +30,9 @@ The boundary test is skipped without TEST_DATABASE_URL. For this recorded run it
 ## Remaining evidence
 
 C's durable command responses/cancellation fences and recovery, real B token/subject mapping, live public Booking and Server Component cutover, D retry/fault runs, Pact, nginx/full Compose, traces and memory-budget validation remain to implement/run. Fixture-server command tests do not substitute for those requirements.
+
+## Pre-merge review fix — dot-segment identifiers
+
+Review found that `.` and `..` passed command-key validation but URL normalization prevented looking them up at their intended path. The Payments client, Booking adapter and all command/saga key positions in the draft OpenAPI now reject exactly those values. Request/correlation ID validation is unchanged; normal dotted keys still resolve to their literal command path.
+
+Post-fix checks: **20/20** targeted client/adapter tests on host Node 26, **87/87** full monolith tests in Node 20 Docker, and **10/10** contract checks passed with no skips. Distinct latest executed checks total 97 (targeted tests are included in the monolith suite). Regression cases reject dot IDs before any HTTP and verify normal dotted IDs against a real local HTTP server. The earlier PostgreSQL read-boundary result above was not rerun: read transport/service/database code is unchanged. No actual C mutation endpoint is claimed tested.

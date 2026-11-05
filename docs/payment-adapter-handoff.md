@@ -16,6 +16,8 @@ Status: transport and mapping code implemented/tested; existing monolith handler
 
 Credentials are `{ token, commandId?, requestId?, traceparent?, tracestate? }`. B supplies the correct audience/role token for each route: user credentials for reads, authorized service-caller credentials for internal commands. The client forwards no raw user/role headers, follows no redirects and reflects no upstream error bodies. One deadline spans response headers and body. C command scoping must use stable verified caller identity, not the literal rotating access-token string.
 
+Command/saga keys must not be exactly `.` or `..`: URL parsing treats them as path navigation segments. Client, Booking adapter and the draft contract reject those values; ordinary dotted keys such as `..booking-42` remain valid.
+
 No method generates command IDs, retries, changes Booking state or falls back to SQLite. D can wrap calls with its agreed retry policy; retries must preserve the original key, saga and saved body. Public rows use existing numeric IDs/integer cents/ISO dates and strip no fields silently: unexpected private fields/type drift fail validation. Every successful command response must match the create command and saga; created intents must match expected booking/amount and cannot be failed/voided. Query checks therefore also require the saved booking snapshot.
 
 ## Unknown outcome is not failure/compensation permission

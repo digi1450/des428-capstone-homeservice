@@ -121,3 +121,28 @@ test("query checks saved booking amount/order as well as operation IDs",async t=
     await assert.rejects(createPaymentsClient({baseUrl}).getOperation(lookup,credentials),error=>unknown(error,"query"));
   }
 });
+
+test("dot-segment command/saga IDs are rejected by client and adapter before HTTP",async()=>{
+  let requests=0;
+  const client=createPaymentsClient({baseUrl:"http://localhost:3002",fetchImpl:async()=>{requests++;assert.fail();}});
+  const adapter=createBookingPaymentsAdapter({paymentsClient:{createIntent:()=>assert.fail(),getOperation:()=>assert.fail(),cancelIntent:()=>assert.fail()}});
+  const order={id:42,customer_id:7,provider_id:3,total_cents:150000,payment_method:"gateway"};
+  for(const dot of [".",".."]) {
+    await assert.rejects(client.createIntent(context,{...credentials,commandId:dot}),error=>error.statusCode===400);
+    await assert.rejects(client.createIntent({...context,saga_id:dot},{...credentials,commandId:createId}),error=>error.statusCode===400);
+    await assert.rejects(client.getOperation({...lookup,create_command_id:dot},credentials),error=>error.statusCode===400);
+    await assert.rejects(client.cancelIntent({...cancel,create_command_id:dot},{...credentials,commandId:cancelId}),error=>error.statusCode===400);
+    await assert.rejects(client.cancelIntent(cancel,{...credentials,commandId:dot}),error=>error.statusCode===400);
+    await assert.rejects(adapter.prepare(order,{createCommandId:dot,sagaId:context.saga_id},credentials),error=>error.statusCode===400);
+    assert.throws(()=>adapter.inspect(order,{createCommandId:dot,sagaId:context.saga_id},credentials),error=>error.statusCode===400);
+    assert.throws(()=>adapter.cancel({createCommandId:createId,cancelCommandId:dot,sagaId:context.saga_id,reason:cancel.reason},credentials),error=>error.statusCode===400);
+  }
+  assert.equal(requests,0);
+});
+test("legitimate keys containing dots retain their lookup path",async t=>{
+  const paths=[];const dotted="..booking-42";
+  const baseUrl=await serve(t,(req,res)=>{paths.push(req.url);send(res,200,{...created,create_command_id:dotted});});
+  const result=await createPaymentsClient({baseUrl}).getOperation({...lookup,create_command_id:dotted},credentials);
+  assert.equal(result.create_command_id,dotted);
+  assert.deepEqual(paths,["/internal/payment-operations/..booking-42"]);
+});

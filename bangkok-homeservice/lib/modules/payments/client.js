@@ -6,7 +6,7 @@ import { AppError, BadRequestError, UnauthorizedError } from "../../errors.js";
 
 const id = z.number().int().positive().max(2147483647);
 const money = z.number().int().nonnegative().max(2147483647);
-const key = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/);
+const key = z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._:-]{1,128}$/);
 const intent = z.object({ id, order_id:id, amount_cents:money, gateway_ref:z.string().min(1),
   status:z.enum(["requires_payment","succeeded","failed"]) }).strict();
 const transaction = z.object({ id,order_id:id.nullable(),kind:z.enum(["charge","payout_credit","commission_owed","refund"]),

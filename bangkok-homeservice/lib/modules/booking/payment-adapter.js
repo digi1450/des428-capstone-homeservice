@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { BadRequestError } from "../../errors.js";
 const id=z.number().int().positive().max(2147483647);
-const key=z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/);
+const key=z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._:-]{1,128}$/);
 const booking=z.object({id,customer_id:id,provider_id:id,total_cents:z.number().int().nonnegative().max(2147483647),payment_method:z.enum(["gateway","cod"])});
 const flow=z.object({createCommandId:key,sagaId:key});
 const cancellation=flow.extend({cancelCommandId:key,reason:z.enum(["booking_setup_failed","booking_finalization_failed"])});
