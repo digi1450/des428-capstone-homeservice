@@ -10,6 +10,7 @@ Private team repository for migrating the supplied Homeservice monolith into two
 - Prepared [Payments client/Booking adapters](docs/payment-adapter-handoff.md) are tested; active monolith callers and service command/auth integration remain pending.
 - Prepared [Notifications event mappings](docs/notification-mappings-handoff.md) preserve inherited recipients/messages; broker delivery and active cutover remain pending.
 - Prepared [nginx routing](docs/nginx-handoff.md) includes baseline/candidate modes and isolated real-nginx tests; live gateway wiring/cutover remains pending with B/C/D/E.
+- Prepared [offline data migration and caller cutover plan](docs/data-cutover-handoff.md) includes read-only export, rollback-only dry-run and service-owned import tests; no real data or active callers have been switched.
 - Team ownership: [OWNERS.md](OWNERS.md). Branch/PR instructions: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Run the original system
