@@ -6,12 +6,12 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 - Read `README.md` for setup, `CONTRIBUTING.md` for Git/review workflow, `OWNERS.md` for A–E accountability, and `docs/team-plan.md` for the proposed boundaries and dependencies.
 - The supplied Next.js/SQLite monolith is in `bangkok-homeservice/` and still uses `edemand` internally. Do not rename its internals merely to match the project title.
-- Proposed extractions are Notifications and Payments & Wallet, using Express and separately owned PostgreSQL or MySQL databases. These are plans until implemented and verified; inspect current code before making claims.
+- Selected extractions are Notifications and Payments & Wallet, using Express and separately owned PostgreSQL databases in two PostgreSQL containers. Read `docs/migration-handoff.md` for the lead-selected decisions and draft interfaces. Selected scope is not proof of implementation; inspect current code before making claims.
 - Use the course stack described in the team plan. Keep unrelated capabilities in the monolith and avoid unrelated dependency upgrades, formatting sweeps or infrastructure additions.
 
 ## Team coordination and boundaries
 
-- A owns extraction/routing across both services; B security; C consistency; D resilience; E observability/delivery. Consult the named owners in `OWNERS.md` when changing their interfaces. Ownership does not prohibit collaborative edits.
+- A implements both business services and owns extraction/routing; B security; C outbox/events/dedupe, Booking-orchestrated saga and recovery; D resilience; E observability/delivery. Follow the handoffs in `docs/migration-handoff.md` and consult owners in `OWNERS.md` for interface changes. Ownership does not prohibit coordinated integration edits.
 - Agree on HTTP routes, payloads/errors, events, token/user mapping and idempotency rules with affected consumers before changing them. Update contracts and callers together.
 - Preserve existing user-facing paths, response shapes and access behavior unless the assigned migration task explicitly changes them.
 - Each extracted service owns its database. The monolith must stop directly reading/writing migrated tables; services must not use cross-service SQL or a shared database connection as a shortcut.
