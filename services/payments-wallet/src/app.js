@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import { serviceName } from "./config.js";
 import { createPaymentsRouter } from "./router.js";
 import { errorHandler } from "./errors.js";
+import { context, trace, isSpanContextValid } from "@opentelemetry/api";
+
+// Area E — Prometheus metrics
+import { metricsMiddleware, metricsHandler } from "./metrics.js";
 
 export function createApp({ database, authenticate }) {
   const app = express();
@@ -19,6 +23,13 @@ export function createApp({ database, authenticate }) {
   app.use((req, res, next) => {
     const start = process.hrtime.bigint();
 
+    // Area E - Capture the active OpenTelemetry trace ID
+    const spanContext = trace.getSpan(context.active())?.spanContext();
+    const traceId =
+      spanContext && isSpanContextValid(spanContext)
+        ? spanContext.traceId
+        : null;
+
     res.on("finish", () => {
       const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
 
@@ -26,6 +37,7 @@ export function createApp({ database, authenticate }) {
         event: "http_request",
         service: serviceName,
         requestId: req.requestId,
+        traceId,
         method: req.method,
         path: req.path,
         statusCode: res.statusCode,
@@ -36,6 +48,11 @@ export function createApp({ database, authenticate }) {
     next();
   });
   // (E) end
+
+  // Area E — Prometheus metrics integration start
+  app.use(metricsMiddleware);
+  app.get("/metrics", metricsHandler);
+  // Area E — Prometheus metrics integration end
 
   app.get("/health/live", (_req, res) => res.json({ service: serviceName, status: "alive" }));
   app.get("/health/ready", async (req, res) => {

@@ -1,0 +1,136 @@
+# Area E — Root Docker Compose integration
+# Initial integration: baseline routing, before coordinated service cutover.
+
+services:
+  # Monolith — original Bangkok Homeservice
+
+  edemand:
+    build:
+      context: ./bangkok-homeservice
+      target: runtime
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_PATH: /app/data/edemand.db
+    volumes:
+      - monolith-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+  # Gateway — Area A nginx configuration
+  gateway:
+    image: nginx:1.28-alpine
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/routes.baseline.conf:/etc/nginx/routes.conf:ro
+    depends_on:
+      - edemand
+
+  # Notifications database — Area A
+  notifications-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifications
+      POSTGRES_USER: notifications
+      POSTGRES_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD}
+    volumes:
+      - notifications-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifications -d notifications"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  # Notifications Service — Area A + Area E logging
+  notifications:
+    build:
+      context: ./services/notifications
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://notifications:${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD}@notifications-db:5432/notifications
+      OTEL_SERVICE_NAME: notifications
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    command: ["sh", "-c", "node src/migrate.js && exec node --import ./src/tracing.js src/server.js"]
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+
+  # Payments database — Area A
+  payments-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payments_wallet
+      POSTGRES_USER: payments_wallet
+      POSTGRES_PASSWORD: ${PAYMENTS_DB_PASSWORD:?Set PAYMENTS_DB_PASSWORD}
+    volumes:
+      - payments-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments_wallet -d payments_wallet"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  # Payments & Wallet Service — Area A + Area E logging
+  payments-wallet:
+    build:
+      context: ./services/payments-wallet
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgresql://payments_wallet:${PAYMENTS_DB_PASSWORD:?Set PAYMENTS_DB_PASSWORD}@payments-db:5432/payments_wallet
+      OTEL_SERVICE_NAME: payments-wallet
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    command: ["sh", "-c", "node src/migrate.js && exec node --import ./src/tracing.js src/server.js"]
+    depends_on:
+      payments-db:
+        condition: service_healthy
+
+  # Area E — Prometheus monitoring
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - notifications
+      - payments-wallet
+
+  # Area E - Grafana dashboard
+  grafana:
+    image: grafana/grafana:11.6.0
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+  # Area E - Jaeger distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.68.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "127.0.0.1:16686:16686"
+    expose:
+      - "4318"
+
+# Persistent storage
+volumes:
+  monolith-data:
+  notifications-data:
+  payments-data:
+  prometheus-data:
+  grafana-data:
