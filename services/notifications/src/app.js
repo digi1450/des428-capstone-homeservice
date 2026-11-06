@@ -36,7 +36,7 @@ export function createApp({ database, authenticate }) {
 
     next();
   });
-  // end
+  // (E) end
 
   app.get("/health/live", (_req, res) => res.json({ service: serviceName, status: "alive" }));
   app.get("/health/ready", async (req, res) => {
