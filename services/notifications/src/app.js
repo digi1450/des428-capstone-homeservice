@@ -15,6 +15,29 @@ export function createApp({ database, authenticate }) {
     res.set("Cache-Control", "no-store");
     next();
   });
+
+  // Added structured HTTP request logging with correlation ID (E) start
+  app.use((req, res, next) => {
+    const start = process.hrtime.bigint();
+
+    res.on("finish", () => {
+      const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
+
+      console.log(JSON.stringify({
+        event: "http_request",
+        service: serviceName,
+        requestId: req.requestId,
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        durationMs: Number(durationMs.toFixed(2))
+      }));
+    });
+
+    next();
+  });
+  // end
+
   app.get("/health/live", (_req, res) => res.json({ service: serviceName, status: "alive" }));
   app.get("/health/ready", async (req, res) => {
     try {
