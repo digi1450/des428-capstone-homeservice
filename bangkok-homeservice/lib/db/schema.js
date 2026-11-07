@@ -8,6 +8,8 @@
 export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
+DROP TABLE IF EXISTS consistency_attention;
+DROP TABLE IF EXISTS processed_events;
 DROP TABLE IF EXISTS idempotency_keys;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS notifications;
@@ -271,5 +273,31 @@ CREATE TABLE idempotency_keys (
   key TEXT PRIMARY KEY, endpoint TEXT NOT NULL,
   response_json TEXT NOT NULL, status_code INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+-- Area C consumer-side dedupe for events received from RabbitMQ (lib/messaging/inbox.js). Written in
+-- the SAME transaction as the consumer's effect; keyed per consumer so consumers never suppress
+-- each other.
+CREATE TABLE processed_events (
+  consumer_name TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  producer TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  processed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY (consumer_name, event_id)
+);
+
+-- Area C: events a consumer accepted but could not apply safely (e.g. a payment for a cancelled
+-- booking). Visible for manual reconciliation instead of being silently dropped or applied.
+CREATE TABLE consistency_attention (
+  id INTEGER PRIMARY KEY,
+  consumer_name TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  aggregate_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  resolved_at TEXT
 );
 `;

@@ -25,6 +25,15 @@ Recorded 7 November 2026. Owner: C (Peerawit). Status: first cross-boundary flow
 
 Without `AMQP_URL` the monolith behaves exactly as before. With it, the inherited local relay keeps running too, so notifications are written to both the SQLite table and the Notifications service until the coordinated cutover retires the old dispatch (ratings must stay local).
 
+### Monolith consumers (PR `feat/c-monolith-consumers`)
+
+| Consumer (dedupe name) | Queue / DLQ | Event | Effect |
+|---|---|---|---|
+| `booking.payments` | `booking.events` / `booking.events.dlq` | `payment.succeeded` from `payments-wallet` only | Booking sets its OWN `orders.payment_status = 'paid'` after checking order id, customer, provider, total and `gateway` method. Unknown order, mismatch, cancelled or refunded booking → row in `consistency_attention` (e.g. "refund required"), nothing applied; a late payment never revives a cancelled booking |
+| `ratings.reviews` | `ratings.events` / `ratings.events.dlq` | `review.created` from `monolith` | Recomputes service and provider rating aggregates (ratings stay with their monolith owners) |
+
+SQLite tables: `processed_events (consumer_name, event_id)` written in the same IMMEDIATE transaction as the effect, and `consistency_attention` for manual reconciliation. Both consumers start from `instrumentation.js` with the broker relay when `AMQP_URL` is set. Before cutover the inherited relay still recomputes ratings and the legacy SQLite payment path still marks orders paid; both effects are idempotent, so running them side by side is safe, but A's cutover should retire the legacy writers.
+
 Environment variables: both processes need `DATABASE_URL` (own service only) and `AMQP_URL`. Optional: `RELAY_POLL_MS`, `RELAY_BATCH_SIZE`, `RELAY_LEASE_MS`, `CONSUMER_PREFETCH`, `CONSUMER_DELIVERY_LIMIT`, `CONSUMER_RETRY_DELAY_MS`. Placeholders are in each `.env.example`.
 
 ## RabbitMQ topology (DRAFT — E please confirm names)
@@ -33,6 +42,7 @@ Environment variables: both processes need `DATABASE_URL` (own service only) and
 |---|---|---|
 | `homeservice.events` | durable topic exchange; routing key = `event_type` | producer and consumer |
 | `notifications.events` | quorum queue, bound to the six event types Notifications maps, `x-delivery-limit`, DLX below | Notifications consumer |
+| `booking.events`, `ratings.events` (+ `.dlq`) | quorum queues for the monolith consumers, same dead-letter scheme | monolith consumers |
 | `homeservice.dead-letter` → `notifications.events.dlq` | direct exchange (routing key = source queue name) → quorum queue; each consumer gets its own DLQ | Notifications consumer |
 
 Publish-subscribe: another consumer (e.g. the monolith Booking paid-flag or Ratings consumer) binds **its own** queue to the same exchange and uses its own `consumer_name`, so one consumer's dedupe never suppresses another.
@@ -48,4 +58,4 @@ Start order matters once: a consumer must have declared its queue before events 
 
 ## Not done yet (next C work)
 
-Booking consumer for `payment.succeeded`, the Booking-orchestrated saga with compensation and recovery worker, `assertSettlementAllowed`, payment command/cancel fences, and legacy event watermark at cutover.
+the Booking-orchestrated saga with compensation and recovery worker, `assertSettlementAllowed`, payment command/cancel fences, and legacy event watermark at cutover.
