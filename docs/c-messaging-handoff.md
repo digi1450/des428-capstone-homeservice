@@ -51,7 +51,7 @@ Start order matters once: a consumer must have declared its queue before events 
 
 ## Requests to teammates
 
-- **A**: (1) pass `stageEvent: createOutbox().stage` when you wire the Payments settlement route; (2) review the importer pin change in `tools/data-migration/import-snapshot.mjs` — the new C tables start empty after import, no legacy events are copied; (3) settlement eligibility `assertSettlementAllowed` is **not** in this PR — it needs Booking saga state and comes with the saga work.
+- **A**: (1) pass `stageEvent: createOutbox().stage` when you wire the Payments settlement route; (2) A reviewed the importer pin change and added an explicit empty-message-state gate/locking; see [7 November importer review](validation/importer-c-state-2026-11-07.md). No legacy events are copied. Any existing outbox/dedupe state rejects import and is never cleared by the tool; (3) settlement eligibility `assertSettlementAllowed` is **not** in this PR — it needs Booking saga state and comes with the saga work.
 - **D**: `event_id` is the message dedupe key; HTTP idempotency keys are separate. Let's agree that a stable command id can become `saga_id`/`correlation_id` rather than reuse `event_id`.
 - **E**: run `node src/outbox-relay.js` (Payments image) and `node src/event-consumer.js` (Notifications image) as separate Compose services next to RabbitMQ. Trace context: `stage(client, event, { traceparent, tracestate, requestId })` stores them and the relay sends them as AMQP headers `traceparent`, `tracestate`, `x-request-id`; the consumer does not yet continue the span.
 - **B**: these processes use no end-user tokens. The broker credential is a service credential; please include it in the secrets plan.

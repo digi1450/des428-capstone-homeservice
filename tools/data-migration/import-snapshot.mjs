@@ -9,11 +9,12 @@ export const columns = {
   provider_wallets: ['provider_id','balance_cents','commission_owed_cents','updated_at'],
   webhook_events: ['id','gateway_event_id','type','payload_json','received_at','processed_at'],
 };
-// C (PR feat/c-outbox-dedupe, pending A review): 002_processed_events / 003_outbox add
-// consumer-dedupe and outbox tables only. The importer copies no legacy events into them:
-// they stay empty, so historical events are not replayed as fresh effects.
+// Reviewed C migrations add consumer-dedupe/outbox tables, not imported business columns.
+// Offline import requires those tables to be empty and keeps them empty; never clear
+// existing delivery state or replay historical events to make an import succeed.
 const expectedMigrations = {notifications:['001_initial.sql','002_processed_events.sql'], 'payments-wallet':['001_initial.sql','002_ledger_invariants.sql','003_outbox.sql']};
 const owned = { notifications: ['notifications'], 'payments-wallet': ['payment_intents','transactions','provider_wallets','webhook_events'] };
+const messageTables = {notifications:['processed_events'], 'payments-wallet':['outbox_events']};
 const jsonColumns = new Set(['context_json','payload_json']);
 const timestamps = new Set(['read_at','created_at','updated_at','received_at','processed_at']);
 const integers = new Set(['id','recipient_id','order_id','customer_id','provider_id','amount_cents','balance_cents','commission_owed_cents']);
@@ -126,9 +127,14 @@ export async function importSnapshot(database, service, bundle, { apply = false 
   try {
     return await database.withTransaction(async client => {
       await client.query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE');
+      // Lock before the first snapshot-taking SELECT: a writer already in flight
+      // must commit/roll back before the emptiness check can choose a snapshot.
+      await client.query(`LOCK TABLE ${[...owned[service],...messageTables[service]].join(',')} IN ACCESS EXCLUSIVE MODE`);
       const versions = (await client.query('SELECT version FROM schema_migrations ORDER BY version')).rows.map(row => row.version);
       require(isDeepStrictEqual(versions,expectedMigrations[service]), 'SCHEMA_REVIEW_REQUIRED');
-      await client.query(`LOCK TABLE ${owned[service].join(',')} IN ACCESS EXCLUSIVE MODE`);
+      for (const table of messageTables[service]) {
+        require((await client.query(`SELECT 1 FROM ${table} LIMIT 1`)).rowCount === 0, 'MESSAGE_STATE_NOT_EMPTY');
+      }
       const read = async table => (await client.query(`SELECT ${columns[table].join(',')} FROM ${table} ORDER BY ${key(table)}`)).rows.map(row => normalize(table,row));
       const current = {};
       for (const table of owned[service]) current[table] = await read(table);
