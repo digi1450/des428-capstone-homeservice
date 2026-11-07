@@ -25,7 +25,7 @@ services:
   gateway:
     image: nginx:1.28-alpine
     ports:
-      - "127.0.0.1:${GATEWAY_PORT:-8080}:8080"
+      - "127.0.0.1:${GATEWAY_PORT:-18080}:8080"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infra/nginx/routes.baseline.conf:/etc/nginx/routes.conf:ro
@@ -100,7 +100,7 @@ services:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
-      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     depends_on:
       - notifications
       - payments-wallet
@@ -125,7 +125,7 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:${JAEGER_UI_PORT:-16686}:16686"
     expose:
       - "4318"
 

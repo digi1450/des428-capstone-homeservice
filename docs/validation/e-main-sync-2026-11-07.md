@@ -21,6 +21,7 @@ All commands were run against this integrated tree, with disposable test credent
 - Ran contract/schema suite on host Node 26: **16 passed, 0 failures/skips**. These are existing schema tests, not Pact.
 - Prometheus target API reported both service jobs **up**. Grafana health database reported **ok**; authenticated API returned the provisioned Bangkok Homeservice dashboard after initializing a fresh disposable test Grafana volume with the fixture env password.
 - Sent separate `/health/ready` requests with explicit fixture traceparent/request IDs. JSON logs retained the supplied trace IDs (`111…` Notifications and `333…` Payments). Jaeger API returned each matching trace, with GET, `pg-pool.connect` and PostgreSQL query spans for that service. This confirms log↔trace linkage and HTTP/PG spans within EACH service, not a multi-service business trace.
+- Host-port check after fixture cleanup found AW5/Dify already owns 127.0.0.1:8080. Root gateway default/example now use 18080; 18080/3003/9090/16686 were bind-checked available. All four published ports are environment-configurable and loopback-only; PostgreSQL and business service ports remain Docker-network-only in the root stack. Existing AW5/Dify was not stopped. Availability is a point-in-time check, not a guarantee on another machine.
 - Whitespace and lock/manifest dependency consistency checked. CI for the final pushed head is reported in its PR checks, not assumed from an older E run.
 
 ## Limits
