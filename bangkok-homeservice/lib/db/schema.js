@@ -1,6 +1,6 @@
 // The whole schema as a single embedded SQL string (not a .sql file read via fs) so Next's
-// `output: "standalone"` build traces it without extra file-tracing config. Applied on every boot
-// with DROP TABLE IF EXISTS first, which is what keeps a fresh `docker compose up` deterministic.
+// `output: "standalone"` build traces it without extra file-tracing config. The DROP statements
+// are for isolated test resets only; migrate.js strips them for normal startup.
 //
 // Build order matters: orders.job_request_id forward-references job_requests(id), so job_requests
 // is created before orders. DROP runs in the reverse of CREATE (children before parents) so

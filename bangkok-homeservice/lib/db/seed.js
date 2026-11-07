@@ -1,4 +1,4 @@
-// Deterministic seed data, applied fresh on every boot right after migrate(). Every seeded account
+// Deterministic seed data, applied only on new database initialization or explicit in-memory test reset. Every seeded account
 // shares one plaintext password (SEED_PASSWORD) so the smoke/test suite can always log in; the
 // stored hashes still differ per boot because bcrypt salts randomly. The orders AUTOINCREMENT
 // sequence is primed to firstOrderId-1 so the first booking placed on a fresh boot is always 8001.
