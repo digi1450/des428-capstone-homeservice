@@ -5,13 +5,14 @@ import {signToken} from '../lib/http/auth.js';
 import {configurePaymentsAccess,resetPaymentsAccess} from '../lib/modules/payments/access.js';
 import {resetBookingSaga} from '../lib/modules/booking/saga.js';
 import {call} from '../test-helpers/call.js';
-import {canSimulatePayment} from '../app/_ui/payment-state.js';
+import {canSimulatePayment,paymentStatus} from '../app/_ui/payment-state.js';
 import * as details from '../app/api/bookings/[id]/route.js';
 import * as simulate from '../app/api/payments/simulate/route.js';
 import * as bookings from '../app/api/bookings/route.js';
 import * as wallet from '../app/api/provider/wallet/route.js';
 import * as history from '../app/api/customer/transactions/route.js';
 import {AppError} from '../lib/errors.js';
+import {cancelBooking} from '../lib/modules/booking/service.js';
 function fixture(saga=false){
  freshBoot();resetPaymentsAccess();resetBookingSaga();const db=getDb();
  const customer=db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get().id;
@@ -40,6 +41,16 @@ test('payment views and simulation callers',async t=>{
  await t.test('legacy default keeps original detail/intent and payment behavior',async()=>{
   const p=fixture();const result=await get(p);assert.equal(result.status,200);assert.equal(result.body.payment_intent.gateway_ref,'LOCAL-SENTINEL');assert.equal(result.body.payment_setup,undefined);
   assert.equal((await pay(p)).status,200);
+ });
+ await t.test('real legacy payment then cancellation preserves refunded over a succeeded intent in both UI projections',async()=>{
+  const p=fixture();assert.equal((await pay(p)).status,200);
+  let result=await get(p);assert.equal(paymentStatus({order:result.body,payment_intent:result.body.payment_intent}),'paid');
+  assert.equal(cancelBooking(p.id,p.customer).refunded,true);
+  result=await get(p);assert.equal(result.body.payment_status,'refunded');assert.equal(result.body.payment_intent.status,'succeeded');
+  const view={order:result.body,payment_intent:result.body.payment_intent};
+  assert.equal(paymentStatus(view),'refunded');assert.equal(canSimulatePayment(view),false);
+  assert.equal(paymentStatus({...view,order:{...view.order,status:'awaiting'}}),'refunded');
+  assert.equal(paymentStatus({...view,order:{...view.order,payment_status:'pending'}}),'pending');
  });
  await t.test('a saga without configured remote access is pending and never falls back to local payment SQL',async()=>{
   const p=fixture(true);p.db.exec('DROP TABLE payment_intents');

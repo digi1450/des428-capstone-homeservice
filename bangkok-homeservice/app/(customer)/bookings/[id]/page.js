@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect, notFound } from "next/navigation";
 import { getSession } from "#lib/http/session.js";
 import { getBookingView } from "#lib/modules/booking/payment-view.js";
+import { paymentStatus } from "../../../_ui/payment-state.js";
 import { money, Badge } from "../../../_ui/format.js";
 import { ActionButton, ReviewForm, BookingPayment } from "../../../_ui/client.js";
 
@@ -32,7 +33,7 @@ export default async function BookingDetailPage({ params }) {
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="muted">Payment</span>
-          <span>{b.payment_method} · {b.payment_intent?.status === "succeeded" ? "paid" : b.payment_status}</span>
+          <span>{b.payment_method} · {paymentStatus({order:b,payment_intent:b.payment_intent})}</span>
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="muted">Total</span>

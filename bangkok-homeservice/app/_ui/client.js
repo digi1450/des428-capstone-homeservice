@@ -3,7 +3,7 @@
 // for a monolith. The httpOnly edemand_token cookie rides along automatically on same-origin
 // requests, so these components never handle the JWT themselves.
 import { useState } from "react";
-import { canSimulatePayment } from "./payment-state.js";
+import { canSimulatePayment, paymentStatus } from "./payment-state.js";
 
 async function postJSON(url, body, method = "POST") {
   const res = await fetch(url, {
@@ -131,7 +131,7 @@ export function BookingPayment({ initial }) {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState(null);
   if(view.order.payment_method!=="gateway") return null;
-  const paid=view.order.payment_status==="paid" || view.payment_intent?.status==="succeeded";
+  const status=paymentStatus(view);
   async function refresh() {
     setBusy(true);setError(null);
     try {
@@ -143,7 +143,7 @@ export function BookingPayment({ initial }) {
     finally {setBusy(false);}
   }
   return <div className="stack">
-    {paid ? <div className="notice">Payment received. Thank you.</div> : <>
+    {status==="refunded" ? <div className="notice">Payment refunded.</div> : status==="paid" ? <div className="notice">Payment received. Thank you.</div> : <>
       {view.payment_setup!==undefined ? <div className="notice" role="status">{view.payment_setup==="ready" ? "Payment setup is ready." : "Your booking is saved. Payment setup is pending; please check again."}</div> : null}
       <button disabled={busy || !canSimulatePayment(view)} onClick={async()=>{
         setBusy(true);setError(null);
