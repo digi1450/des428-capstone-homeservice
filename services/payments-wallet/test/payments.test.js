@@ -148,7 +148,7 @@ test("Payments PostgreSQL business primitives and HTTP reads",{skip:!process.env
       const history=await (await call("/api/customer/transactions","customer")).json();assert.ok(history.length>=4);
       assert.ok(history.every(row=>row.created_at.endsWith("Z")));
       assert.equal((await call("/api/payments/simulate","customer","POST")).status,404);
-      assert.equal((await call("/internal/payment-intents","customer","POST")).status,404);
+      assert.equal((await call("/internal/payment-intents","customer","POST")).status,503);
     });
   } finally {
     if(server)await new Promise(resolve=>{server.close(resolve);server.closeAllConnections();});

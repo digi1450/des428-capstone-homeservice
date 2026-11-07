@@ -56,3 +56,11 @@ test("command/saga contract rejects URL dot segments without banning normal dott
   }
   for(const schema of keySchemas)assert.equal(ajv.compile(schema)("..booking-42"),true);
 });
+
+
+test("activation is reserved with no promised success contract",()=>{
+  const op=spec.paths["/internal/payment-intents/activate-by-command"].post;
+  assert.equal(op["x-implementation-status"],"reserved-unavailable");
+  assert.ok(op.responses["503"]);
+  assert.equal(Object.keys(op.responses).some(status=>status.startsWith("2")),false);
+});

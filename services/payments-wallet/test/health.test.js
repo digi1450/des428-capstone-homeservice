@@ -23,14 +23,16 @@ test("liveness survives database outage; readiness fails without leaking details
   assert.ok(!JSON.stringify(body).includes("secret"));
 });
 
-test("readiness succeeds only when database check succeeds; business routes are not exposed", async t => {
+test("readiness succeeds independently while unwired internal command routes fail closed", async t => {
   const base = await serve(t, { checkReady: async () => {} });
   const response = await fetch(base + "/health/ready");
   assert.equal(response.status, 200);
   assert.equal((await response.json()).status, "ready");
   const business = await fetch(base + "/internal/payment-intents", { method: "POST" });
-  assert.equal(business.status, 404);
-  assert.equal((await business.json()).error, "NOT_FOUND");
+  assert.equal(business.status, 503);
+  assert.equal(business.headers.get("retry-after"), "2");
+  assert.equal((await business.json()).error, "internal server error");
+  assert.equal((await fetch(base + "/internal/not-a-route")).status, 404);
 });
 
 test("configuration rejects missing database and invalid ports", () => {

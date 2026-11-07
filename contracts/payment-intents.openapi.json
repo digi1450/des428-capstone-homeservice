@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Homeservice payment provisioning \u2014 DRAFT",
-    "version": "0.1.0",
-    "description": "Proposed A/C/D interface for review by B/C/D/E. No business routes are implemented in the first scaffold. B must finalize Keycloak audience/scopes and service identity. Normal public booking API remains separate."
+    "version": "0.2.0",
+    "description": "A HTTP shell for create/query/cancel is implemented behind injected B service authentication and a C participant adapter, both absent in the production bootstrap. Live requests fail closed; tests use explicit doubles. Durable commands/fences/eligibility and the activation response contract still require A/C/B review. Public Booking API remains separate."
   },
   "servers": [
     {
@@ -20,7 +20,7 @@
     "/internal/payment-intents": {
       "post": {
         "operationId": "createPaymentIntent",
-        "description": "DRAFT, unimplemented. First accepted command returns 201; identical replay returns 200 with the same body. Persist result and effect atomically. Same booking cannot get a second intent. No charge occurs.",
+        "description": "DRAFT B/C integration: HTTP shell implemented, production participant/auth not wired. First accepted command returns 201; identical replay returns 200 with the same body. Persist result and effect atomically. Same booking cannot get a second intent. No charge occurs.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -178,14 +178,51 @@
                 }
               }
             }
+          },
+          "413": {
+            "description": "Command JSON exceeds the 16 KiB limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "application/json or supported uncompressed encoding required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
-        }
+        },
+        "x-implementation-status": "http-shell-only"
       }
     },
     "/internal/payment-operations/{create_command_id}": {
       "get": {
         "operationId": "getPaymentOperation",
-        "description": "DRAFT, unimplemented. A completed operation returns created/cancelled. In-progress or inconclusive state returns retryable 503. A 404 is only a lookup miss and does not prove an earlier create cannot still commit.",
+        "description": "DRAFT B/C integration: HTTP shell implemented, production participant/auth not wired. A completed operation returns created/cancelled. In-progress or inconclusive state returns retryable 503. A 404 is only a lookup miss and does not prove an earlier create cannot still commit.",
         "parameters": [
           {
             "name": "create_command_id",
@@ -340,13 +377,14 @@
               }
             }
           }
-        }
+        },
+        "x-implementation-status": "http-shell-only"
       }
     },
     "/internal/payment-intents/cancel-by-command": {
       "post": {
         "operationId": "cancelPaymentIntentByCommand",
-        "description": "DRAFT, unimplemented. Atomically fence even an absent create command against future activation; void an unpaid intent if present. 200 means safe cancellation is durably recorded. A settled payment returns 409 and needs refund/reconciliation. Concurrent create/cancel must serialize by the create command and booking.",
+        "description": "DRAFT B/C integration: HTTP shell implemented, production participant/auth not wired. Atomically fence even an absent create command against future activation; void an unpaid intent if present. 200 means safe cancellation is durably recorded. A settled payment returns 409 and needs refund/reconciliation. Concurrent create/cancel must serialize by the create command and booking.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -446,6 +484,113 @@
           },
           "409": {
             "description": "Command/body conflict, fenced create, or settled intent requiring reconciliation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unknown or temporary outcome; retain original command and reconcile, never infer safe cancellation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Bounded delay in seconds before retrying with the SAME command key. Not a terminal business result.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Command JSON exceeds the 16 KiB limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "application/json or supported uncompressed encoding required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "http-shell-only"
+      }
+    },
+    "/internal/payment-intents/activate-by-command": {
+      "post": {
+        "operationId": "activatePaymentIntentByCommandReserved",
+        "x-implementation-status": "reserved-unavailable",
+        "description": "Reserved fail-closed route only. The lead selected durable HTTP activation, but request/response and replay-after-fence semantics are not agreed. No activation implementation is dispatched; no success response or request schema is promised in this version.",
+        "responses": {
+          "401": {
+            "description": "Missing/invalid Keycloak token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller or operation not authorized",
             "content": {
               "application/json": {
                 "schema": {
