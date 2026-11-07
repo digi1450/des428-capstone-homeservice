@@ -44,7 +44,7 @@ def make_source(path):
         db.execute('INSERT INTO webhook_events VALUES (?,?,?,?,?,?)', (id,payload['gateway_event_id'],payload['type'],json.dumps(payload),timestamp,timestamp))
     db.execute("INSERT INTO notifications VALUES (70,'provider',7,'payment_received','ได้รับเงิน','Fixture Thai ไทย',10,NULL,?)", (timestamp,))
     db.execute("INSERT INTO notifications VALUES (75,'customer',5,'booking_update','Status','Read',11,?,?)", (timestamp,timestamp))
-    db.execute("INSERT INTO events VALUES (80,'payment.succeeded','order',10,'{}',?,?)", (timestamp,timestamp))
+    db.execute("INSERT INTO events (id,type,aggregate_type,aggregate_id,payload_json,created_at,processed_at,event_uuid) VALUES (80,'payment.succeeded','order',10,'{}',?,?,'00000000-0000-4000-8000-000000000080')", (timestamp,timestamp))
     db.commit()
     db.close()
 
