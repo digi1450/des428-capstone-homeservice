@@ -16,6 +16,8 @@ A startup update: [non-destructive SQLite bootstrap](sqlite-startup-handoff.md) 
 
 A response to C PR #24: [participant interface](c-payment-participant-interface.md) accepts the direction and specifies historical create replay versus effective fence/activation, unchanged strict get shape, A-owned coded-error/client work and the separate legacy eligibility gate. This revision awaits C confirmation; participant/activation/wallet implementation and live wiring are still pending.
 
+A B/C review: [review and owner handoff](a-b-c-integration-review.md) records C's confirmation of #25, A's importer/participant-FK corrections proposed against #27, and the remaining B-side JWT verifier/token-redirect work from #26. This is an unmerged follow-up; no live activation is claimed.
+
 ## Decisions already selected
 
 Extract Notifications and Payments & Wallet as Express services, each owning PostgreSQL in its own container/credentials. Booking/Bidding and remaining contexts stay in the Next.js/SQLite monolith initially. nginx is the gateway; Booking orchestrates the provisioning saga; notifications are asynchronous. [Migration handoff](migration-handoff.md) records the lead-selected decisions and proposed interfaces; [team plan](team-plan.md) and [OWNERS](../OWNERS.md) describe responsibilities. Draft interfaces still require integration review with B/C/D/E.
