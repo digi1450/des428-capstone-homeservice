@@ -11,6 +11,8 @@ export async function register() {
     if (process.env.AMQP_URL) {
       const { startBrokerRelay } = await import("./lib/messaging/broker-relay.js");
       startBrokerRelay({ amqpUrl: process.env.AMQP_URL });
+      const { startConsumers } = await import("./lib/messaging/consumers.js");
+      startConsumers({ amqpUrl: process.env.AMQP_URL });
     }
   }
 }
