@@ -74,6 +74,27 @@ for (const [service,createDatabase,migrate,env] of [
           }
         } finally { await clearMessageState(); }
       });
+      if (service === 'payments-wallet') {
+        const probes = [
+          ['payment_commands', "INSERT INTO payment_commands (caller_id,command_id,kind,create_command_id,request_digest,result) VALUES ('migration-review','probe-command','create','probe-create','probe-digest','{}')"],
+          ['payment_provisioning', "INSERT INTO payment_provisioning (caller_id,create_command_id,saga_id,state,cancel_command_id) VALUES ('migration-review','probe-create','probe-saga','fenced','probe-cancel')"],
+          ['processed_events', "INSERT INTO processed_events (consumer_name,event_id,event_type,producer) VALUES ('migration-review','bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee','provider.registered','monolith')"],
+        ];
+        for (const [table,sql] of probes) {
+          await t.test(`${table}: existing participant state blocks fresh dry-run/apply without modifications`, async () => {
+            await db.query(sql);
+            const rows = (await db.query(`SELECT * FROM ${table}`)).rows, state = await seq();
+            try {
+              for (const apply of [false,true]) {
+                await assert.rejects(importSnapshot(db,service,bundle,{apply}), /MESSAGE_STATE_NOT_EMPTY/);
+                for (const businessTable of tables) assert.equal((await db.query(`SELECT count(*)::int AS n FROM ${businessTable}`)).rows[0].n,0);
+                assert.deepEqual((await db.query(`SELECT * FROM ${table}`)).rows,rows);
+                assert.deepEqual(await seq(),state);
+              }
+            } finally { await db.query(`DELETE FROM ${table}`); }
+          });
+        }
+      }
       await t.test('message state committed while waiting for locks is seen before any import writes', async () => {
         let signalReady, releaseWriter;
         const ready = new Promise(resolve => { signalReady = resolve; });
@@ -140,6 +161,28 @@ for (const [service,createDatabase,migrate,env] of [
         } finally { await clearMessageState(); }
         assert.equal((await importSnapshot(db,service,bundle,{apply:true})).action,'identical-replay');
       });
+      if (service === 'payments-wallet') {
+        for (const [table,sql] of [
+          ['payment_commands', "INSERT INTO payment_commands (caller_id,command_id,kind,create_command_id,request_digest,result) VALUES ('migration-review','probe-command','create','probe-create','probe-digest','{}')"],
+          ['payment_provisioning', "INSERT INTO payment_provisioning (caller_id,create_command_id,saga_id,state,cancel_command_id) VALUES ('migration-review','probe-create','probe-saga','fenced','probe-cancel')"],
+          ['processed_events', "INSERT INTO processed_events (consumer_name,event_id,event_type,producer) VALUES ('migration-review','bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee','provider.registered','monolith')"],
+        ]) {
+          await t.test(`${table}: participant state blocks exact business replay without modifications`, async () => {
+            await db.query(sql);
+            const rows = (await db.query(`SELECT * FROM ${table}`)).rows, state = await seq();
+            const business = {};
+            for (const name of tables) business[name] = (await db.query(`SELECT * FROM ${name} ORDER BY 1`)).rows;
+            try {
+              for (const apply of [false,true]) {
+                await assert.rejects(importSnapshot(db,service,bundle,{apply}), /MESSAGE_STATE_NOT_EMPTY/);
+                assert.deepEqual((await db.query(`SELECT * FROM ${table}`)).rows,rows);
+                assert.deepEqual(await seq(),state);
+                for (const name of tables) assert.deepEqual((await db.query(`SELECT * FROM ${name} ORDER BY 1`)).rows,business[name]);
+              }
+            } finally { await db.query(`DELETE FROM ${table}`); }
+          });
+        }
+      }
       await t.test('replay does not lower an already advanced identity sequence', async () => {
         const table = service === 'notifications' ? 'notifications' : 'payment_intents';
         await db.query(`ALTER TABLE ${table} ALTER COLUMN id RESTART WITH 500`);
@@ -156,7 +199,14 @@ for (const [service,createDatabase,migrate,env] of [
       });
       await t.test('database failure after first insert rolls back the entire service import', async () => {
         // Dedicated disposable fixture database only; never a production cleanup command.
-        await db.query(`TRUNCATE ${tables.join(',')}`);
+        // Include the referencing table explicitly, even when empty. Never drop the FK
+        // or use CASCADE merely to clean an isolated test fixture.
+        if (service === 'payments-wallet') {
+          await assert.rejects(db.query('TRUNCATE payment_intents'), error => error.code === '0A000',
+            'referencing table must be named even when its rows are empty');
+        }
+        const resetTables = service === 'payments-wallet' ? [...tables,'payment_provisioning'] : tables;
+        await db.query(`TRUNCATE ${resetTables.join(',')}`);
         const failing = {checkReady:() => db.checkReady(), withTransaction: work => db.withTransaction(async client => {
           let inserts = 0;
           return work({query:async (sql,values) => {

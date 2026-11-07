@@ -64,6 +64,26 @@ test("payment participant on PostgreSQL", { skip: !process.env.TEST_DATABASE_URL
         "another create identity for an already-bound booking");
     });
 
+    await t.test("provisioning cannot reference a missing intent or lose its referenced intent", async () => {
+      const p = next();
+      const first = await create(p);
+      const missing = await db.query("SELECT max(id)+1 AS id FROM payment_intents");
+      await assert.rejects(db.query("UPDATE payment_provisioning SET intent_id=$1 WHERE caller_id=$2 AND create_command_id=$3", [missing.rows[0].id,caller,p.create]), error => error.code === "23503");
+      await assert.rejects(db.query("DELETE FROM payment_intents WHERE id=$1", [first.result.payment_intent.id]), error => error.code === "23503");
+      assert.equal((await get(p)).payment_intent.id, first.result.payment_intent.id);
+    });
+
+    await t.test("concurrent reuse of one cancel command across provisionings commits exactly one fence", async () => {
+      const p = next(), q = next(), shared = `shared-cancel-${p.order}`;
+      const outcomes = await Promise.allSettled([cancel(p, {}, shared),cancel(q, {}, shared)]);
+      assert.equal(outcomes.filter(item => item.status === "fulfilled").length, 1);
+      const rejected = outcomes.find(item => item.status === "rejected");
+      assert.ok(isConflict()(rejected.reason));
+      const states = (await db.query("SELECT state FROM payment_provisioning WHERE caller_id=$1 AND create_command_id=ANY($2::text[])", [caller,[p.create,q.create]])).rows;
+      assert.deepEqual(states.map(row => row.state), ["fenced"]);
+      assert.equal((await intentsFor(p)).length+(await intentsFor(q)).length, 0);
+    });
+
     await t.test("absent-create fence: the late create never makes an intent", async () => {
       const p = next();
       assert.equal(await get(p), null, "unknown is null, never a fence");

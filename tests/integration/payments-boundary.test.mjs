@@ -9,7 +9,7 @@ import { HttpError } from "../../services/payments-wallet/src/errors.js";
 import { createPaymentsClient,PaymentOutcomeUnknownError } from "../../bangkok-homeservice/lib/modules/payments/client.js";
 
 // Real client -> HTTP read API -> PostgreSQL, explicit TEST-ONLY auth mapping.
-// Command paths are intentionally unmounted; C's mutation protocol remains a draft.
+// Command paths fail closed with 503 until service auth/participant are configured.
 test("monolith Payments client interoperates with HTTP/PostgreSQL and preserves unknown commands",{skip:!process.env.TEST_DATABASE_URL},async()=>{
   const db=createDatabase(process.env.TEST_DATABASE_URL),base=randomInt(300000000,400000000);
   let server;
@@ -34,7 +34,7 @@ test("monolith Payments client interoperates with HTTP/PostgreSQL and preserves 
     await assert.rejects(client.listCustomerTransactions({token:"invalid"}),error=>error.statusCode===401);
     const saga_id="test-saga:"+base,commandId="test-create:"+base;
     await assert.rejects(client.createIntent({order_id:base+3,customer_id:base,provider_id:base+1,amount_cents:1000,currency:"THB",saga_id},{token:"test-provider",commandId}),error=>error instanceof PaymentOutcomeUnknownError&&error.createCommandId===commandId);
-    await assert.rejects(client.getOperation({create_command_id:commandId,saga_id,order_id:base+3,amount_cents:1000},{token:"test-provider"}),error=>error instanceof PaymentOutcomeUnknownError&&error.reason==="lookup_missing");
+    await assert.rejects(client.getOperation({create_command_id:commandId,saga_id,order_id:base+3,amount_cents:1000},{token:"test-provider"}),error=>error instanceof PaymentOutcomeUnknownError&&error.createCommandId===commandId&&error.reason==="unexpected_status"&&error.upstreamStatus===503);
     assert.equal((await db.query("SELECT id FROM payment_intents WHERE order_id=$1",[base+3])).rowCount,0);
   } finally {
     if(server)await new Promise(resolve=>{server.close(resolve);server.closeAllConnections();});
