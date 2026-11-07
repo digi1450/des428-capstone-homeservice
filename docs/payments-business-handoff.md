@@ -1,5 +1,7 @@
 # Payments & Wallet business slice — integration handoff
 
+7 November HTTP preparation update: [create/query/cancel shell and B/C adapter proposal](payment-command-http-handoff.md) is implemented and tested with explicit doubles. Production remains unwired/fail-closed; the activation route is reserved and settlement/cutover are still pending. Earlier unmounted-route wording below describes the previous business slice.
+
 Status: A business primitives, PostgreSQL ledger invariants and wallet/history HTTP reads implemented. B real auth, C command-result/fence/provisioning/outbox integration, payment HTTP mutations, monolith payment client/cutover and final gateway remain pending. All original application financial flows still run in the monolith. Do not call this completed extraction.
 
 ## A business entry points

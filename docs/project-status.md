@@ -10,6 +10,8 @@ New lead decisions: [A/C payment participant and wallet provisioning](payment-pa
 
 A importer review: [C-schema compatibility and message-state safeguards](validation/importer-c-state-2026-11-07.md) verifies the reviewed migrations and rejects nonempty outbox/dedupe state before fresh import or replay. No real migration or legacy-watermark handover has been performed.
 
+A step 2: [payment command HTTP shell](payment-command-http-handoff.md) adds create/query/cancel validation and injectable B/C boundaries, tested through the actual prepared consumer client. Default production returns 503; activate is reserved/unavailable pending agreed state/replay contract. C persistence and live wiring are not implemented by this shell.
+
 ## Decisions already selected
 
 Extract Notifications and Payments & Wallet as Express services, each owning PostgreSQL in its own container/credentials. Booking/Bidding and remaining contexts stay in the Next.js/SQLite monolith initially. nginx is the gateway; Booking orchestrates the provisioning saga; notifications are asynchronous. [Migration handoff](migration-handoff.md) records the lead-selected decisions and proposed interfaces; [team plan](team-plan.md) and [OWNERS](../OWNERS.md) describe responsibilities. Draft interfaces still require integration review with B/C/D/E.
