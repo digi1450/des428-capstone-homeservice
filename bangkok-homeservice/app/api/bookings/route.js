@@ -8,6 +8,7 @@ import { getAuth } from "#lib/http/auth.js";
 import { parse, readJson } from "#lib/http/validate.js";
 import { parsePagination, paginationHeaders } from "#lib/http/pagination.js";
 import * as booking from "#lib/modules/booking/service.js";
+import { getBookingSaga, placeGatewayBooking } from "#lib/modules/booking/saga.js";
 
 const placeSchema = z.object({
   provider_id: z.coerce.number().int().positive(),
@@ -31,6 +32,11 @@ function idempotencyKeyOf(req) {
 export const POST = handle(async (req) => {
   const auth = getAuth(req, "customer");
   const input = parse(placeSchema, await readJson(req));
+  // Area C: gateway bookings go through the Booking-orchestrated saga once A/B configure it.
+  if (input.payment_method === "gateway" && getBookingSaga()) {
+    const result = await placeGatewayBooking(auth.sub, input, idempotencyKeyOf(req));
+    return json(result.body, { status: result.statusCode, headers: result.headers });
+  }
   const { statusCode, body } = booking.placeBooking(auth.sub, input, idempotencyKeyOf(req));
   return json(body, { status: statusCode, headers: { Location: `/api/bookings/${body.order.id}` } });
 });

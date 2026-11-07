@@ -8,6 +8,8 @@
 export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
+DROP TABLE IF EXISTS booking_saga_transitions;
+DROP TABLE IF EXISTS booking_sagas;
 DROP TABLE IF EXISTS consistency_attention;
 DROP TABLE IF EXISTS processed_events;
 DROP TABLE IF EXISTS idempotency_keys;
@@ -299,5 +301,41 @@ CREATE TABLE consistency_attention (
   reason TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   resolved_at TEXT
+);
+
+-- Area C: Booking-orchestrated provisioning saga (lib/modules/booking/saga.js). Durable workflow
+-- state owned by the orchestrator; created in the SAME transaction as the reservation and reused
+-- after restarts. Saga states are internal; the public booking status stays 'awaiting'.
+CREATE TABLE booking_sagas (
+  saga_id TEXT PRIMARY KEY,
+  order_id INTEGER NOT NULL UNIQUE REFERENCES orders(id),
+  customer_id INTEGER NOT NULL,
+  request_key TEXT NOT NULL,
+  request_digest TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('INTENT_CREATE_PENDING','COMPLETED','COMPENSATION_PENDING','CANCELLED','RECOVERY_PENDING')),
+  create_command_id TEXT NOT NULL UNIQUE,
+  cancel_command_id TEXT NOT NULL UNIQUE,
+  cancel_reason TEXT,
+  snapshot_json TEXT NOT NULL,
+  intent_json TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  locked_by TEXT,
+  locked_until TEXT,
+  last_error TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE (customer_id, request_key)
+);
+CREATE INDEX idx_booking_sagas_due ON booking_sagas(next_attempt_at) WHERE state IN ('INTENT_CREATE_PENDING','COMPENSATION_PENDING');
+
+-- Every saga state change, kept as history/evidence (never deleted by compensation).
+CREATE TABLE booking_saga_transitions (
+  id INTEGER PRIMARY KEY,
+  saga_id TEXT NOT NULL REFERENCES booking_sagas(saga_id),
+  from_state TEXT,
+  to_state TEXT NOT NULL,
+  reason TEXT,
+  at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 `;
