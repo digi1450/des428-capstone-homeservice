@@ -58,6 +58,21 @@ startSagaRecovery();
 - **D:** retry and timeout values. The foreground waits for one client timeout, then returns 503.
 - **Settlement eligibility (`assertSettlementAllowed`)** must let a payment settle only for a `COMPLETED` saga. This needs Payments-side eligibility state written with the command result. It is not done yet.
 
+## Activation delivery (added 7 Nov 2026)
+
+`COMPLETED` means *provisioned*, not payable. In the same SQLite transaction that sets `COMPLETED`, the saga inserts a `booking_saga_activations` row (`pending`, key `activate:<saga_id>`). Delivery runs afterwards, outside any transaction, under its own lease: first right after the 201, then from `recoverOnce()`.
+
+| Payments answer | Activation state | Effect |
+|---|---|---|
+| success (fresh or replay) | `activated` | `paymentSetupFor(orderId)` → `"ready"` |
+| unknown outcome (timeout, lost reply, 5xx) | stays `pending` | same key retried with backoff; one `consistency_attention` row (`activation_unconfirmed`) after `activateEscalateAfter` attempts; the booking is never cancelled |
+| validated 409 with `code: PAYMENT_SETUP_CANCELLED` | `blocked` | attention `payment_setup_cancelled`; no further delivery |
+| uncoded 409 (also `PaymentOutcomeUnknownError` with `upstreamStatus` 409) | `reconcile` | attention `activation_conflict`; never treated as a fence, slots kept |
+
+**Interface change to review with A:** the agreed text put `activation_state` / `activate_command_id` on `booking_sagas`. SQLite's `ALTER TABLE ADD COLUMN` stores a different `CREATE` text than a fresh database, so #23's exact-schema guard could never accept an upgraded file. The state therefore lives in its own table, and `lib/db/migrate.js` gains a reviewed, additive `UPGRADES` list: a file whose schema and marker are exactly the previous one (fingerprint `6c9ccb3f…`, main at `b4d0b46`) gets the new objects with the same `CREATE` text plus a backfill (`COMPLETED` sagas with an intent → `pending`), all in one IMMEDIATE transaction, then a full exact-schema check. Anything else still fails closed.
+
+**A still needs to:** add `activate(workflow, credentials)` to the Booking payments adapter/client (`POST /internal/payment-intents/activate-by-command`, Idempotency-Key = `activateCommandId`), surface the coded 409 as `error.code === "PAYMENT_SETUP_CANCELLED"`, and show `payment_setup` from `paymentSetupFor()`. Until the adapter has `activate`, rows stay `pending` and nothing is delivered. **D:** the retry numbers are the existing saga defaults.
+
 ## Defence material
 
 The [demo](../tests/integration/c-saga-demo.mjs) (`node tests/integration/c-saga-demo.mjs`) prints the state before and after compensation. Explaining **why** the team chose orchestration (Week 10 slides 57, 61–66) is each member's own work, based on these runs.
