@@ -28,3 +28,5 @@ Participant cases observed:
 Deviation from the agreed DDL: `payment_provisioning.intent_id` is `UNIQUE` **without** a foreign key. A's importer truncates `payment_intents` during rollback tests, and an FK made it fail. The row is written in the same transaction as the intent.
 
 Not done in this slice: `activate` HTTP route, coded-error serialization and client (A), monolith activation state/migration and recovery (C, next), wallet consumer (C, next; its `processed_events` table is included), real B verifier, live wiring.
+
+A follow-up review restores the agreed same-service FK and corrects the disposable importer cleanup instead of weakening the schema; see [A B/C review](../a-b-c-integration-review.md) and its current validation. The FK exception and boundary failure above record C's original #27 run, not the revised follow-up result.

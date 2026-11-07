@@ -28,7 +28,7 @@ CREATE TABLE payment_provisioning (
   provider_id         INTEGER,
   amount_cents        INTEGER,
   currency            TEXT,
-  intent_id           INTEGER UNIQUE, -- no FK: importer truncates payment_intents; written in the same tx
+  intent_id           INTEGER UNIQUE REFERENCES payment_intents(id), -- same-service referential integrity
   cancel_command_id   TEXT,
   cancel_reason       TEXT,
   activate_command_id TEXT,
