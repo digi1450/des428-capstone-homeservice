@@ -133,7 +133,7 @@ test("Payments PostgreSQL business primitives and HTTP reads",{skip:!process.env
       assert.equal(await count(value.order_id,"commission_owed"),0);
       assert.equal((await service.getWallet({role:"provider",domainId:base+1})).commission_owed_cents,150);
     });
-    await t.test("public HTTP reads preserve projections and isolate users; unimplemented writes stay closed",async()=>{
+    await t.test("public HTTP reads preserve projections and isolate users; simulation requires valid input and C hooks",async()=>{
       const actors={provider:{role:"provider",domainId:base+1},customer:{role:"customer",domainId:base},other:{role:"customer",domainId:base+2}};
       server=createApp({database:db,authenticate:async req=>{const actor=actors[req.get("authorization")?.replace(/^Bearer /,"")];if(!actor)throw new HttpError(401,"invalid token");return actor;}}).listen(0,"127.0.0.1");
       await new Promise(resolve=>server.once("listening",resolve));
@@ -147,7 +147,9 @@ test("Payments PostgreSQL business primitives and HTTP reads",{skip:!process.env
       assert.deepEqual(await (await call("/api/customer/transactions","other")).json(),[]);
       const history=await (await call("/api/customer/transactions","customer")).json();assert.ok(history.length>=4);
       assert.ok(history.every(row=>row.created_at.endsWith("Z")));
-      assert.equal((await call("/api/payments/simulate","customer","POST")).status,404);
+      assert.equal((await call("/api/payments/simulate","customer","POST")).status,415);
+      const owned=(await db.query("SELECT order_id FROM payment_intents WHERE customer_id=$1 LIMIT 1",[base])).rows[0];
+      assert.equal((await fetch(origin+"/api/payments/simulate",{method:"POST",headers:{Authorization:"Bearer customer","Content-Type":"application/json"},body:JSON.stringify({order_id:owned.order_id})})).status,503);
       assert.equal((await call("/internal/payment-intents","customer","POST")).status,503);
     });
   } finally {

@@ -1,5 +1,7 @@
 # A's first service scaffold
 
+> 8 November caller update: [Payment setup and caller handoff](../docs/payment-setup-callers-handoff.md) supersedes the historical unchanged-caller/unmounted-simulation statements below. Explicit remote intent/simulate/wallet/history paths and pending UI are prepared; default production composition and the remaining writers/cutover are still gated.
+
 Recorded checks: [first scaffold validation](../docs/validation/a-scaffold-2026-11-05.md).
 
 Implemented here: two independently installable Express apps, PostgreSQL pools and same-client transaction hooks, additive/checksummed migrations, liveness/readiness and container builds. Notifications now has repository/business logic and read/mark-read routes behind an authentication integration seam; business access fails closed until B wires it. Payments now has financial business primitives and wallet/history read routers; real auth, HTTP payment mutations, C consistency integration, brokers, saga and live gateway cutover remain pending. Prepared nginx configs and the E integration checklist are in the [gateway handoff](../docs/nginx-handoff.md). The original monolith still serves every user flow from SQLite; these new databases are not yet authoritative for production traffic.

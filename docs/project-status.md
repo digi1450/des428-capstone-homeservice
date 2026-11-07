@@ -2,6 +2,12 @@
 
 Recorded 6 November 2026 against `main` at `67bd023fa64df9b12a2a6424473e389b565e80b2`. This is a shared implementation snapshot, not the final dossier. Check newer merged PRs, current code and affected owners before treating a pending item as current. A missing merged evidence link does not mean a teammate has not started work on a branch.
 
+## Current caller preparation — 8 November 2026
+
+A steps 1–2 are merged in #32–33: activation HTTP and its client/Booking adapter. This branch adds [step 3: pending/ready UI and Payments callers](payment-setup-callers-handoff.md), with owner-scoped intent/simulation HTTP, explicit remote wallet pending state and an injectable end-user access/readiness boundary. Its current validation covers Next route → client → Express → real C participant → isolated PostgreSQL. Authentication and readiness are explicit test doubles; no real Keycloak, C activation recovery or live cutover is claimed.
+
+This supersedes older claims below that **all** clients/callers are unused or Payments mutation routes are unmounted. The default production bootstrap still does not configure them: legacy flows remain until explicit composition, while saga-owned bookings never fall back to a SQLite intent/simulation. Notification callers, provider-registration wallet writer, completion/refund/webhook migration, legacy eligibility, B verifier, corrected C recovery and final gateway/data/full-stack checks remain integration work. The older destructive-startup warning was superseded by #23; never use an older destructive image against preserved data.
+
 ## Integration update — 7 November 2026
 
 C's messaging/outbox/consumer/saga preparation is merged through PRs #14–18; read [C messaging](c-messaging-handoff.md) and [C saga](c-saga-handoff.md). Saga activation and Payments participant endpoints/fence/eligibility remain pending. E's logging/metrics/Grafana/per-service tracing and PostgreSQL CI are integrated with those C commits in this change; [handoff](e-observability-handoff.md) and [validation](validation/e-main-sync-2026-11-07.md) cover available behavior and limits. The earlier snapshot below describes the A preparation milestone; C/E items there are historical, superseded by these handoffs where applicable. No final-stack/cutover completion is claimed.
