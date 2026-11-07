@@ -23,7 +23,7 @@ Environment variables: both processes need `DATABASE_URL` (own service only) and
 |---|---|---|
 | `homeservice.events` | durable topic exchange; routing key = `event_type` | producer and consumer |
 | `notifications.events` | quorum queue, bound to the six event types Notifications maps, `x-delivery-limit`, DLX below | Notifications consumer |
-| `homeservice.events.dlx` → `notifications.events.dlq` | fanout exchange → quorum queue | Notifications consumer |
+| `homeservice.dead-letter` → `notifications.events.dlq` | direct exchange (routing key = source queue name) → quorum queue; each consumer gets its own DLQ | Notifications consumer |
 
 Publish-subscribe: another consumer (e.g. the monolith Booking paid-flag or Ratings consumer) binds **its own** queue to the same exchange and uses its own `consumer_name`, so one consumer's dedupe never suppresses another.
 
