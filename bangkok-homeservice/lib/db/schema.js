@@ -253,9 +253,19 @@ CREATE TABLE events (
   aggregate_id INTEGER NOT NULL,
   payload_json TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  processed_at TEXT
+  processed_at TEXT,
+  -- Area C broker publishing (lib/messaging/broker-relay.js), independent of processed_at:
+  -- event_uuid is the stable cross-service event_id reused on every republish.
+  event_uuid TEXT NOT NULL UNIQUE,
+  published_at TEXT,
+  publish_attempts INTEGER NOT NULL DEFAULT 0,
+  next_publish_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  publish_locked_by TEXT,
+  publish_locked_until TEXT,
+  publish_last_error TEXT
 );
 CREATE INDEX idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
+CREATE INDEX idx_events_unpublished ON events(next_publish_at, id) WHERE published_at IS NULL;
 
 CREATE TABLE idempotency_keys (
   key TEXT PRIMARY KEY, endpoint TEXT NOT NULL,

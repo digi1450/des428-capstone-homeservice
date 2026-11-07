@@ -2,16 +2,18 @@
 // crash can never leave "state changed but event lost" (or vice-versa). The notifications relay is
 // the sole consumer: it claims each row by stamping processed_at, then dispatches. Shared infra, so
 // it lives under lib/db rather than in any one bounded context.
+import { randomUUID } from "node:crypto";
 import { getDb } from "./index.js";
 
 // Insert a domain event. MUST be called from inside the caller's transaction so it commits or rolls
-// back atomically with the state change that produced it.
+// back atomically with the state change that produced it. event_uuid is the stable cross-service
+// event_id that the broker relay (lib/messaging) publishes; it never changes on republish.
 export function insertEvent(type, aggregateType, aggregateId, payload) {
   return getDb()
     .prepare(
-      "INSERT INTO events (type, aggregate_type, aggregate_id, payload_json) VALUES (?, ?, ?, ?)"
+      "INSERT INTO events (type, aggregate_type, aggregate_id, payload_json, event_uuid) VALUES (?, ?, ?, ?, ?)"
     )
-    .run(type, aggregateType, aggregateId, JSON.stringify(payload)).lastInsertRowid;
+    .run(type, aggregateType, aggregateId, JSON.stringify(payload), randomUUID()).lastInsertRowid;
 }
 
 export function listUnprocessed(limit = 100) {

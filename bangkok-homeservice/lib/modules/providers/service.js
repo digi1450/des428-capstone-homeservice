@@ -2,6 +2,7 @@
 // availability, and the admin-only approve / set-commission actions. Approval writes a notification
 // to the provider (in the same transaction as the flag flip).
 import { getDb } from "../../db/index.js";
+import { insertEvent } from "../../db/events.js";
 import * as repository from "./repository.js";
 import * as identityRepository from "../identity/repository.js";
 import * as catalogRepository from "../catalog/repository.js";
@@ -101,6 +102,9 @@ export function approveProvider(providerId) {
       body: "Your provider account has been approved. Your services are now visible to customers.",
       orderId: null,
     });
+    // Area C: the extracted Notifications service consumes this event from the broker. The direct
+    // writer above stays until the coordinated cutover; the legacy relay ignores this type.
+    insertEvent("provider.approved", "provider", providerId, { provider_id: providerId });
   });
   run();
   return getOwnProfile(providerId);

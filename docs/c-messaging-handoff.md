@@ -15,6 +15,16 @@ Recorded 7 November 2026. Owner: C (Peerawit). Status: first cross-boundary flow
 | Inbox | `services/notifications/src/messaging/inbox.js` | One transaction: `INSERT … ON CONFLICT DO NOTHING` dedupe row + A's `recordEvent(type, data, { client })`. Duplicate → no effect. Checks the expected producer per event type |
 | Consumer | `src/messaging/consumer.js` + process `node src/event-consumer.js` | Ack only after commit. Permanent error (bad envelope, unsupported type, wrong producer, invalid data) → reject → DLQ. Transient error → wait, requeue; quorum queue dead-letters after `x-delivery-limit` (default 5) |
 
+### Monolith producer (PR `feat/c-monolith-outbox`)
+
+| Piece | Location | Behaviour |
+|---|---|---|
+| Outbox columns | `bangkok-homeservice/lib/db/schema.js` (`events`) | `event_uuid` (stable `event_id`, set by `insertEvent`), `published_at`, `publish_attempts`, `next_publish_at`, `publish_locked_by/_until`, `publish_last_error`. Independent of the inherited `processed_at` |
+| Broker relay | `lib/messaging/broker-relay.js`, started from `instrumentation.js` **only when `AMQP_URL` is set** | Same lease → publish outside the transaction → mark protocol as Payments. Publishes only `booking.status_changed`, `booking.completed`, `bid.accepted`, `review.created`, `provider.approved`. Never `payment.succeeded`: after extraction only Payments & Wallet may publish it |
+| New event | `lib/modules/providers/service.js` | `provider.approved` `{ provider_id }` written in the approval transaction. The inherited direct notification writer stays until cutover; the legacy relay ignores this type |
+
+Without `AMQP_URL` the monolith behaves exactly as before. With it, the inherited local relay keeps running too, so notifications are written to both the SQLite table and the Notifications service until the coordinated cutover retires the old dispatch (ratings must stay local).
+
 Environment variables: both processes need `DATABASE_URL` (own service only) and `AMQP_URL`. Optional: `RELAY_POLL_MS`, `RELAY_BATCH_SIZE`, `RELAY_LEASE_MS`, `CONSUMER_PREFETCH`, `CONSUMER_DELIVERY_LIMIT`, `CONSUMER_RETRY_DELAY_MS`. Placeholders are in each `.env.example`.
 
 ## RabbitMQ topology (DRAFT — E please confirm names)
@@ -38,4 +48,4 @@ Start order matters once: a consumer must have declared its queue before events 
 
 ## Not done yet (next C work)
 
-Monolith (SQLite) outbox for `booking.status_changed` and the other inherited events, Booking consumer for `payment.succeeded`, the Booking-orchestrated saga with compensation and recovery worker, `assertSettlementAllowed`, payment command/cancel fences, and legacy event watermark at cutover.
+Booking consumer for `payment.succeeded`, the Booking-orchestrated saga with compensation and recovery worker, `assertSettlementAllowed`, payment command/cancel fences, and legacy event watermark at cutover.
