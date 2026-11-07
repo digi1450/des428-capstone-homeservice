@@ -77,6 +77,10 @@ function dispatch(event) {
       }
       break;
     }
+    case "provider.registered":
+      // Area C: published to the broker so Payments & Wallet provisions the provider's wallet.
+      // The inherited SQLite provider_wallets row is still written locally until cutover.
+      break;
     case "provider.approved":
       // Published to the broker for the extracted Notifications service (Area C). The inherited
       // direct writer in providers/service.js still records it locally until cutover.
