@@ -15,6 +15,8 @@ Start with the [shared project status and handoff](docs/project-status.md): merg
 - Prepared [offline data migration and caller cutover plan](docs/data-cutover-handoff.md) includes read-only export, rollback-only dry-run and service-owned import tests; no real data or active callers have been switched.
 - Team ownership: [OWNERS.md](OWNERS.md). Branch/PR instructions: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+E integration: [logging/metrics/tracing/CI and initial root Compose](docs/e-observability-handoff.md) now coexist with C's merged messaging/saga modules. Final business activation, broker/IdP wiring and full-stack evidence remain pending. Use the root setup instructions there only for disposable demo data until destructive monolith startup is replaced.
+
 ## Run the original system
 
 Install and start Docker with Docker Compose. From the repository root:

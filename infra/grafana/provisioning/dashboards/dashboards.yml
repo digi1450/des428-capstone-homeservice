@@ -1,0 +1,12 @@
+# Area E - Grafana dashboard provisioning
+apiVersion: 1
+
+providers:
+  - name: Bangkok Homeservice
+    orgId: 1
+    folder: Bangkok Homeservice
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards

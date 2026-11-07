@@ -2,6 +2,10 @@
 
 Recorded 6 November 2026 against `main` at `67bd023fa64df9b12a2a6424473e389b565e80b2`. This is a shared implementation snapshot, not the final dossier. Check newer merged PRs, current code and affected owners before treating a pending item as current. A missing merged evidence link does not mean a teammate has not started work on a branch.
 
+## Integration update — 7 November 2026
+
+C's messaging/outbox/consumer/saga preparation is merged through PRs #14–18; read [C messaging](c-messaging-handoff.md) and [C saga](c-saga-handoff.md). Saga activation and Payments participant endpoints/fence/eligibility remain pending. E's logging/metrics/Grafana/per-service tracing and PostgreSQL CI are integrated with those C commits in this change; [handoff](e-observability-handoff.md) and [validation](validation/e-main-sync-2026-11-07.md) cover available behavior and limits. The earlier snapshot below describes the A preparation milestone; C/E items there are historical, superseded by these handoffs where applicable. No final-stack/cutover completion is claimed.
+
 ## Decisions already selected
 
 Extract Notifications and Payments & Wallet as Express services, each owning PostgreSQL in its own container/credentials. Booking/Bidding and remaining contexts stay in the Next.js/SQLite monolith initially. nginx is the gateway; Booking orchestrates the provisioning saga; notifications are asynchronous. [Migration handoff](migration-handoff.md) records the lead-selected decisions and proposed interfaces; [team plan](team-plan.md) and [OWNERS](../OWNERS.md) describe responsibilities. Draft interfaces still require integration review with B/C/D/E.
