@@ -179,6 +179,48 @@ test("payment participant on PostgreSQL", { skip: !process.env.TEST_DATABASE_URL
       assert.equal(await participant.get({ callerId: caller + "-other", createCommandId: p.create, context: {} }), null);
     });
 
+    await t.test("activation HTTP with real participant: durable replay, uncoded conflict and effective coded fence", async () => {
+      const p = next();
+      const app = createApp({database: db,paymentCommands: participant,authenticateService: async(req,{operation}) => {
+        assert.ok(["create","query","cancel","activate"].includes(operation));
+        if(req.get("authorization") !== "Bearer participant-http-test") throw new HttpError(401,"invalid test token");
+        return {service:"booking",callerId:caller};
+      }});
+      const server=app.listen(0,"127.0.0.1");
+      await new Promise(resolve=>server.once("listening",resolve));
+      const post=(path,body,key)=>fetch(`http://127.0.0.1:${server.address().port}/internal/payment-intents${path}`,{
+        method:"POST",headers:{Authorization:"Bearer participant-http-test","Content-Type":"application/json","Idempotency-Key":key,"X-Request-Id":"real-activation-http"},body:JSON.stringify(body),
+      });
+      const body={create_command_id:p.create,saga_id:p.saga};
+      const eligible=()=>db.withTransaction(async client=>{
+        await client.query("SELECT pg_advisory_xact_lock(42801,$1::integer)",[p.order]);
+        const intent=(await client.query("SELECT * FROM payment_intents WHERE order_id=$1",[p.order])).rows[0];
+        return participant.assertSettlementAllowed(client,intent);
+      });
+      try {
+        assert.equal((await post("",p.request,p.create)).status,201);
+        assert.equal(await eligible(),false);
+        const expected={...body,outcome:"activated"};
+        for(let n=0;n<2;n++) {
+          const response=await post("/activate-by-command",body,p.activate);
+          assert.equal(response.status,200);assert.deepEqual(await response.json(),expected);
+        }
+        assert.equal(await eligible(),true);
+        assert.equal((await db.query("SELECT count(*)::int AS n FROM payment_commands WHERE caller_id=$1 AND command_id=$2",[caller,p.activate])).rows[0].n,1);
+        for(const request of [{...body,saga_id:"other-saga"},{create_command_id:"missing-create",saga_id:p.saga}]) {
+          const response=await post("/activate-by-command",request,p.activate+"-conflict");
+          assert.equal(response.status,409);assert.equal((await response.json()).code,undefined);
+        }
+        assert.equal((await post("/cancel-by-command",{...body,reason:"booking_setup_failed"},p.cancel)).status,200);
+        const fenced=await post("/activate-by-command",body,p.activate);
+        assert.equal(fenced.status,409);
+        const error=await fenced.json();assert.equal(error.code,SETUP_CANCELLED);assert.equal(error.requestId,"real-activation-http");
+        assert.equal(await eligible(),false);
+        assert.equal((await db.query("SELECT state FROM payment_provisioning WHERE caller_id=$1 AND create_command_id=$2",[caller,p.create])).rows[0].state,"fenced");
+        assert.equal((await intentsFor(p)).length,1);
+      } finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+    });
+
     await t.test("through A's HTTP router: 201 create, 200 replay, get, cancel, 404 unknown", async () => {
       const p = next();
       const app = createApp({ database: db, paymentCommands: participant,

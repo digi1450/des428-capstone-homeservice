@@ -27,6 +27,22 @@ export function cancelCommand(value, commandId) {
   if (body.create_command_id === commandId) throw new HttpError(400,'create and cancel identities must differ');
   return {...body};
 }
+export function activateCommand(value, commandId) {
+  const body = object(value,['create_command_id','saga_id']);
+  commandKey(body.create_command_id); commandKey(body.saga_id);
+  if (body.create_command_id === commandId) throw new HttpError(400,'create and activate identities must differ');
+  return {...body};
+}
+export function activationOutcome(value, {createCommandId,sagaId}) {
+  try {
+    object(value,['replayed','result']);
+    if (typeof value.replayed !== 'boolean') throw new Error('replay');
+    const result = object(value.result,['create_command_id','saga_id','outcome']);
+    commandKey(result.create_command_id); commandKey(result.saga_id);
+    if (result.create_command_id !== createCommandId || result.saga_id !== sagaId || result.outcome !== 'activated') throw new Error('identity');
+    return {...result};
+  } catch { throw new HttpError(503,'payment activation result not confirmed'); }
+}
 function intent(value) {
   const row = object(value,['id','order_id','amount_cents','gateway_ref','status']);
   id(row.id);id(row.order_id);cents(row.amount_cents);

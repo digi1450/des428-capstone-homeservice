@@ -2,13 +2,13 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Homeservice payment provisioning \u2014 DRAFT",
-    "version": "0.2.0",
-    "description": "A HTTP shell for create/query/cancel is implemented behind injected B service authentication and a C participant adapter, both absent in the production bootstrap. Live requests fail closed; tests use explicit doubles. Durable commands/fences/eligibility and the activation response contract still require A/C/B review. Public Booking API remains separate."
+    "version": "0.3.0",
+    "description": "Create/query/cancel/activate HTTP routes use injected service authentication and the C durable Payments participant. Participant implementation is available, but production server.js injects neither verifier nor participant: default runtime fails closed with 503. Isolated tests use explicit auth doubles and real PostgreSQL; live Keycloak/saga/caller activation is not established."
   },
   "servers": [
     {
       "url": "http://localhost:3002",
-      "description": "Proposed local endpoint; scaffold currently returns 404 for business routes"
+      "description": "Local Payments origin; production internal routes remain unavailable until B/C composition is configured."
     }
   ],
   "security": [
@@ -137,11 +137,11 @@
             }
           },
           "409": {
-            "description": "Command/body conflict, fenced create, or settled intent requiring reconciliation",
+            "description": "Business conflict: only 409 plus PAYMENT_SETUP_CANCELLED confirms a setup fence. Uncoded 409 requires reconciliation; never infer a fence from status alone.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/ConflictError"
                 }
               }
             },
@@ -335,11 +335,11 @@
             }
           },
           "409": {
-            "description": "Command/body conflict, fenced create, or settled intent requiring reconciliation",
+            "description": "Business conflict: only 409 plus PAYMENT_SETUP_CANCELLED confirms a setup fence. Uncoded 409 requires reconciliation; never infer a fence from status alone.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/ConflictError"
                 }
               }
             },
@@ -483,11 +483,11 @@
             }
           },
           "409": {
-            "description": "Command/body conflict, fenced create, or settled intent requiring reconciliation",
+            "description": "Business conflict: only 409 plus PAYMENT_SETUP_CANCELLED confirms a setup fence. Uncoded 409 requires reconciliation; never infer a fence from status alone.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/ConflictError"
                 }
               }
             },
@@ -567,10 +567,46 @@
     },
     "/internal/payment-intents/activate-by-command": {
       "post": {
-        "operationId": "activatePaymentIntentByCommandReserved",
-        "x-implementation-status": "reserved-unavailable",
-        "description": "Reserved fail-closed route only. The lead selected durable HTTP activation, but request/response and replay-after-fence semantics are not agreed. No activation implementation is dispatched; no success response or request schema is promised in this version.",
+        "operationId": "activatePaymentIntentByCommand",
+        "x-implementation-status": "http-implemented-production-unwired",
+        "description": "Confirm effective settlement eligibility for the original caller/create-command/saga. Fresh and replayed acceptance return 200 with the same shape. A later durable cancellation fence returns coded 409 even for a previously accepted activation. Unknown or mismatched provisioning returns uncoded 409 and requires reconciliation, not cancellation. Activation has no charging effect. Reuse a distinct stable key/body; C rejects key reuse across kinds/targets.",
         "responses": {
+          "200": {
+            "description": "Effective activation accepted (fresh or replay), not a charge",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivatedOperation"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing/invalid Keycloak token",
             "content": {
@@ -591,6 +627,60 @@
           },
           "403": {
             "description": "Caller or operation not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business conflict: only 409 plus PAYMENT_SETUP_CANCELLED confirms a setup fence. Uncoded 409 requires reconciliation; never infer a fence from status alone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictError"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Command JSON exceeds the 16 KiB limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-Id": {
+                "description": "Correlation identity for this HTTP response; tracing propagation is coordinated with E.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "application/json or supported uncompressed encoding required",
             "content": {
               "application/json": {
                 "schema": {
@@ -629,6 +719,40 @@
                   "type": "integer",
                   "minimum": 1
                 }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure; sanitized response, outcome unconfirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Stable activation command ID, different from create and cancel IDs. Caller persists it once and reuses the same key/body on retry; C checks persisted cross-kind key reuse.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._:-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivatePaymentIntent"
               }
             }
           }
@@ -842,6 +966,93 @@
           }
         },
         "additionalProperties": false
+      },
+      "ActivatePaymentIntent": {
+        "type": "object",
+        "required": [
+          "create_command_id",
+          "saga_id"
+        ],
+        "properties": {
+          "create_command_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._:-]+$"
+          },
+          "saga_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._:-]+$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActivatedOperation": {
+        "type": "object",
+        "required": [
+          "create_command_id",
+          "saga_id",
+          "outcome"
+        ],
+        "properties": {
+          "create_command_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._:-]+$"
+          },
+          "saga_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._:-]+$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "activated"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetupCancelledError": {
+        "type": "object",
+        "required": [
+          "error",
+          "requestId",
+          "code"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "PAYMENT_SETUP_CANCELLED"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConflictError": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "$ref": "#/components/schemas/SetupCancelledError"
+          }
+        ]
       }
     }
   }

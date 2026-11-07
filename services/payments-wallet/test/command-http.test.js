@@ -19,6 +19,7 @@ async function setup(t,overrides={}) {
     create:async input=>{calls.push(['create',input]);return {replayed:false,result:clone(f.created)};},
     get:async input=>{calls.push(['get',input]);return clone(f.created);},
     cancel:async input=>{calls.push(['cancel',input]);return clone(f.cancelled);},
+    activate:async input=>{calls.push(['activate',input]);return {replayed:false,result:clone(f.activated)};},
   };
   const app=createApp({database:{query:()=>assert.fail('HTTP shell must not query SQL')},authenticateService,paymentCommands,...overrides});
   const server=app.listen(0,'127.0.0.1');
@@ -132,7 +133,64 @@ test('invalid/mismatched C success payloads fail closed and never expose private
   paymentCommands.cancel=async()=>clone(f.created);
   assert.equal((await post(cancelPath,f.cancel.body,f.cancel.headers['Idempotency-Key'])).status,503);
 });
-test('activation stays reserved/unavailable even if an arbitrary activate function is supplied',async t=>{
-  const {post}=await setup(t,{paymentCommands:{activate:()=>assert.fail('unagreed activation interface must not run')}});
-  assert.equal((await post(createPath+'/activate-by-command',{})).status,503);
+const activatePath=createPath+'/activate-by-command';
+test('activation fails closed without B verifier or C activate method',async t=>{
+  for(const options of [{authenticateService:undefined},{paymentCommands:{}},{paymentCommands:undefined}]) {
+    const {post,calls}=await setup(t,options);
+    const response=await post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key']);
+    assert.equal(response.status,503);assert.equal(response.headers.get('retry-after'),'2');assert.equal(calls.length,0);
+  }
+});
+test('activation fresh/replay returns 200 and forwards stable identity, operation and metadata',async t=>{
+  const {post,calls,paymentCommands}=await setup(t);
+  for(const replayed of [false,true]) {
+    paymentCommands.activate=async input=>{calls.push(['activate',input]);return {replayed,result:clone(f.activated)};};
+    const response=await post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key'],{'X-Request-Id':'activate-probe',traceparent:'00-11111111111111111111111111111111-2222222222222222-01'});
+    assert.equal(response.status,200);assert.deepEqual(await response.json(),f.activated);
+    assert.equal(response.headers.get('cache-control'),'no-store');
+    const input=calls.at(-1)[1];assert.equal(input.callerId,callerId);assert.equal(input.commandId,f.activate.headers['Idempotency-Key']);
+    assert.deepEqual(input.request,f.activate.body);assert.equal(input.context.requestId,'activate-probe');assert.ok(input.context.traceparent);
+    assert.ok(!JSON.stringify(input).includes('Bearer'));
+  }
+});
+test('activation validation prevents invalid input and never calls participant',async t=>{
+  const {post,request,calls}=await setup(t);
+  const key=f.activate.headers['Idempotency-Key'];
+  for(const body of [{},[],null,{...f.activate.body,extra:true},{...f.activate.body,saga_id:'..'},{...f.activate.body,create_command_id:0}]) assert.equal((await post(activatePath,body,key)).status,400);
+  for(const id of ['', '.', '..','bad key','x'.repeat(129),f.activate.body.create_command_id]) assert.equal((await post(activatePath,f.activate.body,id)).status,400);
+  const raw=(body,headers={})=>request(activatePath,{method:'POST',body,headers:{'Content-Type':'application/json','Idempotency-Key':key,...headers}});
+  assert.equal((await raw('{')).status,400);
+  assert.equal((await raw('{}',{'Content-Type':'text/plain'})).status,415);
+  assert.equal((await raw('{}',{'Content-Encoding':'gzip'})).status,415);
+  assert.equal((await post(activatePath,{...f.activate.body,padding:'x'.repeat(17000)},key)).status,413);
+  assert.equal(calls.length,0);
+});
+test('activation requires authorized Booking service operation',async t=>{
+  const {post,calls}=await setup(t);
+  for(const Authorization of ['', 'Bearer invalid', 'Basic invalid']) assert.equal((await post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key'],{Authorization})).status,401);
+  const other=await setup(t,{authenticateService:async()=>({service:'customer',callerId:'user'})});
+  assert.equal((await other.post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key'])).status,403);
+  const denied=await setup(t,{authenticateService:async(_req,{operation})=>{assert.equal(operation,'activate');throw new HttpError(403,'operation denied');}});
+  assert.equal((await denied.post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key'])).status,403);
+  assert.equal(denied.calls.length,0);assert.equal(calls.length,0);
+});
+test('only a real coded 409 exposes the allow-listed cancellation code',async t=>{
+  const {post,paymentCommands}=await setup(t);
+  for(const [status,code,expectedCode] of [[409,'PAYMENT_SETUP_CANCELLED','PAYMENT_SETUP_CANCELLED'],[409,undefined,undefined],[409,'PRIVATE_CODE',undefined],[503,'PAYMENT_SETUP_CANCELLED',undefined],[400,'PAYMENT_SETUP_CANCELLED',undefined]]) {
+    paymentCommands.activate=async()=>{throw Object.assign(new HttpError(status,'business conflict'),{code});};
+    const response=await post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key']);
+    assert.equal(response.status,status);const body=await response.json();assert.equal(body.code,expectedCode);assert.ok(body.requestId);
+    assert.deepEqual(Object.keys(body).sort(),expectedCode?['code','error','requestId']:['error','requestId']);
+  }
+  paymentCommands.activate=async()=>{throw Object.assign(new Error('private SQL detail'),{code:'PAYMENT_SETUP_CANCELLED',statusCode:409});};
+  const failed=await post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key']);
+  assert.equal(failed.status,500);const body=await failed.json();assert.equal(body.code,undefined);assert.equal(body.error,'internal server error');
+});
+test('activation never accepts malformed or mismatched participant success',async t=>{
+  const {post,paymentCommands}=await setup(t);
+  for(const output of [null,{replayed:'yes',result:f.activated},{replayed:false,result:{...f.activated,saga_id:'other'}},{replayed:false,result:{...f.activated,create_command_id:'other'}},{replayed:false,result:{...f.activated,outcome:'cancelled'}},{replayed:false,result:{...f.activated,secret:'private'}},{replayed:false,result:f.activated,extra:true}]) {
+    paymentCommands.activate=async()=>output;
+    const response=await post(activatePath,f.activate.body,f.activate.headers['Idempotency-Key']);
+    assert.equal(response.status,503);assert.equal(response.headers.get('retry-after'),'2');assert.ok(!JSON.stringify(await response.json()).includes('private'));
+  }
 });
