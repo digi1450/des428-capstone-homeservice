@@ -13,6 +13,7 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 - Start with `docs/project-status.md` for merged work, active limitations, per-area dependencies and links to PRs/validation. It is a dated snapshot: check current code and newer merged PRs before relying on its pending statuses.
 - For A's prepared internal HTTP routes and proposed B/C injection interfaces, read `docs/payment-command-http-handoff.md`; do not enable production with the test doubles.
+- For the A response to C's proposed callable/replay/activation interface, read `docs/c-payment-participant-interface.md`; verify whether C has confirmed the revision before describing it as a bilateral agreement.
 - Before A/C command/fence/eligibility or wallet provisioning work, read `docs/payment-participant-decisions.md` for the lead's selected ownership/activation/pending-UI/async-wallet decisions. Keep its proposed technical interfaces distinct from completed implementation.
 - For either service, read `services/README.md`, `docs/notifications-handoff.md` and `docs/payments-business-handoff.md`; for C/D integration also read `docs/payment-adapter-handoff.md` and `docs/notification-mappings-handoff.md`.
 - Before gateway, data or caller changes, read `docs/nginx-handoff.md`, `docs/data-cutover-handoff.md` and `docs/extraction-inventory.md`. These document activation gates and the API/Server Component/relay/signup/Booking paths still on SQLite.

@@ -19,6 +19,8 @@ C results are validated before successful serialization: exact public shape, mat
 
 ## Proposed callable boundary for C — review/adapter needed
 
+C proposed matching exports in PR #24. [A's interface response](c-payment-participant-interface.md) records accepted shapes and clarifications, pending C confirmation; it does not change the current shell behavior. In particular the coded activation error/client handling is still A implementation work.
+
 `createApp({ database, authenticate, authenticateService, paymentCommands })` preserves the existing end-user read verifier `authenticate` and adds separate internal injection points. These are A's concrete HTTP-adapter proposal, not a claim that C has agreed/implemented these exact names. C may expose these methods or provide a small adapter around its own module; agree before live wiring and do not implement duplicate command stores.
 
 ```js

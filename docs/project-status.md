@@ -14,6 +14,8 @@ A step 2: [payment command HTTP shell](payment-command-http-handoff.md) adds cre
 
 A startup update: [non-destructive SQLite bootstrap](sqlite-startup-handoff.md) initializes/seeds only empty databases, adopts the exact current unversioned schema without reseeding, and fails closed on incompatible schemas. Both Compose files mount persistent monolith data. This supersedes the historical destructive-startup warning below; full cutover/recovery remains pending.
 
+A response to C PR #24: [participant interface](c-payment-participant-interface.md) accepts the direction and specifies historical create replay versus effective fence/activation, unchanged strict get shape, A-owned coded-error/client work and the separate legacy eligibility gate. This revision awaits C confirmation; participant/activation/wallet implementation and live wiring are still pending.
+
 ## Decisions already selected
 
 Extract Notifications and Payments & Wallet as Express services, each owning PostgreSQL in its own container/credentials. Booking/Bidding and remaining contexts stay in the Next.js/SQLite monolith initially. nginx is the gateway; Booking orchestrates the provisioning saga; notifications are asynchronous. [Migration handoff](migration-handoff.md) records the lead-selected decisions and proposed interfaces; [team plan](team-plan.md) and [OWNERS](../OWNERS.md) describe responsibilities. Draft interfaces still require integration review with B/C/D/E.
