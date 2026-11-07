@@ -87,9 +87,10 @@ function validateWindow(providerId, date, startingTime, durationMin) {
 }
 
 // ---------- the place-booking transaction ----------
-export function placeBooking(customerId, input, idempotencyKey) {
-  const { statusCode, body } = withIdempotency(idempotencyKey, PLACE_ENDPOINT, () => {
-    // (idempotency keys are scoped to this customer — see the actor arg passed below)
+// The reservation step shared by the inherited flow and the Area C saga. MUST run inside the
+// caller's transaction. `localIntent` keeps the inherited SQLite payment intent; `emitAwaiting`
+// writes the booking.status_changed outbox event (the saga defers it until provisioning completes).
+export function reserveBooking(customerId, input, { localIntent, emitAwaiting }) {
     // 1. Load services; assert same provider, provider approved, status=1.
     if (!input.items || input.items.length === 0) {
       throw new BadRequestError("validation failed", [{ path: "items", message: "at least one item is required" }]);
@@ -170,9 +171,9 @@ export function placeBooking(customerId, input, idempotencyKey) {
       repository.insertSlotHold(input.provider_id, input.service_date, slot, orderId);
     }
 
-    // 8. gateway bookings get a payment intent inside the same tx.
+    // 8. gateway bookings get a payment intent inside the same tx (inherited flow only).
     let intent;
-    if (input.payment_method === "gateway") {
+    if (localIntent && input.payment_method === "gateway") {
       const intentId = paymentsRepository.insertPaymentIntent({
         orderId,
         amountCents: total,
@@ -182,15 +183,26 @@ export function placeBooking(customerId, input, idempotencyKey) {
     }
 
     // 9. outbox event, same tx.
-    insertEvent("booking.status_changed", "order", orderId, {
-      order_id: orderId,
-      from: null,
-      to: "awaiting",
-      customer_id: customerId,
-      provider_id: input.provider_id,
-      actor_role: "customer",
-    });
+    if (emitAwaiting) emitBookingPlaced(orderId, customerId, input.provider_id);
 
+    return { orderId, otp, intent };
+}
+
+export function emitBookingPlaced(orderId, customerId, providerId) {
+  insertEvent("booking.status_changed", "order", orderId, {
+    order_id: orderId,
+    from: null,
+    to: "awaiting",
+    customer_id: customerId,
+    provider_id: providerId,
+    actor_role: "customer",
+  });
+}
+
+export function placeBooking(customerId, input, idempotencyKey) {
+  const { statusCode, body } = withIdempotency(idempotencyKey, PLACE_ENDPOINT, () => {
+    // (idempotency keys are scoped to this customer — see the actor arg passed below)
+    const { orderId, otp, intent } = reserveBooking(customerId, input, { localIntent: true, emitAwaiting: true });
     const order = repository.findOrderById(orderId);
     return {
       statusCode: 201,

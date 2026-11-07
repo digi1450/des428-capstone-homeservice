@@ -58,4 +58,4 @@ Start order matters once: a consumer must have declared its queue before events 
 
 ## Not done yet (next C work)
 
-the Booking-orchestrated saga with compensation and recovery worker, `assertSettlementAllowed`, payment command/cancel fences, and legacy event watermark at cutover.
+Saga runtime wiring (see [saga handoff](c-saga-handoff.md)), `assertSettlementAllowed`, payment command/cancel fences, and legacy event watermark at cutover.
