@@ -7,6 +7,7 @@ const id=z.number().int().positive().max(2147483647);
 const key=z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._:-]{1,128}$/);
 const booking=z.object({id,customer_id:id,provider_id:id,total_cents:z.number().int().nonnegative().max(2147483647),payment_method:z.enum(["gateway","cod"])});
 const flow=z.object({createCommandId:key,sagaId:key});
+const activation=flow.extend({activateCommandId:key}).strict();
 const cancellation=flow.extend({cancelCommandId:key,reason:z.enum(["booking_setup_failed","booking_finalization_failed"])});
 function parse(schema,value,label) {
   const result=schema.safeParse(value);
@@ -33,6 +34,12 @@ export function createBookingPaymentsAdapter({paymentsClient}) {
       if (snapshot.payment_method!=="gateway") throw new BadRequestError("COD booking has no payment operation");
       const operation=parse(flow,workflow,"workflow");
       return paymentsClient.getOperation({create_command_id:operation.createCommandId,saga_id:operation.sagaId,order_id:snapshot.id,amount_cents:snapshot.total_cents},credentials);
+    },
+    activate(workflow,credentials) {
+      const operation=parse(activation,workflow,"activation");
+      if (operation.createCommandId===operation.activateCommandId) throw new BadRequestError("create and activate command IDs must differ");
+      return paymentsClient.activateIntent({create_command_id:operation.createCommandId,saga_id:operation.sagaId},
+        credentialsFor(credentials,operation.activateCommandId));
     },
     cancel(workflow,credentials) {
       const operation=parse(cancellation,workflow,"cancellation");
