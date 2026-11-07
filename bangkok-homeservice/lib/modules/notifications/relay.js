@@ -77,6 +77,10 @@ function dispatch(event) {
       }
       break;
     }
+    case "provider.approved":
+      // Published to the broker for the extracted Notifications service (Area C). The inherited
+      // direct writer in providers/service.js still records it locally until cutover.
+      break;
     default:
       logger.warn({ type: event.type, id: event.id }, "relay: unknown event type");
   }

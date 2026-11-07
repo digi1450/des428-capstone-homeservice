@@ -7,5 +7,10 @@ export async function register() {
     bootstrapDb();
     const { startRelay } = await import("./lib/modules/notifications/relay.js");
     startRelay();
+    // Area C: publish owned domain events to RabbitMQ only when a broker is configured.
+    if (process.env.AMQP_URL) {
+      const { startBrokerRelay } = await import("./lib/messaging/broker-relay.js");
+      startBrokerRelay({ amqpUrl: process.env.AMQP_URL });
+    }
   }
 }
