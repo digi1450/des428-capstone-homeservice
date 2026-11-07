@@ -1,5 +1,7 @@
 # Offline data migration and caller cutover preparation — A → B/C/D/E
 
+> 8 November caller update: [Payment setup and caller handoff](payment-setup-callers-handoff.md) supersedes the historical unchanged-caller/unmounted-simulation statements below. Explicit remote intent/simulate/wallet/history paths and pending UI are prepared; default production composition and the remaining writers/cutover are still gated.
+
 Status: prepared tooling and integration plan, NOT an executed migration or live cutover. Existing monolith source, schemas, boot behavior and application Compose files remain unchanged. [Caller inventory](extraction-inventory.md), [Payments handoff](payments-business-handoff.md), [notification mappings](notification-mappings-handoff.md), [nginx handoff](nginx-handoff.md) and [validation](validation/data-migration-2026-11-06.md) apply together.
 
 ## Prepared tools and boundaries

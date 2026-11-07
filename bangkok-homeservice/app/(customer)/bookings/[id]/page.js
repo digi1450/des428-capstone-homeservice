@@ -2,17 +2,17 @@ export const dynamic = "force-dynamic";
 
 import { redirect, notFound } from "next/navigation";
 import { getSession } from "#lib/http/session.js";
-import * as booking from "#lib/modules/booking/service.js";
+import { getBookingView } from "#lib/modules/booking/payment-view.js";
 import { money, Badge } from "../../../_ui/format.js";
-import { ActionButton, ReviewForm } from "../../../_ui/client.js";
+import { ActionButton, ReviewForm, BookingPayment } from "../../../_ui/client.js";
 
-export default function BookingDetailPage({ params }) {
+export default async function BookingDetailPage({ params }) {
   const session = getSession();
   if (!session) redirect("/login");
 
   let b;
   try {
-    b = booking.getBooking(Number(params.id), { sub: session.sub, role: session.role });
+    b = await getBookingView(Number(params.id), { sub: session.sub, role: session.role });
   } catch (e) {
     if (e.statusCode === 404) notFound();
     redirect("/");
@@ -32,13 +32,15 @@ export default function BookingDetailPage({ params }) {
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="muted">Payment</span>
-          <span>{b.payment_method} · {b.payment_status}</span>
+          <span>{b.payment_method} · {b.payment_intent?.status === "succeeded" ? "paid" : b.payment_status}</span>
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="muted">Total</span>
           <span className="price">{money(b.total_cents)} <span className="muted small">({money(b.subtotal_cents)} + {money(b.tax_cents)} tax)</span></span>
         </div>
       </div>
+
+      {session.role === "customer" ? <BookingPayment initial={{order:b,payment_intent:b.payment_intent,payment_setup:b.payment_setup}} /> : null}
 
       {b.items && b.items.length ? (
         <>

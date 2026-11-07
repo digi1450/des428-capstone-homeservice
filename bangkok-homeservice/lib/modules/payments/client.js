@@ -13,6 +13,13 @@ const transaction = z.object({ id,order_id:id.nullable(),kind:z.enum(["charge","
   amount_cents:money,method:z.enum(["cod","gateway"]),gateway_ref:z.string().nullable(),
   status:z.enum(["pending","succeeded","failed","refunded"]),created_at:z.string().datetime({offset:true}) }).strict();
 const wallet = z.object({provider_id:id,balance_cents:money,commission_owed_cents:money,transactions:z.array(transaction)}).strict();
+const pendingWallet=z.object({provider_id:id,balance_cents:z.null(),commission_owed_cents:z.null(),transactions:z.array(transaction),wallet_setup:z.literal("pending")}).strict();
+const walletResult=z.union([wallet,pendingWallet]);
+const simulation=z.union([
+  z.object({ok:z.literal(true),replayed:z.literal(true)}).strict(),
+  z.object({ok:z.literal(true),replayed:z.literal(false),settled:z.literal(true)}).strict(),
+  z.object({ok:z.literal(true),replayed:z.literal(false),already_settled:z.literal(true)}).strict(),
+]);
 const createInput = z.object({order_id:id,customer_id:id,provider_id:id,amount_cents:money,currency:z.literal("THB"),saga_id:key}).strict();
 const operationIdentity = z.object({create_command_id:key,saga_id:key}).strict();
 const lookupInput = operationIdentity.extend({order_id:id,amount_cents:money}).strict();
@@ -145,8 +152,18 @@ export function createPaymentsClient({baseUrl,timeoutMs=2000,fetchImpl=fetch}) {
     return result;
   }
   return {
-    getWallet: credentials=>request({path:"/api/provider/wallet",credentials,schema:wallet}),
+    getWallet: credentials=>request({path:"/api/provider/wallet",credentials,schema:walletResult}),
     listCustomerTransactions: credentials=>request({path:"/api/customer/transactions",credentials,schema:z.array(transaction)}),
+    async getIntentForOrder(orderId,credentials) {
+      parse(id,orderId,"order id");
+      const result=await request({path:`/api/booking-payment-intents/${orderId}`,credentials,schema:intent});
+      if(result.order_id!==orderId) throw new AppError(503,"payment intent not confirmed");
+      return result;
+    },
+    async simulateSucceeded(orderId,credentials) {
+      parse(id,orderId,"order id");
+      return request({path:"/api/payments/simulate",method:"POST",body:{order_id:orderId},credentials,schema:simulation});
+    },
     async createIntent(input,credentials) {
       const body=parse(createInput,input,"intent context");
       const commandId=parse(key,credentials?.commandId,"create command ID");

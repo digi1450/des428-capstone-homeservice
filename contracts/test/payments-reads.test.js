@@ -21,3 +21,10 @@ test("wallet contract rejects private ledger context, negative balances and stri
   assert.equal(validate({...fixtures.wallet,balance_cents:"900"}),false);
   assert.equal(validate({...fixtures.wallet,transactions:[{...fixtures.wallet.transactions[0],context_json:{private:true}}]}),false);
 });
+
+test("pending wallet is explicit and cannot be confused with a funded/zero ready wallet",()=>{
+ const check=ajv.compile({$ref:"#/components/schemas/WalletResponse",components:spec.components});
+ assert.ok(check(fixtures.pending),JSON.stringify(check.errors));assert.ok(check(fixtures.wallet));assert.ok(check(fixtures.empty));
+ assert.equal(check({...fixtures.pending,balance_cents:0}),false);
+ assert.equal(check({...fixtures.pending,wallet_setup:"unknown"}),false);
+});

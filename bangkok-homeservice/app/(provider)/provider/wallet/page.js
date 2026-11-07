@@ -2,24 +2,25 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { getSession } from "#lib/http/session.js";
-import * as payments from "#lib/modules/payments/service.js";
+import { getWalletView } from "#lib/modules/payments/access.js";
 import { money } from "../../../_ui/format.js";
 
-export default function WalletPage() {
+export default async function WalletPage() {
   const session = getSession();
   if (!session || session.role !== "provider") redirect("/provider/login");
-  const wallet = payments.getWallet(session.sub);
+  const wallet = await getWalletView(session);
 
   return (
     <div>
       <h1>Wallet</h1>
+      {wallet.wallet_setup === "pending" ? <div className="notice">Your wallet is being prepared. Balances are not available yet.</div> : null}
       <div className="grid">
         <div className="card"><h3>Balance</h3><div className="price" style={{ fontSize: 24 }}>{money(wallet.balance_cents)}</div><div className="muted small">gateway earnings payable to you</div></div>
         <div className="card"><h3>Commission owed</h3><div className="price" style={{ fontSize: 24 }}>{money(wallet.commission_owed_cents)}</div><div className="muted small">COD commission you owe the platform</div></div>
       </div>
 
       <h2>Transactions</h2>
-      {wallet.transactions.length === 0 ? <p className="muted">No transactions yet.</p> : (
+      {wallet.transactions.length === 0 ? <p className="muted">{wallet.wallet_setup === "pending" ? "Check again after your wallet is ready." : "No transactions yet."}</p> : (
         <div className="table-wrap">
           <table>
             <thead><tr><th>#</th><th>Booking</th><th>Kind</th><th>Amount</th><th>Method</th><th>When</th></tr></thead>

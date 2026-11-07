@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Homeservice Payments wallet/history reads \u2014 auth integration pending",
-    "version": "0.1.0",
-    "description": "A business read API; default runtime returns 503 until B supplies a real Keycloak verifier. C command/fence/saga/outbox and monolith cutover remain pending. No HTTP payment mutations are served in this slice."
+    "version": "0.2.0",
+    "description": "End-user wallet/history/intent reads and guarded simulated settlement. Default runtime fails closed until B authentication and C settlement/outbox hooks are injected; no startup cutover is enabled. Missing wallets report pending with null balances, not a verified zero."
   },
   "servers": [
     {
@@ -26,7 +26,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Wallet"
+                  "$ref": "#/components/schemas/WalletResponse"
                 }
               }
             }
@@ -124,6 +124,203 @@
           },
           "503": {
             "description": "Real B verifier not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/booking-payment-intents/{order_id}": {
+      "get": {
+        "operationId": "getOwnedBookingIntent",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Intent for a booking owned by the verified customer/provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentIntent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid mapped identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong end-user role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, details scrubbed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Real B verifier not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment intent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/simulate": {
+      "post": {
+        "operationId": "simulateOwnedBookingPayment",
+        "description": "Customer only. The owner check and C local settlement eligibility/outbox hooks are required; UI readiness does not grant authority.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Simulated gateway settlement, transactionally guarded by C eligibility and outbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid mapped identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong end-user role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, details scrubbed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Real B verifier not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment intent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Intent voided/ineligible/conflicting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported media/encoding",
             "content": {
               "application/json": {
                 "schema": {
@@ -264,6 +461,199 @@
             "type": "string"
           }
         }
+      },
+      "PendingWallet": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider_id",
+          "balance_cents",
+          "commission_owed_cents",
+          "transactions",
+          "wallet_setup"
+        ],
+        "properties": {
+          "provider_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "balance_cents": {
+            "type": "integer",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          },
+          "commission_owed_cents": {
+            "type": "integer",
+            "nullable": true,
+            "enum": [
+              null
+            ]
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "wallet_setup": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          }
+        }
+      },
+      "WalletResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Wallet"
+          },
+          {
+            "$ref": "#/components/schemas/PendingWallet"
+          }
+        ]
+      },
+      "PaymentIntent": {
+        "type": "object",
+        "required": [
+          "id",
+          "order_id",
+          "amount_cents",
+          "gateway_ref",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "order_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "gateway_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requires_payment",
+              "succeeded",
+              "failed"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "SimulationRequest": {
+        "type": "object",
+        "required": [
+          "order_id"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          }
+        },
+        "additionalProperties": false
+      },
+      "SimulationResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ok",
+              "replayed"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "replayed": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ok",
+              "replayed",
+              "settled"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "replayed": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              "settled": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "ok",
+              "replayed",
+              "already_settled"
+            ],
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "replayed": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              "already_settled": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       }
     }
   }

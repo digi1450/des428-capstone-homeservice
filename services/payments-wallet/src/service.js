@@ -61,9 +61,13 @@ export function createPaymentsService(database, { assertSettlementAllowed, stage
       return database.withTransaction(async tx => {
         await tx.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
         const wallet = await repo.wallet(tx,who.domainId);
-        return { provider_id: who.domainId, balance_cents: wallet?.balance_cents ?? 0,
-          commission_owed_cents: wallet?.commission_owed_cents ?? 0,
-          transactions: (await repo.providerLedger(tx,who.domainId)).map(publicTransaction) };
+        const transactions=(await repo.providerLedger(tx,who.domainId)).map(publicTransaction);
+        if(!wallet) {
+          if(transactions.some(row=>["payout_credit","commission_owed"].includes(row.kind))) throw new HttpError(503,"wallet requires reconciliation");
+          return {provider_id:who.domainId,balance_cents:null,commission_owed_cents:null,transactions,wallet_setup:"pending"};
+        }
+        return { provider_id: who.domainId, balance_cents: wallet.balance_cents,
+          commission_owed_cents: wallet.commission_owed_cents, transactions };
       });
     },
     async listCustomerTransactions(actor) {

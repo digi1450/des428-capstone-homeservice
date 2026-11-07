@@ -3,6 +3,7 @@
 // for a monolith. The httpOnly edemand_token cookie rides along automatically on same-origin
 // requests, so these components never handle the JWT themselves.
 import { useState } from "react";
+import { canSimulatePayment } from "./payment-state.js";
 
 async function postJSON(url, body, method = "POST") {
   const res = await fetch(url, {
@@ -124,8 +125,42 @@ export function Form({ endpoint, method = "POST", fields, submitLabel, redirectT
   );
 }
 
-// The booking form: address, live slot picker, quantity, payment method. On success it reveals the
-// OTP and (for gateway) a "Pay now (simulate)" button that drives the mock gateway -> webhook.
+// Same widget for new bookings and details. Failed/pending refresh never enables payment.
+export function BookingPayment({ initial }) {
+  const [view,setView]=useState(initial);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState(null);
+  if(view.order.payment_method!=="gateway") return null;
+  const paid=view.order.payment_status==="paid" || view.payment_intent?.status==="succeeded";
+  async function refresh() {
+    setBusy(true);setError(null);
+    try {
+      const response=await fetch(`/api/bookings/${view.order.id}`,{cache:"no-store"});
+      const body=await response.json();
+      if(!response.ok) {setView(current=>({...current,payment_setup:"pending"}));setError(errText(body));}
+      else setView({order:body,payment_intent:body.payment_intent,payment_setup:body.payment_setup});
+    } catch {setView(current=>({...current,payment_setup:"pending"}));setError("Could not check payment status. Please try again.");}
+    finally {setBusy(false);}
+  }
+  return <div className="stack">
+    {paid ? <div className="notice">Payment received. Thank you.</div> : <>
+      {view.payment_setup!==undefined ? <div className="notice" role="status">{view.payment_setup==="ready" ? "Payment setup is ready." : "Your booking is saved. Payment setup is pending; please check again."}</div> : null}
+      <button disabled={busy || !canSimulatePayment(view)} onClick={async()=>{
+        setBusy(true);setError(null);
+        try {
+          const response=await postJSON("/api/payments/simulate",{order_id:view.order.id});
+          if(response.ok) setView(current=>({...current,order:{...current.order,payment_status:"paid"}}));
+          else {setView(current=>({...current,payment_setup:"pending"}));setError(errText(response.data));}
+        } catch {setView(current=>({...current,payment_setup:"pending"}));setError("Payment is not confirmed. Check its status before trying again.");}
+        finally {setBusy(false);}
+      }}>Pay now (simulate)</button>
+      <button className="secondary" disabled={busy} onClick={refresh}>Check payment status</button>
+    </>}
+    {error ? <div className="notice warn" role="alert">{error}</div> : null}
+  </div>;
+}
+
+// Booking form: address, slots, quantity and method; then OTP and the guarded payment widget.
 export function BookingForm({ serviceId, providerId, duration, addresses }) {
   const [addressId, setAddressId] = useState(addresses[0]?.id ? String(addresses[0].id) : "");
   const [date, setDate] = useState("");
@@ -136,7 +171,6 @@ export function BookingForm({ serviceId, providerId, duration, addresses }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [result, setResult] = useState(null);
-  const [paid, setPaid] = useState(false);
 
   async function loadSlots(d, qty) {
     setSlot("");
@@ -154,18 +188,7 @@ export function BookingForm({ serviceId, providerId, duration, addresses }) {
           <div className="small muted">Read this OTP to your provider at completion:</div>
           <div className="otp">{result.otp}</div>
         </div>
-        {result.payment_intent && !paid ? (
-          <button
-            onClick={async () => {
-              const r = await postJSON("/api/payments/simulate", { order_id: result.order.id });
-              if (r.ok) setPaid(true);
-              else setErr(errText(r.data));
-            }}
-          >
-            Pay now (simulate)
-          </button>
-        ) : null}
-        {paid ? <div className="notice">Payment received. Thank you.</div> : null}
+        <BookingPayment initial={result} />
         <a className="btn secondary" href={`/bookings/${result.order.id}`}>View booking</a>
       </div>
     );

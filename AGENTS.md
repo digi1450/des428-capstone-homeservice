@@ -12,6 +12,7 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 ## Read the shared handoffs before implementation
 
 - Start with `docs/project-status.md` for merged work, active limitations, per-area dependencies and links to PRs/validation. It is a dated snapshot: check current code and newer merged PRs before relying on its pending statuses.
+- For Booking pending/ready UI, remote intent/simulate/wallet/history callers and the explicit end-user credential/readiness injection gate, read `docs/payment-setup-callers-handoff.md`. These callers are prepared; production cutover remains disabled.
 - For the activation client/Booking adapter, typed cancellation/reconciliation errors and malformed-409 behavior, read `docs/payment-activation-client-handoff.md` before connecting C recovery or UI callers.
 - For A's activation HTTP implementation, strict coded/uncoded errors and remaining Booking client work, read `docs/payment-activation-http-handoff.md`; default production composition remains unavailable.
 - For A's prepared internal HTTP routes and proposed B/C injection interfaces, read `docs/payment-command-http-handoff.md`; do not enable production with the test doubles.
