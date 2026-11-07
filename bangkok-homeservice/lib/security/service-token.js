@@ -35,6 +35,8 @@ export function createServiceTokenProvider({
 
     const response = await fetchImpl(url, {
       method: "POST",
+      // Credentials may be sent only to the configured token endpoint, never a redirect.
+      redirect: "error",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
