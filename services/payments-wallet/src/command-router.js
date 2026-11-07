@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { HttpError } from './errors.js';
-import { commandKey, createCommand, cancelCommand, commandOutcome } from './command-validation.js';
+import { commandKey, createCommand, cancelCommand, activateCommand, activationOutcome, commandOutcome } from './command-validation.js';
 
 // B/C integration seam ONLY. server.js injects neither verifier nor command store.
 // No direct call to prepareIntent/voidUnpaidIntent can substitute for C's durable store/fence.
@@ -53,10 +53,12 @@ export function createPaymentCommandRouter({ authenticateService, paymentCommand
     const output=await paymentCommands.cancel({callerId:req.commandCallerId,commandId,request,context:metadata(req)});
     res.json(commandOutcome(output,{createCommandId:request.create_command_id,sagaId:request.saga_id,expectedOutcome:'cancelled'}));
   });
-  // The lead selected HTTP activation, but its response/replay-after-fence contract
-  // and C callable interface still require agreement. Never return placeholder success.
-  router.post('/payment-intents/activate-by-command',authorize('activate'),(_req,_res) => {
-    throw new HttpError(503,'activation interface not configured');
+  // C checks effective eligibility/fences even on replay; no historical activation shortcut here.
+  router.post('/payment-intents/activate-by-command',authorize('activate'),configured('activate'),parseJson,async (req,res) => {
+    const commandId=commandKey(req.get('Idempotency-Key'));
+    const request=activateCommand(req.body,commandId);
+    const output=await paymentCommands.activate({callerId:req.commandCallerId,commandId,request,context:metadata(req)});
+    res.json(activationOutcome(output,{createCommandId:request.create_command_id,sagaId:request.saga_id}));
   });
   router.use((error,_req,res,next) => {
     if (error.type === 'entity.parse.failed' || error instanceof URIError) error=new HttpError(400,'invalid JSON or route encoding');

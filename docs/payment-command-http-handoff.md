@@ -1,6 +1,8 @@
 # A payment command HTTP shell — 7 November 2026
 
-Status: create/query/cancel routing, validation, B/C injection seams and HTTP boundary tests are implemented. **This is preparation, not durable Payments participant implementation or live saga activation.** Default `server.js` injects neither internal service verifier nor command adapter, so registered internal routes return 503. The activation path is reserved/unavailable and cannot dispatch arbitrary injected code. No command/fence/eligibility tables, settlement routes or actual monolith caller switch are introduced here.
+Current activation update: [activation HTTP handoff](payment-activation-http-handoff.md) implements the formerly reserved route and coded 409 serialization. Default production remains unwired. The rest of this document records the original #22 preparation; its reserved-route statements are historical.
+
+Original #22 status: create/query/cancel routing, validation, B/C injection seams and HTTP boundary tests are implemented. **This is preparation, not durable Payments participant implementation or live saga activation.** Default `server.js` injects neither internal service verifier nor command adapter, so registered internal routes return 503. The activation path is reserved/unavailable and cannot dispatch arbitrary injected code. No command/fence/eligibility tables, settlement routes or actual monolith caller switch are introduced here.
 
 Read [selected decisions](payment-participant-decisions.md), [draft OpenAPI](../contracts/payment-intents.openapi.json), [consumer client](payment-adapter-handoff.md), [C saga](c-saga-handoff.md), [business primitives](payments-business-handoff.md) and [validation](validation/payment-command-http-2026-11-07.md).
 

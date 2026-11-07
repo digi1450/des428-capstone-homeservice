@@ -43,5 +43,24 @@
   "pending": {
     "error": "PAYMENT_OPERATION_PENDING",
     "requestId": "example-request-1"
+  },
+  "activate": {
+    "headers": {
+      "Idempotency-Key": "intent-activate:booking-42"
+    },
+    "body": {
+      "create_command_id": "intent-create:booking-42",
+      "saga_id": "booking-saga:42"
+    }
+  },
+  "activated": {
+    "create_command_id": "intent-create:booking-42",
+    "saga_id": "booking-saga:42",
+    "outcome": "activated"
+  },
+  "setup_cancelled": {
+    "error": "payment setup was cancelled",
+    "requestId": "example-request-1",
+    "code": "PAYMENT_SETUP_CANCELLED"
   }
 }

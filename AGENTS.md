@@ -12,6 +12,7 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 ## Read the shared handoffs before implementation
 
 - Start with `docs/project-status.md` for merged work, active limitations, per-area dependencies and links to PRs/validation. It is a dated snapshot: check current code and newer merged PRs before relying on its pending statuses.
+- For A's activation HTTP implementation, strict coded/uncoded errors and remaining Booking client work, read `docs/payment-activation-http-handoff.md`; default production composition remains unavailable.
 - For A's prepared internal HTTP routes and proposed B/C injection interfaces, read `docs/payment-command-http-handoff.md`; do not enable production with the test doubles.
 - For the B #26 / C #27 integration review, restored FK/importer checks, pending Payments JWT verifier and token-redirect issue, read `docs/a-b-c-integration-review.md`. These checks do not authorize live saga activation.
 - For the A response to C's proposed callable/replay/activation interface, read `docs/c-payment-participant-interface.md`; verify whether C has confirmed the revision before describing it as a bilateral agreement.

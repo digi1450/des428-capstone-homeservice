@@ -58,9 +58,20 @@ test("command/saga contract rejects URL dot segments without banning normal dott
 });
 
 
-test("activation is reserved with no promised success contract",()=>{
+test("activation route documents strict request/result, production-unwired state and error separation",()=>{
   const op=spec.paths["/internal/payment-intents/activate-by-command"].post;
-  assert.equal(op["x-implementation-status"],"reserved-unavailable");
-  assert.ok(op.responses["503"]);
-  assert.equal(Object.keys(op.responses).some(status=>status.startsWith("2")),false);
+  assert.equal(op["x-implementation-status"],"http-implemented-production-unwired");
+  for (const status of ["200","400","401","403","409","413","415","503","500"]) assert.ok(op.responses[status]);
+  for (const [name,value] of [["ActivatePaymentIntent",fixtures.activate.body],["ActivatedOperation",fixtures.activated],["ConflictError",fixtures.setup_cancelled],["ConflictError",fixtures.pending]]) {
+    const validate=validator(name);assert.ok(validate(value),JSON.stringify(validate.errors));
+  }
+  assert.equal(new Set([fixtures.create,fixtures.cancel,fixtures.activate].map(x=>x.headers["Idempotency-Key"])).size,3);
+});
+test("activation and coded conflict schemas reject unknown fields and unreviewed codes",()=>{
+  const body=validator("ActivatePaymentIntent"), result=validator("ActivatedOperation"), conflict=validator("ConflictError");
+  for (const bad of [{...fixtures.activate.body,reason:"extra"},{...fixtures.activate.body,saga_id:".."},{create_command_id:fixtures.created.create_command_id}]) assert.equal(body(bad),false);
+  assert.equal(result({...fixtures.activated,outcome:"created"}),false);
+  assert.equal(result({...fixtures.activated,replayed:true}),false);
+  assert.equal(conflict({...fixtures.setup_cancelled,code:"UNREVIEWED"}),false);
+  assert.equal(conflict({...fixtures.setup_cancelled,secret:"private"}),false);
 });
