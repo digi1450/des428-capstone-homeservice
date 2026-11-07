@@ -23,11 +23,11 @@ The shared Payments serializer exposes **only** `HttpError` status 409 with `cod
 - Uncoded 409: changed key input/kind/target, unknown provisioning or mismatched saga; reconciliation, not an assumed fence.
 - Other/unreviewed codes, and the cancellation code on non-409 statuses, are not serialized. Unexpected exceptions remain sanitized 500. Missing verifier/participant, or invalid participant result, return 503 with Retry-After 2. No HTTP status alone authorizes slot release.
 
-This change **does not add** Booking's activation client/adapter or coded-error parsing. The existing consumer discards non-success command bodies. A must implement that separately against the new strict fixtures; until then C #29 activation delivery has no real adapter method. The #29 lease/classification review and #30 consumer lifecycle review are separate C fixes, not resolved here.
+The original HTTP-only change did not add Booking's activation client/adapter. The subsequent [activation client extension](payment-activation-client-handoff.md) now supplies the adapter and validated coded/uncoded 409 handling. Existing create/query/cancel non-success behavior remains unchanged. No live startup/recovery wiring is enabled by either change. The #29 lease/classification review and #30 consumer lifecycle review are separate C fixes, not resolved here.
 
 ## Next ownership and activation gates
 
-A next adds `activate(workflow,credentials)` transport/adapter and validated coded-409 handling, then Booking payment-setup UI/callers. C provides corrected durable monolith activation state/upgrade/recovery and wallet delivery. B still provides the real Payments JWT verifier/permissions; the token redirect issue was separately fixed in #31. Later A composes the verifier, participant and settlement/outbox hooks, without opening traffic until the real integrated auth/race/restart checks pass. E's Pact/tracing/final stack and legacy-data eligibility/cutover gates remain pending.
+A's [step 2 transport/adapter](payment-activation-client-handoff.md) is now implemented; next is Booking payment-setup UI/callers. C provides corrected durable monolith activation state/upgrade/recovery and wallet delivery. B still provides the real Payments JWT verifier/permissions; the token redirect issue was separately fixed in #31. Later A composes the verifier, participant and settlement/outbox hooks, without opening traffic until the real integrated auth/race/restart checks pass. E's Pact/tracing/final stack and legacy-data eligibility/cutover gates remain pending.
 
 ## Validation performed
 

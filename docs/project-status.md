@@ -20,6 +20,8 @@ A B/C review: [review and owner handoff](a-b-c-integration-review.md) records C'
 
 A activation HTTP update: [current activation route and error contract](payment-activation-http-handoff.md) supersedes the reserved activation route in the earlier #22 snapshot. It delegates to the real C participant in isolated HTTP/PG tests. Booking activation client/adapter/UI, real B verifier, live composition and corrected C recovery remain pending.
 
+A step 2: [activation client and Booking adapter](payment-activation-client-handoff.md) implement the supplied-key transport and validated coded/uncoded 409 distinction. Actual HTTP/participant/PG tests cover replay after a committed/lost reply and an effective cancellation fence. Startup/caller/UI wiring and corrected B/C delivery remain pending.
+
 ## Decisions already selected
 
 Extract Notifications and Payments & Wallet as Express services, each owning PostgreSQL in its own container/credentials. Booking/Bidding and remaining contexts stay in the Next.js/SQLite monolith initially. nginx is the gateway; Booking orchestrates the provisioning saga; notifications are asynchronous. [Migration handoff](migration-handoff.md) records the lead-selected decisions and proposed interfaces; [team plan](team-plan.md) and [OWNERS](../OWNERS.md) describe responsibilities. Draft interfaces still require integration review with B/C/D/E.
