@@ -4,6 +4,8 @@ services:
     build:
       context: .
       target: runtime
+    volumes:
+      - monolith-data:/app/data
     ports:
       - "3000:3000"
     healthcheck:
@@ -22,3 +24,6 @@ services:
       context: .
       target: test
     command: ["npm", "test"]
+
+volumes:
+  monolith-data:

@@ -12,7 +12,7 @@ const { bootstrapDb } = await import("../lib/db/bootstrap.js");
 const { getDb, closeDb } = await import("../lib/db/index.js");
 
 export function freshBoot() {
-  return bootstrapDb();
+  return bootstrapDb({ reset: true });
 }
 
 export { getDb, closeDb };

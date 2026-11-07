@@ -7,7 +7,7 @@ A production-grade, **self-contained full-stack Next.js monolith** for the DES42
 (*Web Services and Service Architecture*). One process, one SQLite file, UI + API together. It is
 the sibling of `bangkok-ride`: same production bar (typed errors, zod validation, JWT auth, pino
 logging, idempotency, atomic conditional writes, real transactions, an outbox, deterministic
-reseed, `node:test` rigor) — but a **multi-vendor on-demand services marketplace** (cleaning,
+test seeding, `node:test` rigor) — but a **multi-vendor on-demand services marketplace** (cleaning,
 repair, beauty, appliance) instead of ride-hailing.
 
 Students run this as a monolith, feel where it strains, and use it as the system they migrate
@@ -21,9 +21,9 @@ toward microservices. The bounded-context boundaries below **are** the future se
   layer **directly, in-process** (the honest monolith read path). Mutations POST to **route
   handlers** under `app/api/**`. The same code, one `node server.js`.
 - **One database.** `better-sqlite3`, one file `data/edemand.db` (`:memory:` under test). WAL,
-  `foreign_keys=ON`. Dropped, migrated and **reseeded on every boot** — a fresh `docker compose up`
-  is always identical. `sqlite_sequence` for `orders` is primed to 8000, so the **first booking on a
-  fresh boot is always id 8001**.
+  `foreign_keys=ON`. A new database is seeded once; normal restarts preserve existing rows.
+  Explicit in-memory test resets retain deterministic fixtures. `sqlite_sequence` for `orders`
+  is primed to 8000 only on initial seed. See [startup/persistence](../docs/sqlite-startup-handoff.md).
 - **Layered.** `route handler → service → repository → db`. No SQL outside repositories; no business
   logic in route files. Every route is zod-validated, typed-error-mapped, JWT+role-gated where
   required, and request-id + pino logged.

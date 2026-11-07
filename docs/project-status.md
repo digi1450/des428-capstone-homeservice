@@ -12,6 +12,8 @@ A importer review: [C-schema compatibility and message-state safeguards](validat
 
 A step 2: [payment command HTTP shell](payment-command-http-handoff.md) adds create/query/cancel validation and injectable B/C boundaries, tested through the actual prepared consumer client. Default production returns 503; activate is reserved/unavailable pending agreed state/replay contract. C persistence and live wiring are not implemented by this shell.
 
+A startup update: [non-destructive SQLite bootstrap](sqlite-startup-handoff.md) initializes/seeds only empty databases, adopts the exact current unversioned schema without reseeding, and fails closed on incompatible schemas. Both Compose files mount persistent monolith data. This supersedes the historical destructive-startup warning below; full cutover/recovery remains pending.
+
 ## Decisions already selected
 
 Extract Notifications and Payments & Wallet as Express services, each owning PostgreSQL in its own container/credentials. Booking/Bidding and remaining contexts stay in the Next.js/SQLite monolith initially. nginx is the gateway; Booking orchestrates the provisioning saga; notifications are asynchronous. [Migration handoff](migration-handoff.md) records the lead-selected decisions and proposed interfaces; [team plan](team-plan.md) and [OWNERS](../OWNERS.md) describe responsibilities. Draft interfaces still require integration review with B/C/D/E.

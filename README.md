@@ -15,7 +15,7 @@ Start with the [shared project status and handoff](docs/project-status.md): merg
 - Prepared [offline data migration and caller cutover plan](docs/data-cutover-handoff.md) includes read-only export, rollback-only dry-run and service-owned import tests; no real data or active callers have been switched.
 - Team ownership: [OWNERS.md](OWNERS.md). Branch/PR instructions: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-E integration: [logging/metrics/tracing/CI and initial root Compose](docs/e-observability-handoff.md) now coexist with C's merged messaging/saga modules. Final business activation, broker/IdP wiring and full-stack evidence remain pending. Use the root setup instructions there only for disposable demo data until destructive monolith startup is replaced.
+E integration: [logging/metrics/tracing/CI and initial root Compose](docs/e-observability-handoff.md) now coexist with C's merged messaging/saga modules. Final business activation, broker/IdP wiring and full-stack evidence remain pending. Normal SQLite startup now preserves data; review [startup and persistence](docs/sqlite-startup-handoff.md) before using an existing database. Full cutover remains pending.
 
 ## Run the original system
 
@@ -50,14 +50,9 @@ docker compose -f bangkok-homeservice/docker-compose.yml logs --tail=100 edemand
 docker compose -f bangkok-homeservice/docker-compose.yml down
 ```
 
-The original application reseeds its container database on process startup. To reset a disposable local demo, stop and recreate it:
+Normal startup initializes and seeds a new database once, then preserves it on restart. Both Compose files mount persistent monolith data; `down` and container recreation retain it. Existing databases must have the exact current schema or startup stops without resetting their data. Read [SQLite startup and persistence](docs/sqlite-startup-handoff.md) for legacy adoption, backups and fresh disposable demos. Never use `down -v` to update an existing project.
 
-```sh
-docker compose -f bangkok-homeservice/docker-compose.yml down
-docker compose -f bangkok-homeservice/docker-compose.yml up -d --force-recreate --wait edemand
-```
-
-Back up data you need before resetting. The initial image build downloads dependencies and needs internet access. Downloaded host `node_modules/` and `.next/` are unnecessary for Docker and are ignored by Git. The supplied Compose configuration publishes port 3000; its baseline configuration has not been changed.
+The initial image build downloads dependencies and needs internet access. Host `node_modules/` and `.next/` are ignored. The supplied monolith Compose publishes port 3000; the root stack routes through the gateway.
 
 ## Repository layout
 

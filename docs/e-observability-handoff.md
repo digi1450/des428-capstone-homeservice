@@ -12,7 +12,7 @@ Status: E's logging, HTTP metrics, Grafana provisioning, per-service tracing and
 
 ## Local setup
 
-From repo root, copy `.env.example` to `.env`, replace all password placeholders, then run `docker compose up -d --build --wait`. This is an initial root stack, not the final full-course command/clean-clone evidence. It starts the inherited monolith bootstrap, which still DROP/reseeds even with the new volume: use only disposable demo data until non-destructive startup and cutover are implemented. Never restart/reset a useful original project just to free a port.
+From repo root, copy `.env.example` to `.env`, replace all password placeholders, then run `docker compose up -d --build --wait`. This is an initial root stack, not the final full-course command/clean-clone evidence. Normal monolith startup now preserves current-schema data; see [startup/persistence](sqlite-startup-handoff.md). Old/altered schema fails closed and requires explicit migration. This does not activate the pending cutover. Never restart/reset a useful original project just to free a port.
 
 Default host ports: gateway 18080 (`GATEWAY_PORT` configurable; internal nginx still listens on 8080), Grafana 3003 (`GRAFANA_PORT` configurable), Prometheus 9090 (`PROMETHEUS_PORT`), Jaeger 16686 (`JAEGER_UI_PORT`). Select free host ports before startup if other projects use them. Original monolith port 3000 is not published by this root file. In the integration rehearsal, gateway was not started and test Grafana used 3303; unrelated applications were left running.
 
@@ -22,5 +22,5 @@ The root Grafana admin password comes from `GRAFANA_ADMIN_PASSWORD` (username ad
 
 1. RabbitMQ quorum topology, Payments relay and Notifications consumer processes, monolith AMQP settings and broker credentials; follow C's handoff. HTTP tracing does not automatically prove trace continuation through those separate processes/AMQP.
 2. B real token validation/credentials, A/C payment endpoints/fence/eligibility and caller changes; test a real multi-service business trace afterward. Current business HTTP remains fail-closed until B wiring.
-3. Pact consumer/provider contracts and one-command verification, GitHub Actions/act coverage, actual fault/concurrency tests, complete root boot/readiness, durable/non-destructive monolith startup and the combined 8 GB measurement.
+3. Pact consumer/provider contracts and one-command verification, GitHub Actions/act coverage, actual fault/concurrency tests, complete root boot/readiness, full-stack persistence/recovery evidence and the combined 8 GB measurement.
 4. Dossier/demo scripts, concrete observations and owner review. Update OWNERS/status when more work merges; fixture results are not a final-grade claim.

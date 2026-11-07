@@ -43,7 +43,7 @@ docker compose -f bangkok-homeservice/docker-compose.yml run --rm test
 - For API/event changes, verify producer/consumer integration; a single service's unit tests do not establish end-to-end correctness.
 - For documentation-only changes, check commands, referenced paths and `git diff --check`; do not rerun application tests without a relevant reason.
 - Report actual commands/results and checks not run. Do not invent lint/CI scripts or claim the final root full-stack Compose command exists before it does.
-- The original app reseeds its container database on process startup. Do not reset/delete useful data or stop unrelated projects as part of routine checks.
+- Normal monolith startup initializes/seeds only a new SQLite database and preserves the exact current schema on restart. Read `docs/sqlite-startup-handoff.md` before schema or bootstrap changes: incompatible schemas stop startup and need explicit migration; test resets are restricted to in-memory databases. Never reset/delete useful data or stop unrelated projects as part of routine checks.
 
 ## Git and review
 
