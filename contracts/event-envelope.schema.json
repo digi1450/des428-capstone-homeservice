@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://homeservice.local/contracts/event-envelope.schema.json",
+  "title": "Homeservice cross-boundary event envelope (DRAFT v1, Area C)",
+  "description": "Body of every RabbitMQ message published from a transactional outbox. Trace context (traceparent/tracestate/x-request-id) travels in AMQP headers, not here. event_id is also the AMQP message_id and is reused on every republish of the same event.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "schema_version", "producer", "occurred_at", "aggregate_type", "aggregate_id", "data"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "type": "string", "pattern": "^[a-z]+(\\.[a-z_]+)+$", "maxLength": 64 },
+    "schema_version": { "const": 1 },
+    "producer": { "enum": ["payments-wallet", "monolith"] },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "aggregate_type": { "type": "string", "pattern": "^[a-z_]+$", "maxLength": 32 },
+    "aggregate_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "saga_id": { "type": ["string", "null"], "maxLength": 64 },
+    "correlation_id": { "type": ["string", "null"], "maxLength": 128 },
+    "data": { "type": "object" }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "valid": [
+    {
+      "event_id": "0b6f6f1e-3f7c-4c55-9a43-2b1a0f8e5d11",
+      "event_type": "payment.succeeded",
+      "schema_version": 1,
+      "producer": "payments-wallet",
+      "occurred_at": "2026-11-07T07:00:00.000Z",
+      "aggregate_type": "order",
+      "aggregate_id": "42",
+      "saga_id": null,
+      "correlation_id": "req-example-1",
+      "data": { "order_id": 42, "customer_id": 7, "provider_id": 3, "amount_cents": 150000 }
+    },
+    {
+      "event_id": "5d0c7a52-8a77-4f0e-b7c3-6f2d2e1d9a20",
+      "event_type": "booking.status_changed",
+      "schema_version": 1,
+      "producer": "monolith",
+      "occurred_at": "2026-11-07T07:01:00.000Z",
+      "aggregate_type": "order",
+      "aggregate_id": "42",
+      "saga_id": "saga-example-42",
+      "data": { "order_id": 42, "from": null, "to": "awaiting", "customer_id": 7, "provider_id": 3, "actor_role": "customer" }
+    }
+  ],
+  "invalid": [
+    { "reason": "missing event_id", "value": { "event_type": "payment.succeeded", "schema_version": 1, "producer": "payments-wallet", "occurred_at": "2026-11-07T07:00:00.000Z", "aggregate_type": "order", "aggregate_id": "42", "data": {} } },
+    { "reason": "unknown schema version", "value": { "event_id": "0b6f6f1e-3f7c-4c55-9a43-2b1a0f8e5d11", "event_type": "payment.succeeded", "schema_version": 2, "producer": "payments-wallet", "occurred_at": "2026-11-07T07:00:00.000Z", "aggregate_type": "order", "aggregate_id": "42", "data": {} } },
+    { "reason": "unknown producer", "value": { "event_id": "0b6f6f1e-3f7c-4c55-9a43-2b1a0f8e5d11", "event_type": "payment.succeeded", "schema_version": 1, "producer": "browser", "occurred_at": "2026-11-07T07:00:00.000Z", "aggregate_type": "order", "aggregate_id": "42", "data": {} } },
+    { "reason": "trace/secrets do not belong in the body", "value": { "event_id": "0b6f6f1e-3f7c-4c55-9a43-2b1a0f8e5d11", "event_type": "payment.succeeded", "schema_version": 1, "producer": "payments-wallet", "occurred_at": "2026-11-07T07:00:00.000Z", "aggregate_type": "order", "aggregate_id": "42", "data": {}, "token": "x" } }
+  ]
+}
