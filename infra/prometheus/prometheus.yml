@@ -1,0 +1,16 @@
+# Area E — Prometheus configuration
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: notifications
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "notifications:3001"
+
+  - job_name: payments-wallet
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "payments-wallet:3002"
