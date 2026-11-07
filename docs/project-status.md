@@ -8,6 +8,8 @@ C's messaging/outbox/consumer/saga preparation is merged through PRs #14–18; r
 
 New lead decisions: [A/C payment participant and wallet provisioning](payment-participant-decisions.md) fixes the ownership split, reuse of existing draft, durable HTTP activation, payment-setup-pending UI and asynchronous wallet provisioning. These are selected requirements, not implemented endpoints.
 
+A importer review: [C-schema compatibility and message-state safeguards](validation/importer-c-state-2026-11-07.md) verifies the reviewed migrations and rejects nonempty outbox/dedupe state before fresh import or replay. No real migration or legacy-watermark handover has been performed.
+
 ## Decisions already selected
 
 Extract Notifications and Payments & Wallet as Express services, each owning PostgreSQL in its own container/credentials. Booking/Bidding and remaining contexts stay in the Next.js/SQLite monolith initially. nginx is the gateway; Booking orchestrates the provisioning saga; notifications are asynchronous. [Migration handoff](migration-handoff.md) records the lead-selected decisions and proposed interfaces; [team plan](team-plan.md) and [OWNERS](../OWNERS.md) describe responsibilities. Draft interfaces still require integration review with B/C/D/E.

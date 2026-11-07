@@ -41,6 +41,17 @@ for (const [service,createDatabase,migrate,env] of [
     const db = createDatabase(process.env[env]);
     const bundle = await input(service);
     const tables = Object.keys(bundle.tables);
+    const messageTable = service === 'notifications' ? 'processed_events' : 'outbox_events';
+    const eventId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+    const addMessageState = async client => {
+      if (service === 'notifications') {
+        await client.query("INSERT INTO processed_events (consumer_name,event_id,event_type,producer,effect_count) VALUES ('migration-probe',$1,'payment.succeeded','payments-wallet',0)",[eventId]);
+      } else {
+        await client.query("INSERT INTO outbox_events (event_id,event_type,aggregate_type,aggregate_id,envelope) VALUES ($1,'payment.succeeded','order','10',$2::jsonb)",[eventId,JSON.stringify({event_id:eventId,event_type:'payment.succeeded'})]);
+      }
+    };
+    const clearMessageState = () => db.query(`DELETE FROM ${messageTable} WHERE event_id=$1`,[eventId]);
+    const messageRows = async () => (await db.query(`SELECT * FROM ${messageTable}`)).rows;
     const sequence = service === 'notifications' ? 'notifications_id_seq' : 'payment_intents_id_seq';
     try {
       await migrate(db);
@@ -50,6 +61,47 @@ for (const [service,createDatabase,migrate,env] of [
         await db.query("INSERT INTO schema_migrations (version,sha256) VALUES ('999_fixture.sql','fixture')");
         try { await assert.rejects(importSnapshot(db,service,bundle,{apply:true}), /SCHEMA_REVIEW_REQUIRED/); }
         finally { await db.query("DELETE FROM schema_migrations WHERE version='999_fixture.sql'"); }
+      });
+      await t.test('existing C message state rejects dry-run/apply before inserting business rows', async () => {
+        await addMessageState(db);
+        const messages = await messageRows(), state = await seq();
+        try {
+          for (const apply of [false,true]) {
+            await assert.rejects(importSnapshot(db,service,bundle,{apply}), /MESSAGE_STATE_NOT_EMPTY/);
+            for (const table of tables) assert.equal((await db.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n,0);
+            assert.deepEqual(await seq(),state);
+            assert.deepEqual(await messageRows(),messages);
+          }
+        } finally { await clearMessageState(); }
+      });
+      await t.test('message state committed while waiting for locks is seen before any import writes', async () => {
+        let signalReady, releaseWriter;
+        const ready = new Promise(resolve => { signalReady = resolve; });
+        const release = new Promise(resolve => { releaseWriter = resolve; });
+        const writer = db.withTransaction(async client => {
+          await addMessageState(client);
+          signalReady();
+          await release;
+        });
+        // Also surface a failed writer instead of waiting forever for readiness.
+        await Promise.race([ready,writer.then(() => { throw new Error('writer ended before ready'); })]);
+        const result = importSnapshot(db,service,bundle,{apply:true}).then(value => ({value}),error => ({error}));
+        try {
+          const deadline = Date.now()+1200;
+          let waiting = false;
+          while (!waiting && Date.now()<deadline) {
+            const locks = await db.query('SELECT 1 FROM pg_locks WHERE relation=$1::regclass AND mode=$2 AND NOT granted', [messageTable,'AccessExclusiveLock']);
+            waiting = locks.rowCount > 0;
+            if (!waiting) await new Promise(resolve => setTimeout(resolve,10));
+          }
+          assert.ok(waiting,'importer must wait on the active message-table writer');
+        } finally { releaseWriter(); await writer; }
+        try {
+          const outcome = await result;
+          assert.match(outcome.error?.message ?? '',/MESSAGE_STATE_NOT_EMPTY/);
+          for (const table of tables) assert.equal((await db.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n,0);
+          assert.equal((await messageRows()).length,1);
+        } finally { await clearMessageState(); }
       });
       await t.test('CLI defaults to dry-run and does not log credentials on failure', async () => {
         const args = ['import-cli.mjs',service,`${directory}/${service}.json`];
@@ -72,8 +124,21 @@ for (const [service,createDatabase,migrate,env] of [
         const report = await importSnapshot(db,service,bundle,{apply:true});
         assert.equal(report.action,'import');
         for (const table of tables) assert.equal((await db.query(`SELECT count(*)::int AS n FROM ${table}`)).rows[0].n,bundle.tables[table].length);
+        assert.deepEqual(await messageRows(),[]);
         const replay = await importSnapshot(db,service,bundle,{apply:true});
         assert.equal(replay.action,'identical-replay'); assert.equal(replay.sha256,report.sha256);
+      });
+      await t.test('even an exact business replay rejects existing C state without modifying it', async () => {
+        await addMessageState(db);
+        const messages = await messageRows(), state = await seq();
+        try {
+          for (const apply of [false,true]) {
+            await assert.rejects(importSnapshot(db,service,bundle,{apply}), /MESSAGE_STATE_NOT_EMPTY/);
+            assert.deepEqual(await messageRows(),messages);
+            assert.deepEqual(await seq(),state);
+          }
+        } finally { await clearMessageState(); }
+        assert.equal((await importSnapshot(db,service,bundle,{apply:true})).action,'identical-replay');
       });
       await t.test('replay does not lower an already advanced identity sequence', async () => {
         const table = service === 'notifications' ? 'notifications' : 'payment_intents';
