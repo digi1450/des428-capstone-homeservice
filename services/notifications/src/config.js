@@ -1,5 +1,5 @@
 export const serviceName = "notifications";
-export const schemaVersion = "001_initial.sql";
+export const schemaVersion = "002_processed_events.sql";
 
 export function readConfig(env = process.env) {
   const port = Number(env.PORT ?? 3001);

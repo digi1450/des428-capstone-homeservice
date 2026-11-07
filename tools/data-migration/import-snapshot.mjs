@@ -9,7 +9,10 @@ export const columns = {
   provider_wallets: ['provider_id','balance_cents','commission_owed_cents','updated_at'],
   webhook_events: ['id','gateway_event_id','type','payload_json','received_at','processed_at'],
 };
-const expectedMigrations = {notifications:['001_initial.sql'], 'payments-wallet':['001_initial.sql','002_ledger_invariants.sql']};
+// C (PR feat/c-outbox-dedupe, pending A review): 002_processed_events / 003_outbox add
+// consumer-dedupe and outbox tables only. The importer copies no legacy events into them:
+// they stay empty, so historical events are not replayed as fresh effects.
+const expectedMigrations = {notifications:['001_initial.sql','002_processed_events.sql'], 'payments-wallet':['001_initial.sql','002_ledger_invariants.sql','003_outbox.sql']};
 const owned = { notifications: ['notifications'], 'payments-wallet': ['payment_intents','transactions','provider_wallets','webhook_events'] };
 const jsonColumns = new Set(['context_json','payload_json']);
 const timestamps = new Set(['read_at','created_at','updated_at','received_at','processed_at']);
