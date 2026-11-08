@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A step 5C decisions — 8 November 2026
+
+[Financial finalization decisions](financial-finalization-decisions.md) record the lead's six selected A/C policies: completed with accounting pending, cancellation/hold release only after safe Payments confirmation, serialized settlement/fence/refund, same-key recovery/attention and Payments-owned callback. The separate technical proposal calls out COD without provisioning, local pending-cancel guards, payout eligibility and schema/importer review. No new endpoint, command store, caller, auth or runtime behavior is implemented; C/B technical contract review is next.
+
 ## A step 5B local relay retirement preparation — 8 November 2026
 
 [Notification event delivery](notification-event-delivery-handoff.md) adds an explicit disabled-by-default mode that stops/guards the inherited relay without claiming local `processed_at`. C's existing separate ratings inbox retains Catalog/Provider aggregates in monolith. Validation: monolith202, Notifications42, actual SQLite→RabbitMQ→Notes plus monolith ratings boundary4, lifecycle5 and standalone build passed. Startup remains legacy. Provider writers/readers, B auth, old-event watermark/inbox migration and remaining financial writers must switch coherently; null local processed markers after new ownership are not permission to stamp or replay history.

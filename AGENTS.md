@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- Before step 5C completion/refund/webhook work, read `docs/financial-finalization-decisions.md`: the six lead-selected policies are confirmed; proposed routes, lifecycle guards and wire contracts still require A/C/B review before implementation.
+
 - For legacy notification relay retirement and monolith-owned ratings, read `docs/notification-event-delivery-handoff.md`; disabling the local timer does not validate broker/data readiness or mark historical events delivered.
 
 - For provider signup-wallet and approval-notification event-only writer preparation, read `docs/provider-event-writes-handoff.md`; it reuses C events and must not be enabled while remaining financial/inbox writers still own SQLite.

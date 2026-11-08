@@ -13,6 +13,8 @@ at Payments migration 003. Paths in tables are relative to `bangkok-homeservice/
 
 > Relay follow-up: [legacy relay retirement preparation](notification-event-delivery-handoff.md) selects C broker/independent ratings delivery without local claims. Startup/data/auth cutover remains gated.
 
+> Step 5C policy follow-up: [financial finalization decisions](financial-finalization-decisions.md) records the lead selections separately from the A/C/B technical proposal; financial writer implementation remains pending.
+
 ## Ownership and present state
 
 Notifications owns `notifications`. Payments & Wallet owns `payment_intents`,
