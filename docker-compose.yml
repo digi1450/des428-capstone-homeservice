@@ -62,7 +62,7 @@ services:
       notifications-db:
         condition: service_healthy
 
-        
+
   # Area E - Notifications event consumer worker
   notifications-event-consumer:
     build:
@@ -125,7 +125,7 @@ services:
       - notifications
       - payments-wallet
 
-      
+
   # Area E - Payments outbox relay worker
   payments-outbox-relay:
     build:
