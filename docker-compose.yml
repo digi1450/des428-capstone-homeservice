@@ -1,3 +1,4 @@
+
 # Area E — Root Docker Compose integration
 # Initial integration: baseline routing, before coordinated service cutover.
 
@@ -61,6 +62,25 @@ services:
       notifications-db:
         condition: service_healthy
 
+        
+  # Area E - Notifications event consumer worker
+  notifications-event-consumer:
+    build:
+      context: ./services/notifications
+    environment:
+      DATABASE_URL: postgresql://notifications:${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD}@notifications-db:5432/notifications
+      AMQP_URL: amqp://homeservice:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}@rabbitmq:5672?frameMax=131072
+      OTEL_SERVICE_NAME: notifications-event-consumer
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    command: ["node", "--import", "./src/tracing.js", "src/event-consumer.js"]
+    healthcheck:
+      disable: true
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   # Payments database — Area A
   payments-db:
     image: postgres:16-alpine
@@ -105,6 +125,25 @@ services:
       - notifications
       - payments-wallet
 
+      
+  # Area E - Payments outbox relay worker
+  payments-outbox-relay:
+    build:
+      context: ./services/payments-wallet
+    environment:
+      DATABASE_URL: postgresql://payments_wallet:${PAYMENTS_DB_PASSWORD:?Set PAYMENTS_DB_PASSWORD}@payments-db:5432/payments_wallet
+      AMQP_URL: amqp://homeservice:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}@rabbitmq:5672?frameMax=131072
+      OTEL_SERVICE_NAME: payments-outbox-relay
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    command: ["node", "--import", "./src/tracing.js", "src/outbox-relay.js"]
+    healthcheck:
+      disable: true
+    depends_on:
+      payments-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   # Area E - Grafana dashboard
   grafana:
     image: grafana/grafana:11.6.0
@@ -119,6 +158,7 @@ services:
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
+
   # Area E - Jaeger distributed tracing
   jaeger:
     image: jaegertracing/all-in-one:1.68.0
@@ -129,6 +169,22 @@ services:
     expose:
       - "4318"
 
+  # Area E - RabbitMQ event broker
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: homeservice
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
 # Persistent storage
 volumes:
   monolith-data:
@@ -136,3 +192,4 @@ volumes:
   payments-data:
   prometheus-data:
   grafana-data:
+  rabbitmq-data:

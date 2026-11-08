@@ -8,6 +8,7 @@
 import amqp from "amqplib";
 import { parseEnvelope, PermanentEventError } from "./envelope.js";
 import { QUEUE, assertConsumerTopology } from "./topology.js";
+import { traceMessageProcessing } from "../messaging-tracing.js";
 
 export async function startConsumer({ amqpUrl, inbox, prefetch = 10, deliveryLimit = 5, retryDelayMs = 1000, log = () => {} }) {
   const connection = await amqp.connect(amqpUrl);
@@ -26,26 +27,28 @@ export async function startConsumer({ amqpUrl, inbox, prefetch = 10, deliveryLim
 
   const { consumerTag } = await channel.consume(QUEUE, async message => {
     if (!message) return; // broker cancelled the consumer
-    const messageId = message.properties.messageId;
-    let envelope;
-    try {
-      envelope = parseEnvelope(message.content, messageId);
-      const result = await inbox.handle(envelope);
-      if (!closed) channel.ack(message);
-      log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type, effects: result.effects });
-    } catch (error) {
-      if (closed) return; // unacked messages are redelivered by the broker
-      if (error instanceof PermanentEventError) {
-        channel.nack(message, false, false);
-        log({ event: "event_dead_lettered", message_id: messageId ?? null, reason: error.message });
-      } else {
-        log({ event: "event_retry", message_id: messageId ?? null, kind: error?.code ?? error?.name ?? "error" });
-        await sleep(retryDelayMs);
-        if (!closed) channel.nack(message, false, true);
-      }
-    }
-  });
 
+    await traceMessageProcessing(message, async () => {
+      const messageId = message.properties.messageId;
+      let envelope;
+      try {
+        envelope = parseEnvelope(message.content, messageId);
+        const result = await inbox.handle(envelope);
+        if (!closed) channel.ack(message);
+        log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type, effects: result.effects });
+      } catch (error) {
+        if (closed) return; // unacked messages are redelivered by the broker
+        if (error instanceof PermanentEventError) {
+          channel.nack(message, false, false);
+          log({ event: "event_dead_lettered", message_id: messageId ?? null, reason: error.message });
+        } else {
+          log({ event: "event_retry", message_id: messageId ?? null, kind: error?.code ?? error?.name ?? "error" });
+          await sleep(retryDelayMs);
+          if (!closed) channel.nack(message, false, true);
+        }
+      }
+    });
+  });
   return {
     closed: closedPromise,
     async close() {
