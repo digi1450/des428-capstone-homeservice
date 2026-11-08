@@ -100,9 +100,15 @@ function recordFailure(saga, error, limit, exhaustedTo, exhaustedReason) {
       move(saga, exhaustedTo, `${exhaustedReason} after ${attempts} unconfirmed attempts (${kind})`,
         exhaustedTo === STATES.COMPENSATION_PENDING ? { cancel_reason: "booking_setup_failed" } : {});
     } else {
-      const backoff = Math.min(runtime.maxBackoffMs, runtime.baseBackoffMs * 2 ** (attempts - 1));
-      getDb().prepare("UPDATE booking_sagas SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ?")
-        .run(attempts, iso(backoff), String(kind).slice(0, 120), iso(), saga.saga_id);
+      const backoff = Math.min(
+  runtime.maxBackoffMs,
+  runtime.baseBackoffMs * 2 ** (attempts - 1)
+);
+const jitteredBackoff = Math.floor(
+  backoff * (0.5 + Math.random() * 0.5)
+);
+getDb().prepare("UPDATE booking_sagas SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ?")
+  .run(attempts, iso(jitteredBackoff), String(kind).slice(0, 120), iso(), saga.saga_id);
     }
   }).immediate();
 }
