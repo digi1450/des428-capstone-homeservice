@@ -57,48 +57,116 @@ export function createWalletInbox(database, business, { consumerName = CONSUMER_
   };
 }
 
-export async function startWalletConsumer({ amqpUrl, inbox, prefetch = 10, deliveryLimit = 5, retryDelayMs = 1000, log = () => {} }) {
-  const connection = await amqp.connect(amqpUrl);
-  const channel = await connection.createChannel();
-  await assertWalletTopology(channel, { deliveryLimit });
-  await channel.prefetch(prefetch);
-  let closed = false;
-  const closedPromise = new Promise((resolve) => {
-    const done = () => { closed = true; resolve(); };
-    connection.on("close", done);
-    channel.on("close", done);
-  });
-  connection.on("error", () => {});
-  channel.on("error", () => {});
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+export class ConsumerSetupError extends Error {
+  constructor(message, cause) { super(message, { cause }); this.name = "ConsumerSetupError"; this.code = cause?.code; }
+}
 
-  const { consumerTag } = await channel.consume(QUEUE, async (message) => {
-    if (!message) return;
-    const messageId = message.properties.messageId;
+// Lifecycle: `closed` resolves on ANY end of this subscription (connection/channel close or a
+// broker-initiated basic.cancel, e.g. the queue was deleted). The caller's reconnect loop then
+// calls close() and starts a fresh consumer that re-asserts topology. Error handlers are attached
+// as soon as each resource exists, so a failing topology RPC rejects this promise (and the
+// partial resources are closed) instead of crashing the process with an unhandled 'error'.
+export async function startWalletConsumer({ amqpUrl, inbox, prefetch = 10, deliveryLimit = 5, retryDelayMs = 1000, log = () => {} }) {
+  let connection = null;
+  let channel = null;
+  let ended = false;
+  let wake;
+  const closedPromise = new Promise((resolve) => { wake = resolve; });
+  const end = (reason) => { if (!ended) { ended = true; wake(reason); } };
+  const release = async () => {
+    try { if (channel) await channel.close(); } catch { /* already closed */ }
+    try { if (connection) await connection.close(); } catch { /* already closed */ }
+  };
+  let consumerTag;
+  try {
+    connection = await amqp.connect(amqpUrl);
+    connection.on("error", (error) => log({ event: "broker_connection_error", kind: error?.code ?? error?.name ?? "error" }));
+    connection.on("close", () => end("connection_closed"));
+    channel = await connection.createChannel();
+    channel.on("error", (error) => log({ event: "broker_channel_error", kind: error?.code ?? error?.name ?? "error" }));
+    channel.on("close", () => end("channel_closed"));
     try {
-      const envelope = parseEnvelope(message.content, messageId);
-      const result = await inbox.handle(envelope);
-      if (!closed) channel.ack(message);
-      log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type });
+      await assertWalletTopology(channel, { deliveryLimit });
     } catch (error) {
-      if (closed) return; // unacked: the broker redelivers
-      if (error instanceof PermanentEventError) {
-        channel.nack(message, false, false);
-        log({ event: "event_dead_lettered", message_id: messageId ?? null, reason: error.message });
-      } else {
-        log({ event: "event_retry", message_id: messageId ?? null, kind: error?.code ?? error?.name ?? "error" });
-        await sleep(retryDelayMs);
-        if (!closed) channel.nack(message, false, true);
-      }
+      // e.g. 406 PRECONDITION_FAILED: an existing queue/exchange has incompatible arguments.
+      // Never delete/recreate a useful queue automatically; report it for a person to fix.
+      throw new ConsumerSetupError(`incompatible or unavailable RabbitMQ topology for ${QUEUE}/${DEAD_LETTER_QUEUE}: ${error?.message ?? error}`, error);
     }
-  });
+    await channel.prefetch(prefetch);
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    ({ consumerTag } = await channel.consume(QUEUE, async (message) => {
+      if (!message) { // broker cancelled this consumer (queue deleted, node failover, ...)
+        log({ event: "consumer_cancelled_by_broker" });
+        end("cancelled_by_broker");
+        return;
+      }
+      const messageId = message.properties.messageId;
+      try {
+        const envelope = parseEnvelope(message.content, messageId);
+        const result = await inbox.handle(envelope);
+        if (!ended) channel.ack(message);
+        log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type });
+      } catch (error) {
+        if (ended) return; // unacked: the broker redelivers
+        if (error instanceof PermanentEventError) {
+          channel.nack(message, false, false);
+          log({ event: "event_dead_lettered", message_id: messageId ?? null, reason: error.message });
+        } else {
+          log({ event: "event_retry", message_id: messageId ?? null, kind: error?.code ?? error?.name ?? "error" });
+          await sleep(retryDelayMs);
+          if (!ended) channel.nack(message, false, true);
+        }
+      }
+    }));
+  } catch (error) {
+    ended = true;
+    await release();
+    throw error;
+  }
 
   return {
     closed: closedPromise,
     async close() {
-      try { await channel.cancel(consumerTag); } catch { /* channel already gone */ }
-      try { await channel.close(); } catch { /* already closed */ }
-      try { await connection.close(); } catch { /* already closed */ }
+      end("closed_by_caller");
+      try { await channel.cancel(consumerTag); } catch { /* channel already gone or consumer cancelled */ }
+      await release();
+    },
+  };
+}
+
+// Supervisor used by the process entrypoint: keeps exactly one live subscription, reconnecting
+// with bounded backoff after any end (broker restart, cancel, setup failure). stop() ends it.
+export function superviseWalletConsumer({ amqpUrl, inbox, log = () => {}, minDelayMs = 500, maxDelayMs = 10000, ...options }) {
+  let stopping = false;
+  let current = null;
+  let wakeSleep = () => {};
+  const sleep = (ms) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); wakeSleep = () => { clearTimeout(timer); resolve(); }; });
+  const done = (async () => {
+    let delay = minDelayMs;
+    while (!stopping) {
+      try {
+        current = await startWalletConsumer({ amqpUrl, inbox, log, ...options });
+        if (stopping) { await current.close(); current = null; break; } // stop() raced the start
+        log({ event: "consumer_started" });
+        delay = minDelayMs;
+        const reason = await current.closed;
+        await current.close(); // e.g. after a broker cancel the connection/channel are still open
+        current = null;
+        if (!stopping) log({ event: "consumer_ended", reason });
+      } catch (error) {
+        current = null;
+        log({ event: "consumer_error", kind: error?.code ?? error?.name ?? "error", setup: error?.name === "ConsumerSetupError" ? error.message : undefined });
+      }
+      if (!stopping) { await sleep(delay); delay = Math.min(delay * 2, maxDelayMs); }
+    }
+  })();
+  return {
+    done,
+    async stop() {
+      stopping = true;
+      wakeSleep();
+      if (current) await current.close();
+      await done;
     },
   };
 }

@@ -9,7 +9,7 @@ import { createDatabase } from "../src/database.js";
 import { migrate } from "../src/migrations.js";
 import { createPaymentsService } from "../src/service.js";
 import { parseEnvelope, PermanentEventError } from "../src/messaging/inbound.js";
-import { createWalletInbox, startWalletConsumer, EVENTS_EXCHANGE, QUEUE, DEAD_LETTER_QUEUE, CONSUMER_NAME } from "../src/messaging/wallet-consumer.js";
+import { createWalletInbox, startWalletConsumer, superviseWalletConsumer, assertWalletTopology, ConsumerSetupError, EVENTS_EXCHANGE, QUEUE, DEAD_LETTER_QUEUE, CONSUMER_NAME } from "../src/messaging/wallet-consumer.js";
 
 const envelope = (providerId, overrides = {}) => ({
   event_id: randomUUID(), event_type: "provider.registered", schema_version: 1, producer: "monolith",
@@ -96,14 +96,17 @@ test("wallet consumer with RabbitMQ: restart, duplicates and dead-lettering", { 
     for (let i = 0; i < 100; i += 1) { if (await check()) return; await new Promise((r) => setTimeout(r, 50)); }
     assert.fail(`timed out waiting for ${label}`);
   };
-  const consumer = await startWalletConsumer({ amqpUrl: process.env.TEST_AMQP_URL, inbox, retryDelayMs: 50 });
+  const seen = [];
+  const consumer = await startWalletConsumer({ amqpUrl: process.env.TEST_AMQP_URL, inbox, retryDelayMs: 50, log: (e) => seen.push(e) });
   await channel.purgeQueue(DEAD_LETTER_QUEUE);
+  await channel.purgeQueue(QUEUE); // disposable broker: drop leftovers from earlier runs
 
   const a = randomInt(740000000, 750000000);
   const first = envelope(a);
   await publish(first);
   await publish(first); // duplicate delivery of the same event_id
   await eventually(async () => (await wallets(a)) === 1, "wallet a");
+  await eventually(() => seen.some((e) => e.event === "event_duplicate_skipped" && e.event_id === first.event_id), "duplicate acked");
 
   // Consumer down: the event waits in the durable queue, then is applied after restart.
   await consumer.close();
@@ -121,4 +124,67 @@ test("wallet consumer with RabbitMQ: restart, duplicates and dead-lettering", { 
   await eventually(async () => (await channel.checkQueue(DEAD_LETTER_QUEUE)).messageCount === 1, "dead-lettered");
   assert.equal(await wallets(c), 0);
   assert.equal((await db.query("SELECT count(*)::int AS n FROM processed_events WHERE consumer_name=$1 AND event_id=$2", [CONSUMER_NAME, first.event_id])).rows[0].n, 1);
+});
+
+// Review #30: lifecycle faults against a real (disposable) broker.
+test("wallet consumer lifecycle faults with RabbitMQ", { skip: !process.env.TEST_DATABASE_URL || !process.env.TEST_AMQP_URL }, async (t) => {
+  const url = process.env.TEST_AMQP_URL;
+  const db = createDatabase(process.env.TEST_DATABASE_URL);
+  await migrate(db);
+  const inbox = createWalletInbox(db, createPaymentsService(db));
+  const connection = await amqp.connect(url);
+  connection.on("error", () => {});
+  t.after(async () => { try { await connection.close(); } catch {} await db.close(); });
+  const admin = async (work) => { const ch = await connection.createChannel(); ch.on("error", () => {}); try { return await work(ch); } finally { try { await ch.close(); } catch {} } };
+  const publish = (event) => admin(async (ch) => { ch.publish(EVENTS_EXCHANGE, event.event_type, Buffer.from(JSON.stringify(event)), { persistent: true, messageId: event.event_id }); });
+  const wallets = async (id) => (await db.query("SELECT count(*)::int AS n FROM provider_wallets WHERE provider_id=$1", [id])).rows[0].n;
+  const eventually = async (check, label, ms = 8000) => {
+    const deadline = Date.now() + ms;
+    for (;;) { if (await check()) return; if (Date.now() > deadline) assert.fail(`timed out waiting for ${label}`); await new Promise((r) => setTimeout(r, 50)); }
+  };
+  const bounded = (promise, ms) => Promise.race([promise.then(() => "resolved"), new Promise((r) => setTimeout(() => r("still pending"), ms))]);
+
+  await t.test("broker cancel (queue deleted) resolves `closed`, and the supervisor resubscribes and processes a new event", async () => {
+    const single = await startWalletConsumer({ amqpUrl: url, inbox, retryDelayMs: 50 });
+    await admin((ch) => ch.deleteQueue(QUEUE));
+    assert.equal(await bounded(single.closed, 2000), "resolved", "closed wakes on basic.cancel");
+    assert.equal(await single.closed, "cancelled_by_broker");
+    await single.close();
+
+    const logs = [];
+    const supervisor = superviseWalletConsumer({ amqpUrl: url, inbox, retryDelayMs: 50, minDelayMs: 50, maxDelayMs: 200, log: (e) => logs.push(e) });
+    t.after(() => supervisor.stop());
+    await eventually(() => logs.some((e) => e.event === "consumer_started"), "first subscription");
+    await admin((ch) => ch.deleteQueue(QUEUE));
+    await eventually(() => logs.filter((e) => e.event === "consumer_started").length === 2, "replacement subscription");
+    assert.ok(logs.some((e) => e.event === "consumer_ended" && e.reason === "cancelled_by_broker"));
+    const id = randomInt(770000000, 780000000);
+    await publish(envelope(id));
+    await eventually(async () => (await wallets(id)) === 1, "event processed by the replacement consumer");
+    await supervisor.stop();
+  });
+
+  await t.test("incompatible existing topology rejects startup cleanly (no unhandled error) and is not auto-deleted", async () => {
+    await admin(async (ch) => { await ch.deleteQueue(QUEUE); await ch.deleteQueue(DEAD_LETTER_QUEUE); await ch.assertQueue(DEAD_LETTER_QUEUE, { durable: true }); }); // classic, incompatible
+    let unhandled = null;
+    const onError = (error) => { unhandled = error; };
+    process.on("uncaughtException", onError);
+    try {
+      await assert.rejects(startWalletConsumer({ amqpUrl: url, inbox }), (error) => error instanceof ConsumerSetupError && /PRECONDITION_FAILED|406/.test(error.message));
+      await new Promise((r) => setTimeout(r, 200));
+      assert.equal(unhandled, null, "no unhandled 'error' event");
+      const kept = await admin((ch) => ch.checkQueue(DEAD_LETTER_QUEUE));
+      assert.equal(kept.queue, DEAD_LETTER_QUEUE, "the existing queue was reported, not deleted");
+      // A supervisor keeps retrying (logging the setup problem) instead of exiting.
+      const logs = [];
+      const supervisor = superviseWalletConsumer({ amqpUrl: url, inbox, minDelayMs: 50, maxDelayMs: 50, log: (e) => logs.push(e) });
+      await eventually(() => logs.filter((e) => e.event === "consumer_error" && e.setup).length >= 2, "repeated setup errors");
+      await supervisor.stop();
+      assert.equal(unhandled, null);
+    } finally {
+      process.off("uncaughtException", onError);
+      // Restore the correct topology for other tests on this disposable broker.
+      await admin(async (ch) => { await ch.deleteQueue(DEAD_LETTER_QUEUE); await assertWalletTopology(ch); });
+    }
+  });
 });
