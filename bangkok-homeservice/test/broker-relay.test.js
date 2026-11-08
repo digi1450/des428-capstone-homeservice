@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { freshBoot, getDb } from "../test-helpers/boot.js";
 import { call } from "../test-helpers/call.js";
-import { loginSeededCustomer, loginSeededProvider, loginAdmin, futureWeekday } from "../test-helpers/auth.js";
+import { loginSeededCustomer, loginSeededProvider, loginAdmin, registerProvider, futureWeekday } from "../test-helpers/auth.js";
 import { insertEvent } from "../lib/db/events.js";
 import { relayOnce, pendingPublishCount, PUBLISHED_TYPES } from "../lib/messaging/broker-relay.js";
 import { envelopeFromRow } from "../lib/messaging/envelope.js";
@@ -95,6 +95,28 @@ test("monolith broker relay", async (t) => {
     const { sent, publisher } = capture();
     await relayOnce({ publisher, owner: "relay-a" });
     assert.deepEqual(sent.map((e) => e.event_type), ["provider.approved"]);
+  });
+
+  await t.test("provider registration emits provider.registered in the same transaction (wallet provisioning)", async () => {
+    await drain();
+    const p = await registerProvider();
+    assert.equal(p.reg.status, 201);
+    const event = getDb().prepare("SELECT * FROM events WHERE type = 'provider.registered' AND aggregate_id = ?").get(p.id);
+    assert.deepEqual(JSON.parse(event.payload_json), { provider_id: p.id }, "no email/name/password in the event");
+    const { sent, publisher } = capture();
+    await relayOnce({ publisher, owner: "relay-a" });
+    assert.deepEqual(sent.map((e) => [e.event_type, e.aggregate_type, e.aggregate_id, e.producer]), [["provider.registered", "provider", String(p.id), "monolith"]]);
+    // If the event cannot be written, the provider is not created either (one transaction).
+    getDb().exec(`CREATE TRIGGER fail_registered BEFORE INSERT ON events WHEN NEW.type = 'provider.registered'
+      BEGIN SELECT RAISE(ABORT, 'simulated outbox failure'); END`);
+    try {
+      const email = `rollback-${Date.now()}@example.com`;
+      const failed = await registerProvider({ email });
+      assert.equal(failed.reg.status, 500);
+      assert.equal(getDb().prepare("SELECT count(*) AS n FROM providers WHERE email = ?").get(email).n, 0);
+    } finally {
+      getDb().exec("DROP TRIGGER fail_registered");
+    }
   });
 
   await t.test("a failed publish stays pending with backoff, then is retried", async () => {
