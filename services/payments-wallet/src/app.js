@@ -1,4 +1,5 @@
 import express from "express";
+import {paymentRequestContext} from "./request-context.js";
 import { randomUUID } from "node:crypto";
 import { serviceName } from "./config.js";
 import { createPaymentCommandRouter } from "./command-router.js";
@@ -19,6 +20,8 @@ export function createApp({ database, authenticate, authenticateService, payment
     res.set("Cache-Control", "no-store");
     next();
   });
+
+  app.use(paymentRequestContext);
 
   // Added structured HTTP request logging with correlation ID (E) start
   app.use((req, res, next) => {

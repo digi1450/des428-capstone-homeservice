@@ -2,7 +2,7 @@ import express, { Router } from 'express';
 import { HttpError } from './errors.js';
 import { commandKey, createCommand, cancelCommand, activateCommand, activationOutcome, commandOutcome } from './command-validation.js';
 
-// B/C integration seam ONLY. server.js injects neither verifier nor command store.
+// B/C integration seam. Production runtime composes C; B verification remains required.
 // No direct call to prepareIntent/voidUnpaidIntent can substitute for C's durable store/fence.
 export function createPaymentCommandRouter({ authenticateService, paymentCommands }) {
   const router = Router();

@@ -2,6 +2,10 @@
 
 Recorded 6 November 2026 against `main` at `67bd023fa64df9b12a2a6424473e389b565e80b2`. This is a shared implementation snapshot, not the final dossier. Check newer merged PRs, current code and affected owners before treating a pending item as current. A missing merged evidence link does not mean a teammate has not started work on a branch.
 
+## Step 4 runtime assembly — 8 November 2026
+
+This change adds [Payments/Booking composition](payment-runtime-composition-handoff.md) on top of main through #36. Payments startup now constructs C's participant/settlement/outbox hooks but has no real B verifiers and remains 503 for protected HTTP. Booking has an explicit composition for separate service/user credentials, C readiness and opt-in draining recovery; production monolith startup does not enable it. This supersedes older statements that Payments startup has no participant at all, without claiming live auth, final-stack acceptance or cutover. Remaining callers/writers and legacy-data gates still apply.
+
 ## Current caller preparation — 8 November 2026
 
 A steps 1–2 are merged in #32–33: activation HTTP and its client/Booking adapter. This branch adds [step 3: pending/ready UI and Payments callers](payment-setup-callers-handoff.md), with owner-scoped intent/simulation HTTP, explicit remote wallet pending state and an injectable end-user access/readiness boundary. Its current validation covers Next route → client → Express → real C participant → isolated PostgreSQL. Authentication and readiness are explicit test doubles; no real Keycloak, C activation recovery or live cutover is claimed.
