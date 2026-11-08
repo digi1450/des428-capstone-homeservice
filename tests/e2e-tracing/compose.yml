@@ -1,4 +1,4 @@
-﻿name: homeservice-e-tracing-test
+name: homeservice-e-tracing-test
 
 services:
   payments-db:
@@ -30,7 +30,7 @@ services:
       retries: 20
 
   rabbitmq:
-    image: rabbitmq:3.13-alpine
+    image: rabbitmq:4.1-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: tracing
       RABBITMQ_DEFAULT_PASS: tracing-test-only
@@ -50,7 +50,7 @@ services:
     environment:
       TEST_PAYMENTS_DATABASE_URL: postgresql://payments_wallet:tracing-test-only@payments-db:5432/payments_wallet
       TEST_NOTIFICATIONS_DATABASE_URL: postgresql://notifications:tracing-test-only@notifications-db:5432/notifications
-      TEST_AMQP_URL: amqp://tracing:tracing-test-only@rabbitmq:5672
+      TEST_AMQP_URL: amqp://tracing:tracing-test-only@rabbitmq:5672?frameMax=131072
     depends_on:
       payments-db:
         condition: service_healthy
@@ -65,7 +65,7 @@ services:
       context: ../..
       dockerfile: tests/e2e-tracing/Dockerfile.reliability
     environment:
-      TEST_AMQP_URL: amqp://tracing:tracing-test-only@rabbitmq:5672
+      TEST_AMQP_URL: amqp://tracing:tracing-test-only@rabbitmq:5672?frameMax=131072
       NODE_ENV: test
       DB_PATH: ":memory:"
       TEST_DATABASE_URL: postgresql://payments_wallet:tracing-test-only@payments-db:5432/payments_wallet
@@ -74,5 +74,3 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-
-

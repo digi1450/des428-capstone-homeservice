@@ -181,7 +181,9 @@ test("Full E2E: HTTP -> Payments -> Outbox -> RabbitMQ -> Notifications", async 
       owner: `e2e-tracing-${randomUUID()}`
     });
 
-    assert.equal(relay.published, 1);
+    // A previous interrupted run can leave other pending rows in this disposable DB.
+    // Delivery and span checks below are scoped to this test's unique event.
+    assert.ok(relay.published >= 1, "Relay must publish at least one event");
 
     let processed;
     for (let attempt = 0; attempt < 100; attempt++) {
