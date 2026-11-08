@@ -1,4 +1,5 @@
-// The outbox relay — the sole consumer of the shared `events` table. Started once from
+// Inherited in-process relay for SQLite notifications and rating effects. C's broker relay
+// independently tracks published_at; this relay tracks processed_at. Started once from
 // instrumentation.js as setInterval(runRelayOnce, 1000); also exported so tests can drain it
 // synchronously. Every domain event is claimed exactly once (processed_at) before dispatch, so a
 // second pass over the same event is a no-op — the relay is idempotent.
@@ -12,6 +13,20 @@ import * as catalogRepository from "../catalog/repository.js";
 import * as providersRepository from "../providers/repository.js";
 
 const RELAY = Symbol.for("edemand.relay.interval");
+let eventDelivery = null;
+
+// Explicit, disabled-by-default cutover preparation. C's ratings consumer stays in monolith.
+// Configure only at a coordinated handover; this does not validate readiness or migrate data.
+export function configureNotificationEventDelivery({ mode } = {}) {
+  if (mode !== "events") throw new TypeError("Notification delivery mode must explicitly be events");
+  if (eventDelivery) throw new Error("Notification event delivery is already configured");
+  eventDelivery = Object.freeze({ mode });
+  stopRelay();
+  return eventDelivery;
+}
+export const getNotificationEventDelivery = () => eventDelivery;
+// Tests/coordinated shutdown only, never automatic outage fallback. Does not restart a timer.
+export const resetNotificationEventDelivery = () => { eventDelivery = null; };
 
 function notify(recipientRole, recipientId, type, title, body, orderId = null) {
   notificationsRepository.insert({ recipientRole, recipientId, type, title, body, orderId });
@@ -93,6 +108,9 @@ function dispatch(event) {
 // Drain up to 100 unprocessed events. Each is claimed (processed_at) before dispatch; a concurrent
 // or repeated pass that loses the claim skips the event. Returns the number of events processed.
 export function runRelayOnce() {
+  // Do not claim/stamp, dispatch or touch SQLite notifications/ratings after selecting the broker.
+  // In particular, do not mark historical work processed just to satisfy migration checks.
+  if (eventDelivery) return 0;
   const rows = listUnprocessed(100);
   let processed = 0;
   for (const event of rows) {
@@ -108,7 +126,7 @@ export function runRelayOnce() {
 }
 
 export function startRelay() {
-  if (globalThis[RELAY]) return;
+  if (eventDelivery || globalThis[RELAY]) return;
   const handle = setInterval(() => {
     try {
       runRelayOnce();

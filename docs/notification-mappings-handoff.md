@@ -1,5 +1,7 @@
 # Notifications event mappings — A to C handoff
 
+> Current status: C event producers/inboxes are implemented; provider.approved is no longer proposed-only. [Provider writer preparation](provider-event-writes-handoff.md) and [legacy relay retirement preparation](notification-event-delivery-handoff.md) add explicit disabled-by-default selections. The original preparation/absence-of-C statements below are historical; no production cutover is claimed.
+
 Status: pure business projections and atomic local batch writer prepared. The five inherited event mappings and direct provider-approval message are preserved. The monolith still runs its original relay/direct writer; no broker consumer, outbox publisher, data migration, active caller switch or nginx change is made here. C/B integration is still required before cutover.
 
 ## Mapping entry points
