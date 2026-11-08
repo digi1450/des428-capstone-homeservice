@@ -13,7 +13,7 @@ at Payments migration 003. Paths in tables are relative to `bangkok-homeservice/
 
 > Relay follow-up: [legacy relay retirement preparation](notification-event-delivery-handoff.md) selects C broker/independent ratings delivery without local claims. Startup/data/auth cutover remains gated.
 
-> Step 5C policy follow-up: [financial finalization decisions](financial-finalization-decisions.md) records the lead selections separately from the A/C/B technical proposal; financial writer implementation remains pending.
+> Step 5C policy follow-up: [financial finalization decisions](financial-finalization-decisions.md) now records the lead-selected policies and technical baseline. A authors the exact versioned contract; C/B implement against it and report blockers. Financial writer implementation remains pending.
 
 ## Ownership and present state
 
@@ -89,7 +89,7 @@ select stale SQLite after the remote owner has been chosen.
 |---|---|---|
 | 5A Notifications readers | Add explicit client/credential seam and async API/page callers; test with clearly labeled fixture auth. This is the smallest next A change. | B real user verification/delegation, C/E writer/data/event transition. Do not enable readers against an unseeded/partially migrated PG inbox. |
 | 5B Registration and notification writers | Prepare caller policy/tests to retire local wallet/notification writes while retaining existing durable events. | C/E wallet worker, broker/ratings/notification delivery and shared cutover mode; B registration changes. |
-| 5C Completion/refund/webhook | Inventory complete; draft transport, durable keys, outcome/state and replay acceptance from existing primitives. | Agree A/C protocol and B permissions before implementing new contracts. D validates faults; E wires processes. |
+| 5C Completion/refund/webhook | Inventory complete; draft transport, durable keys, outcome/state and replay acceptance from existing primitives. | Lead has adopted the baseline: A publishes the exact common contract; C implements durable consistency and B permissions/auth, reporting blockers. D validates faults; E wires processes. |
 | 5D Legacy data and routing rehearsal | Build acceptance fixtures and review frozen snapshot/importer compatibility; no useful-data apply. | A/C legacy eligibility and event watermark, then B/D/E final-stack acceptance. |
 | Final switch | Only after step 4 auth/process gates and the above whole-flow transitions pass. | Coordinated backup/import/readiness/routing, load/recovery evidence and data-aware rollback. |
 

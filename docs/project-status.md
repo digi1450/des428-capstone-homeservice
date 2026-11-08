@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## Step 5C baseline adopted by the lead — 8 November 2026
+
+The lead has now adopted [financial finalization policies and technical direction](financial-finalization-decisions.md) as the team baseline, superseding the proposal/review-before-code status recorded in #43 and the historical section below. A can author the exact versioned OpenAPI/payload/outcome/callable fixtures and implement its endpoints/client/callers without waiting for C/B direction approval. C owns the durable participant/work/recovery and B the real auth/permissions/callback verifier; both implement against the common baseline and report blockers rather than changing interfaces independently. This records a lead instruction, not teammate notification/acknowledgement or implemented runtime behavior; real integration/schema/data gates remain open.
+
 ## A step 5C decisions — 8 November 2026
 
 [Financial finalization decisions](financial-finalization-decisions.md) record the lead's six selected A/C policies: completed with accounting pending, cancellation/hold release only after safe Payments confirmation, serialized settlement/fence/refund, same-key recovery/attention and Payments-owned callback. The separate technical proposal calls out COD without provisioning, local pending-cancel guards, payout eligibility and schema/importer review. No new endpoint, command store, caller, auth or runtime behavior is implemented; C/B technical contract review is next.

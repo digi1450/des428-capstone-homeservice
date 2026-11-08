@@ -11,7 +11,7 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
-- Before step 5C completion/refund/webhook work, read `docs/financial-finalization-decisions.md`: the six lead-selected policies are confirmed; proposed routes, lifecycle guards and wire contracts still require A/C/B review before implementation.
+- Before step 5C completion/refund/webhook work, read `docs/financial-finalization-decisions.md`: the lead has selected the policies and technical direction as the implementation baseline. A publishes exact versioned contracts; C/B implement against them and report blockers. Do not wait for separate direction approval or treat adoption as completed integration.
 
 - For legacy notification relay retirement and monolith-owned ratings, read `docs/notification-event-delivery-handoff.md`; disabling the local timer does not validate broker/data readiness or mark historical events delivered.
 

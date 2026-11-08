@@ -1,10 +1,20 @@
-# Step 5C — lead decisions and A/C/B implementation proposal
+# Step 5C — lead-selected A/C/B implementation baseline
 
 8 November 2026. Source reviewed at main `884d557` after PR #42.
-**The six policy decisions below are selected by the team lead.** Everything
-under Technical proposal is a proposed implementation contract for A/C/B review,
-not evidence of teammate agreement, mounted routes, new schemas or completed
-integration. No financial runtime/data/auth/routing change is made here.
+**The team lead has selected both the six policies and the technical approach
+below as the implementation baseline.** This supersedes PR #43's earlier
+proposal/review-before-code status. A/C/B can proceed within their ownership
+without waiting for separate teammate approval of this direction. Adoption by
+the lead is not evidence that teammates have been notified or acknowledged it,
+or that routes, schemas and integration are implemented. No financial runtime,
+data, auth or routing change is made here.
+
+A owns the next concrete deliverable: versioned OpenAPI, exact payload/error and
+callable-interface fixtures, then endpoints/client/callers. C/B implement against
+that common contract and this baseline; do not invent conflicting interfaces in
+parallel. Report an implementation blocker or unsafe/incompatible assumption for
+coordinated revision instead of silently changing it. Existing integration,
+migration and real-auth verification gates still apply before activation.
 
 ## Lead-selected policies
 
@@ -31,7 +41,7 @@ not replace their create/activate/cancel provisioning protocol. See
   durable completion/cancellation transports or a Booking recovery workflow.
 - Existing `applyCompletion` checks an eligible-looking intent for gateway mode
   but does not itself require a succeeded charge. The new orchestration must
-  explicitly review payout eligibility; the proposal below defers payout until
+  enforce the selected payout eligibility; the baseline below defers payout until
   real settlement is confirmed. A primitive's existence is not sufficient proof.
 - C's participant handles create/query/cancel/activate **provisioning**, not full
   paid cancellation/refund/completion. Its current command schema has kind and
@@ -43,11 +53,11 @@ not replace their create/activate/cancel provisioning protocol. See
   Notifications consumers. PG receipt/charge/outbox staging and per-order lock
   are already present. Reuse them instead of cross-reading/writing SQLite.
 
-## Technical proposal — A/C/B must review before code
+## Technical baseline — selected by the lead
 
 ### Durable identities, transport and trusted context
 
-Proposed internal routes (not mounted, not finalized OpenAPI):
+Selected internal route baseline (not mounted; A still authors versioned OpenAPI):
 
 | Route | Purpose |
 |---|---|
@@ -57,7 +67,7 @@ Proposed internal routes (not mounted, not finalized OpenAPI):
 | Existing public `POST /api/payments/webhook` | Preserve callback path, move the reviewed handler into Payments. |
 
 Use `Idempotency-Key` for commands and B's verified Booking service credentials.
-Persist a lifecycle operation UUID once in Booking; derive keys such as
+Persist a lifecycle operation UUID once in Booking; use the stable key forms
 `complete:<operation_uuid>` or `cancel:<operation_uuid>`. All attempts, recovery
 and status queries refer to the same saved identity and canonical payload.
 Request/correlation/trace IDs are separate metadata, never idempotency keys.
@@ -65,12 +75,14 @@ Stable caller identity must survive token refresh. Same caller/key/kind/body
 returns the stored result; changed operation/context with the same key conflicts.
 
 A trusted snapshot comes from Booking's locked authoritative row, not from browser
-money/owner fields. Proposed immutable fields: operation UUID, order/customer/
+money/owner fields. Required immutable context: operation UUID, order/customer/
 provider IDs, total minor units, currency and payment method; completion also
 includes frozen commission minor units. Include existing provisioning references
 for gateway orders only when applicable. Never send OTPs, identity profiles,
-passwords or user tokens as financial payload. Confirm exact field names,
-optional/required cases and strict response/error fixtures with C/B.
+passwords or user tokens as financial payload. A specifies exact field names,
+optional/required cases and strict response/error fixtures in the common versioned
+contract; C/B flag constraints or incompatibilities rather than create a second
+contract. They need not re-approve the selected direction before work proceeds.
 
 C owns schema/storage/migration and any required participant extension. Reuse the
 existing lock order: do not take an order lock then call code that acquires the
@@ -94,18 +106,20 @@ remains D's integration work, not a newly selected value here.
    consistent with that local commit. No local wallet/ledger write in new mode.
 2. Commit before calling Payments. Completion stays visible, with accounting
    pending; worker retries/query use the saved key and context after restart.
-3. Proposed Payments acceptance: reject context mismatch, cancellation/fence or
+3. Payments acceptance: reject context mismatch, cancellation/fence or
    refund conflicts. COD records commission once without an intent. For gateway
    payout, require a matching successful charge and no refund; if settlement is
    still genuinely unresolved, do not credit a payout from a merely existing
-   intent. Review the exact pending versus attention codes with C.
+   intent. A defines distinct pending versus attention wire codes; C must return
+   the corresponding durable outcomes and flag any implementation blocker.
 4. Terminal acknowledgement marks accounting ready locally; unknown transport
    stays pending. Contradiction moves work to attention without silently reverting
    physical completion, resetting money or issuing another payout command.
 
-Proposed public projection: additive `accounting_status` of pending/ready/attention
-on the existing completed order. Field names/response status are not finalized;
-update strict schemas, UI and replay bodies together after owner review.
+Selected public projection: additive `accounting_status` of pending/ready/attention
+on the existing completed order. A records its exact wire schema/status and replay
+fixtures in the common contract, then updates schemas, UI and replay bodies
+together. No unimplemented response is claimed to be served by this document.
 
 ### Cancellation/refund/void flow
 
@@ -135,12 +149,13 @@ update strict schemas, UI and replay bodies together after owner review.
    does not retry permanent contradictions forever or unlock a still-unknown
    financial command. Manual resolution is recorded, not a fake success.
 
-Proposed pending response: 202 with current order plus
+Selected pending response: 202 with current order plus
 `cancellation_status:'pending'`; do not assert `refunded:true` or a final cancelled
 state. Terminal response preserves `{order,refunded}` and adds status metadata if
 needed. Pending callers must not interpret a missing/unconfirmed refund as a
-successful no-refund result. Exact wire union/UI/HTTP replay behavior requires C/A
-review; no new order-status enum is selected by this document.
+successful no-refund result. A writes the exact wire union/UI/HTTP replay fixtures;
+C's implementation must preserve these semantics and report incompatibilities.
+No new order-status enum is selected by this document.
 
 A delayed payment.succeeded after a confirmed refund/cancellation must not revive
 Booking. Review its expected historical-event handling with C's existing attention
@@ -166,8 +181,8 @@ routing must not expose a missing callback or internal command path.
 
 | Owner | Next deliverable |
 |---|---|
-| A | Draft route/response/client fixtures with C/B, then HTTP wrappers and Booking/UI callers. Review C migrations against importer and preserved SQLite startup before enabling. |
-| C | Propose callable completion/cancellation/query interface, persistent command/fence/result + Booking work/transition guards, claim fencing/recovery, and atomicity/duplicate tests. Confirm COD and paid/refunded/legacy handling. |
+| A | Publish the common versioned route/response/client and callable-interface fixtures from this baseline, then HTTP wrappers and Booking/UI callers. Review C migrations against importer and preserved SQLite startup before enabling. |
+| C | Implement completion/cancellation/query participant, persistent command/fence/result + Booking work/transition guards, claim fencing/recovery and atomicity/duplicate tests against the baseline and A contract. Cover COD and paid/refunded/legacy handling; report technical blockers. |
 | B | Stable service principal, operation permissions and callback verifier, plus real end-user/domain mapping for public callers. |
 | D | Validate bounded retry/fault behavior, concurrent operations, unknown outcomes and recovery under final policy. |
 | E | Compose final workers/readiness, contracts/CI and trace/evidence once owner interfaces are implemented. |
@@ -193,9 +208,11 @@ Acceptance cases to implement (not results already observed):
   are explicitly reviewed; never invent old provisioning keys or activate every
   historical intent just to make new commands work.
 
-Next: C/B review the technical proposal, then A/C freeze payload/outcome fixtures
-and OpenAPI before parallel implementation. These six lead policies need not be
-asked again; a technical contradiction/new product tradeoff should be identified
-explicitly rather than silently changing them. This is documentation only: no
+Next: A authors the common versioned payload/outcome/callable fixtures and OpenAPI
+from this selected baseline, without waiting for a separate C/B direction approval.
+C/B can prepare their assigned components now and use that published contract for
+integration. Do not ask the lead to choose these same policies/direction again;
+report an actual technical contradiction or new product tradeoff explicitly for
+coordinated revision instead of silently changing the interface. This is documentation only: no
 new application tests were run, no teammate message/comment was posted and no
 endpoint/auth/schema/runtime activation is claimed.
