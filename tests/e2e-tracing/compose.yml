@@ -1,0 +1,60 @@
+﻿name: homeservice-e-tracing-test
+
+services:
+  payments-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: payments_wallet
+      POSTGRES_PASSWORD: tracing-test-only
+      POSTGRES_DB: payments_wallet
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payments_wallet -d payments_wallet"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  notifications-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: notifications
+      POSTGRES_PASSWORD: tracing-test-only
+      POSTGRES_DB: notifications
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifications -d notifications"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: tracing
+      RABBITMQ_DEFAULT_PASS: tracing-test-only
+    tmpfs:
+      - /var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  test-runner:
+    profiles: ["test"]
+    build:
+      context: ../..
+      dockerfile: tests/e2e-tracing/Dockerfile
+    environment:
+      TEST_PAYMENTS_DATABASE_URL: postgresql://payments_wallet:tracing-test-only@payments-db:5432/payments_wallet
+      TEST_NOTIFICATIONS_DATABASE_URL: postgresql://notifications:tracing-test-only@notifications-db:5432/notifications
+      TEST_AMQP_URL: amqp://tracing:tracing-test-only@rabbitmq:5672
+    depends_on:
+      payments-db:
+        condition: service_healthy
+      notifications-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
