@@ -11,6 +11,8 @@ at Payments migration 003. Paths in tables are relative to `bangkok-homeservice/
 
 > Provider follow-up: [step 5B signup/approval writer preparation](provider-event-writes-handoff.md) adds an explicit events-only selector for those two writers; remaining financial/notification writers and all production activation gates stay open.
 
+> Relay follow-up: [legacy relay retirement preparation](notification-event-delivery-handoff.md) selects C broker/independent ratings delivery without local claims. Startup/data/auth cutover remains gated.
+
 ## Ownership and present state
 
 Notifications owns `notifications`. Payments & Wallet owns `payment_intents`,

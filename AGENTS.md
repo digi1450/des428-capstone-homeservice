@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For legacy notification relay retirement and monolith-owned ratings, read `docs/notification-event-delivery-handoff.md`; disabling the local timer does not validate broker/data readiness or mark historical events delivered.
+
 - For provider signup-wallet and approval-notification event-only writer preparation, read `docs/provider-event-writes-handoff.md`; it reuses C events and must not be enabled while remaining financial/inbox writers still own SQLite.
 
 - For Notifications API/page readers and the explicit credential/client seam, read `docs/notifications-callers-handoff.md`; remote reader preparation does not retire SQLite writers or activate cutover.

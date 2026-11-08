@@ -36,6 +36,8 @@ wallet/notification writes and existing public responses. In events mode:
   Duplicate signup/approval retains the existing 409 behavior; it does not
   silently create a second account or a second logical registration event.
 
+> Relay follow-up: [event delivery selection](notification-event-delivery-handoff.md) can stop the inherited local relay while C owns monolith ratings. It remains disabled in startup and must be coordinated with this selector, reader/data handover and financial writers.
+
 ## Activation is still gated
 
 No production startup, route, seed or service configuration calls this selector.

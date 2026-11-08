@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A step 5B local relay retirement preparation — 8 November 2026
+
+[Notification event delivery](notification-event-delivery-handoff.md) adds an explicit disabled-by-default mode that stops/guards the inherited relay without claiming local `processed_at`. C's existing separate ratings inbox retains Catalog/Provider aggregates in monolith. Validation: monolith202, Notifications42, actual SQLite→RabbitMQ→Notes plus monolith ratings boundary4, lifecycle5 and standalone build passed. Startup remains legacy. Provider writers/readers, B auth, old-event watermark/inbox migration and remaining financial writers must switch coherently; null local processed markers after new ownership are not permission to stamp or replay history.
+
 ## A step 5B provider writer preparation — 8 November 2026
 
 [Provider event writers](provider-event-writes-handoff.md) add an explicit, disabled-by-default mode that omits signup SQLite wallet and approval SQLite notification writes while retaining C's existing transaction-bound events. Default responses/behavior remain compatible. Validation: monolith197, Notifications42, Payments90, actual monolith→RabbitMQ→two PG owner consumer boundary5 and standalone Next build passed. Remaining completion/refund/webhook, legacy notification relay/ratings, data/watermark/seed and real B/final-stack gates still prevent a production ownership switch. This does not close step 5B for all notification writers.
