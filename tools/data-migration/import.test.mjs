@@ -9,6 +9,8 @@ import { migrate as migrateNotifications } from '../../services/notifications/sr
 import { migrate as migratePayments } from '../../services/payments-wallet/src/migrations.js';
 import { createNotificationsService } from '../../services/notifications/src/service.js';
 import { createPaymentsService } from '../../services/payments-wallet/src/service.js';
+import { createPaymentsRuntime } from '../../services/payments-wallet/src/runtime.js';
+import { HttpError } from '../../services/payments-wallet/src/errors.js';
 
 const directory = process.env.SNAPSHOT_FIXTURE_DIR;
 if (!directory || !process.env.NOTIFICATIONS_TEST_URL || !process.env.PAYMENTS_TEST_URL) throw new Error('Dedicated migration test environment required');
@@ -240,7 +242,7 @@ for (const [service,createDatabase,migrate,env] of [
           assert.equal((await api.applyRefund({order_id:11,customer_id:5,provider_id:7,amount_cents:2000})).id,121);
           assert.deepEqual(await api.getWallet({role:'provider',domainId:7}),before);
           const history = await api.listCustomerTransactions({role:'customer',domainId:5});
-          assert.equal(history.length,5); assert.ok(history.find(row => row.id === 121 && row.status === 'refunded'));
+          assert.equal(history.length,bundle.tables.transactions.length); assert.ok(history.find(row => row.id === 121 && row.status === 'refunded'));
           const intent = await api.getIntentForOrder(10,{role:'customer',domainId:5}); assert.equal(intent.id,40);
         });
         await t.test('old webhook replay stays deduped without new charge/event', async () => {
@@ -249,16 +251,67 @@ for (const [service,createDatabase,migrate,env] of [
           const receipt=bundle.tables.webhook_events[0].payload_json;
           assert.deepEqual(await api.settleWebhook(receipt),{replayed:true});
           assert.equal(events,0);
-          assert.equal((await db.query('SELECT count(*)::int AS n FROM transactions')).rows[0].n,5);
+          assert.equal((await db.query('SELECT count(*)::int AS n FROM transactions')).rows[0].n,bundle.tables.transactions.length);
+        });
+        await t.test('actual C runtime preserves historical replay but cannot adopt or settle unbound imported intents', async () => {
+          const runtime=createPaymentsRuntime({database:db,
+            authenticate:async()=>{throw new HttpError(403,'not a user flow');},
+            authenticateService:async req=>{if(req.get('authorization')!=='Bearer booking-fixture')throw new HttpError(401,'fixture only');return {service:'booking',callerId:'legacy-rehearsal'};},
+            authenticateWebhook:async req=>{if(req.get('authorization')!=='Bearer gateway-fixture')throw new HttpError(403,'gateway fixture only');return {service:'mock-gateway',callerId:'gateway-fixture'};},
+          }); // Actual C participant and outbox; only authentication is a fixture.
+          const server=runtime.app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
+          const origin=`http://127.0.0.1:${server.address().port}`;
+          const post=(path,body,token,key)=>fetch(origin+path,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...(key?{'Idempotency-Key':key}:{})},body:JSON.stringify(body)});
+          const watched=[...tables,'payment_commands','payment_provisioning','processed_events','outbox_events'];
+          const capture=async()=>Object.fromEntries(await Promise.all(watched.map(async table=>[table,(await db.query(`SELECT * FROM ${table} ORDER BY 1`)).rows])));
+          const sequences=async()=>Object.fromEntries(await Promise.all(['payment_intents','transactions','webhook_events'].map(async table=>[table,(await db.query(`SELECT last_value,is_called FROM ${table}_id_seq`)).rows[0]])));
+          try {
+            const before=await capture(),seqBefore=await sequences();
+            // Even a syntactically valid key is NOT permission to invent/adopt old provisioning.
+            for(const intent of bundle.tables.payment_intents){
+              const key='legacy-probe:'+intent.order_id,saga='legacy-probe-saga:'+intent.order_id;
+              const body={order_id:intent.order_id,customer_id:intent.customer_id,provider_id:intent.provider_id,amount_cents:intent.amount_cents,currency:'THB',saga_id:saga};
+              assert.equal((await post('/internal/payment-intents',body,'booking-fixture',key)).status,409);
+              assert.equal((await post('/internal/payment-intents/activate-by-command',{create_command_id:key,saga_id:saga},'booking-fixture','activate:'+key)).status,409);
+              assert.equal((await fetch(origin+'/internal/payment-operations/'+encodeURIComponent(key),{headers:{Authorization:'Bearer booking-fixture'}})).status,404);
+            }
+            for(const orderId of [13,16]){
+              const intent=bundle.tables.payment_intents.find(row=>row.order_id===orderId);
+              const callback={gateway_event_id:'legacy-unsafe:'+orderId,type:'payment_intent.succeeded',gateway_ref:intent.gateway_ref};
+              assert.equal((await post('/api/payments/webhook',callback,'gateway-fixture')).status,409);
+              const old=await db.query('SELECT * FROM payment_intents WHERE id=$1',[intent.id]);
+              assert.equal(await db.withTransaction(tx=>runtime.participant.assertSettlementAllowed(tx,old.rows[0])),false);
+            }
+            assert.deepEqual(await capture(),before,'rejected create/activate/callback must not mutate imported rows or C state');
+            // PostgreSQL sequence allocation can consume numbers on rollback; never equate
+            // a harmless gap with a committed receipt/charge or reset a counter backwards.
+            assert.equal((await sequences()).payment_intents.last_value,seqBefore.payment_intents.last_value);
+            for(const receipt of bundle.tables.webhook_events){
+              const response=await post('/api/payments/webhook',receipt.payload_json,'gateway-fixture');
+              assert.equal(response.status,200);assert.equal((await response.json()).replayed,true);
+            }
+            assert.deepEqual(await capture(),before,'historical duplicate receipt must remain an exact no-effect replay');
+            const intent=bundle.tables.payment_intents.find(row=>row.order_id===14);
+            const paidCallback={gateway_event_id:'legacy-paid-new-event',type:'payment_intent.succeeded',gateway_ref:intent.gateway_ref};
+            try {
+              const response=await post('/api/payments/webhook',paidCallback,'gateway-fixture');
+              assert.equal(response.status,200);assert.equal((await response.json()).already_settled,true);
+              const after=await capture();
+              for(const table of watched.filter(table=>table!=='webhook_events'))assert.deepEqual(after[table],before[table]);
+              assert.equal(after.webhook_events.length,before.webhook_events.length+1);
+              assert.equal((await db.query("SELECT count(*)::int AS n FROM transactions WHERE order_id=14 AND kind='charge'")).rows[0].n,1);
+              const duplicate=await post('/api/payments/webhook',paidCallback,'gateway-fixture');assert.equal((await duplicate.json()).replayed,true);
+            } finally { await db.query('DELETE FROM webhook_events WHERE gateway_event_id=$1',[paidCallback.gateway_event_id]); } // Only own synthetic probe.
+          } finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
         });
         await t.test('all identity sequences advance past imported maxima without lowering advanced values', async () => {
           const api=createPaymentsService(db);
           const intent=await api.prepareIntent({order_id:20,customer_id:5,provider_id:7,amount_cents:100,currency:'THB'});
-          assert.ok(intent.id>45);
+          assert.ok(intent.id>Math.max(...bundle.tables.payment_intents.map(row=>row.id)));
           const commission=await api.applyCompletion({order_id:21,customer_id:5,provider_id:7,amount_cents:100,commission_cents:15,payment_method:'cod'});
-          assert.ok(commission.id>130);
+          assert.ok(commission.id>Math.max(...bundle.tables.transactions.map(row=>row.id)));
           const receipt=(await db.query("INSERT INTO webhook_events (gateway_event_id,type,payload_json) VALUES ('fixture-next','fixture','{}') RETURNING id")).rows[0];
-          assert.ok(receipt.id>62);
+          assert.ok(receipt.id>Math.max(...bundle.tables.webhook_events.map(row=>row.id)));
         });
       }
     } finally { await db.close(); }

@@ -15,6 +15,10 @@ at Payments migration 003. Paths in tables are relative to `bangkok-homeservice/
 
 > Step 5C policy follow-up: [financial finalization decisions](financial-finalization-decisions.md) now records the lead-selected policies and technical baseline. A authors the exact versioned contract; C/B implement against it and report blockers. Financial writer implementation remains pending.
 
+> Step 5C runtime follow-up: [A HTTP/client/Booking callers](financial-finalization-runtime-handoff.md) are prepared through #45, superseding the preceding snapshot's absent-transport statements. C durable financial work and B real auth remain pending.
+
+> Step 5D follow-up: [legacy-only rehearsal](legacy-cutover-rehearsal-handoff.md) adds source-state guards and synthetic import/actual C boundary evidence; legacy eligibility and final cutover remain open.
+
 ## Ownership and present state
 
 Notifications owns `notifications`. Payments & Wallet owns `payment_intents`,
