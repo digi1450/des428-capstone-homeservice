@@ -11,6 +11,7 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For A step 4 runtime assembly, real C participant/readiness/recovery and the B auth activation gate, read `docs/payment-runtime-composition-handoff.md` before changing bootstrap/composition.
 - For E messaging tracing, C lifecycle preservation, durable parent-context propagation and the tested/remaining integration boundaries, read `docs/e-cross-service-tracing-handoff.md`.
 - Start with `docs/project-status.md` for merged work, active limitations, per-area dependencies and links to PRs/validation. It is a dated snapshot: check current code and newer merged PRs before relying on its pending statuses.
 - For Booking pending/ready UI, remote intent/simulate/wallet/history callers and the explicit end-user credential/readiness injection gate, read `docs/payment-setup-callers-handoff.md`. These callers are prepared; production cutover remains disabled.

@@ -1,10 +1,13 @@
-import { createApp } from "./app.js";
+import { createPaymentsRuntime } from "./runtime.js";
 import { readConfig, serviceName } from "./config.js";
 import { createDatabase } from "./database.js";
 
 const config = readConfig();
 const database = createDatabase(config.databaseUrl);
-const server = createApp({ database }).listen(config.port, "0.0.0.0", () => {
+// C participant/eligibility/outbox are composed here. Real B verifier injection is
+// still required: with no verifiers both protected boundaries return 503.
+const {app} = createPaymentsRuntime({database});
+const server = app.listen(config.port, "0.0.0.0", () => {
   console.log(JSON.stringify({ event: "listening", service: serviceName, port: config.port }));
 });
 let stopping = false;

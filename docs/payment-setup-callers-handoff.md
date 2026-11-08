@@ -1,5 +1,7 @@
 # A step 3 — payment setup and caller preparation
 
+> Step 4 update: [runtime composition](payment-runtime-composition-handoff.md) now assembles C hooks and real readiness behind the B auth/explicit startup gate; earlier uncomposed-startup statements below describe the prior slice.
+
 Recorded 8 November 2026, based on merged #33 (`7ef0f08`). This prepares UI and caller integration; **it does not enable live service ownership or production saga/recovery**. Default startup is unchanged. A owns HTTP/callers/UI; C owns durable activation/recovery, command/fence/eligibility and messaging; B owns verified identity/credentials.
 
 ## Available boundaries
