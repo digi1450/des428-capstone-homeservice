@@ -8,6 +8,10 @@ Branch `feat/e-cross-service-tracing` includes E's Pact work (`46ff474`) and Rab
 - Payments publishing now extracts the parent from the durable outbox headers using `ROOT_CONTEXT` before creating its producer span. It injects the child context into a copied carrier. A separate relay process can continue the originating trace; retry does not mutate saved headers or event identity. Missing/invalid context starts a new root rather than borrowing an unrelated ambient context. Notifications also extracts from `ROOT_CONTEXT` for isolation between deliveries.
 - `.env.example` now contains `RABBITMQ_PASSWORD` and `RABBITMQ_UI_PORT`. Passwords must be URL-safe because Compose assembles AMQP URLs. These initialize a new broker volume; changing the environment does not rotate an existing broker user's password. No real credential is committed.
 
+## Pact execution ordering
+
+`npm --prefix contracts run test:pact` runs the consumer-generation invocation to successful completion before starting the provider-verification invocation (`&&`). Both Compose and the Pact image default use this same script. Each phase may run its two independent test files concurrently; providers never read checked-in or partly written contracts while generation is still running. A failed generation prevents provider verification from running. This corrects the PR #36 review finding about the original four-file concurrent invocation.
+
 ## Available versus remaining
 
 E's Compose additions provide RabbitMQ 4.1 and the Payments outbox relay/Notifications consumer with OTel preloaded. The source includes Pact consumer/provider verification for both service boundaries. The actual default HTTP servers still fail closed without real B authentication/composition. The final monolith AMQP/saga/recovery wiring, wallet consumer, Keycloak, trace coverage for all other consumers, final readiness/migration ordering, full clean-clone boot and combined 8 GB measurement remain integration work.

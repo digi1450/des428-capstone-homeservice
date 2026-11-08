@@ -43,4 +43,4 @@ COPY contracts/pact ./contracts/pact
 
 WORKDIR /workspace
 
-CMD ["node", "--test", "contracts/pact/*.consumer.test.js"]
+CMD ["npm", "--prefix", "contracts", "run", "test:pact"]

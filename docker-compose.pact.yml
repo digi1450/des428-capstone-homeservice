@@ -40,10 +40,5 @@ services:
         condition: service_healthy
     volumes:
       - ./contracts/pacts:/workspace/contracts/pacts
-    command:
-      - node
-      - --test
-      - contracts/pact/notifications.consumer.test.js
-      - contracts/pact/payments.consumer.test.js
-      - contracts/pact/notifications.provider.test.js
-      - contracts/pact/payments.provider.test.js
+    # Generation must finish successfully before any provider reads its contract.
+    command: ["npm", "--prefix", "contracts", "run", "test:pact"]
