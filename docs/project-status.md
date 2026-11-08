@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A step 5A reader preparation — 8 November 2026
+
+[Notifications caller composition](notifications-callers-handoff.md) prepares async inbox API/page readers behind the existing HTTP client and B credential callback. Default startup remains legacy; remote mode never falls back to local inbox SQL. [The step-5 audit](a-step5-caller-audit.md) distinguishes remaining direct writers and current C producers. Validation: monolith190, Notifications42, real HTTP/PG caller boundary5, standalone build and default-mode HTML smoke passed. Auth is fixture-only in boundary tests; production B auth, notification writer/event/data handover, final-stack and cutover are still gated. Earlier unchanged-caller statements below are historical.
+
 Recorded 6 November 2026 against `main` at `67bd023fa64df9b12a2a6424473e389b565e80b2`. This is a shared implementation snapshot, not the final dossier. Check newer merged PRs, current code and affected owners before treating a pending item as current. A missing merged evidence link does not mean a teammate has not started work on a branch.
 
 ## Step 4 runtime assembly — 8 November 2026
