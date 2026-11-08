@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## Step 5C exact contract v1.0.0 — 8 November 2026
+
+[Financial finalization contract](financial-finalization-contract-handoff.md) publishes strict OpenAPI/fixtures plus dev-only shape/identity/arithmetic validation for completion/cancellation/query/webhook and new-mode Booking projections. Local static conformance29 (19 existing+10 new) passed; a dedicated API schema/fixture CI job is added alongside ordered Pact. This is A's contract deliverable, not new endpoints/C persistence/B auth or live acceptance. Gateway v1 requires existing reviewed provisioning references, COD forbids them, and legacy adoption remains gated. A router/client and C/B integration are next; current startup/data/routing remain unchanged.
+
 ## Step 5C baseline adopted by the lead — 8 November 2026
 
 The lead has now adopted [financial finalization policies and technical direction](financial-finalization-decisions.md) as the team baseline, superseding the proposal/review-before-code status recorded in #43 and the historical section below. A can author the exact versioned OpenAPI/payload/outcome/callable fixtures and implement its endpoints/client/callers without waiting for C/B direction approval. C owns the durable participant/work/recovery and B the real auth/permissions/callback verifier; both implement against the common baseline and report blockers rather than changing interfaces independently. This records a lead instruction, not teammate notification/acknowledgement or implemented runtime behavior; real integration/schema/data gates remain open.
