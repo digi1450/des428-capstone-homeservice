@@ -9,6 +9,8 @@ at Payments migration 003. Paths in tables are relative to `bangkok-homeservice/
 
 > Follow-up: [step 5A Notifications reader preparation](notifications-callers-handoff.md) implements the explicit API/page access seam identified below. The table remains the preceding source snapshot; writer/data/auth activation gates are unchanged.
 
+> Provider follow-up: [step 5B signup/approval writer preparation](provider-event-writes-handoff.md) adds an explicit events-only selector for those two writers; remaining financial/notification writers and all production activation gates stay open.
+
 ## Ownership and present state
 
 Notifications owns `notifications`. Payments & Wallet owns `payment_intents`,

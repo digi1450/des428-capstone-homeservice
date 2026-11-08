@@ -1,12 +1,13 @@
 // Provider Profile business logic: the public directory, a provider's own editable profile, weekly
-// availability, and the admin-only approve / set-commission actions. Approval writes a notification
-// to the provider (in the same transaction as the flag flip).
+// availability, and the admin-only approve / set-commission actions. Approval stages an event
+// with the flag flip; the inherited local notification remains until coordinated cutover.
 import { getDb } from "../../db/index.js";
 import { insertEvent } from "../../db/events.js";
 import * as repository from "./repository.js";
 import * as identityRepository from "../identity/repository.js";
 import * as catalogRepository from "../catalog/repository.js";
 import * as notificationsRepository from "../notifications/repository.js";
+import { getProviderEventWrites } from "./event-writes.js";
 import { NotFoundError, ConflictError } from "../../errors.js";
 
 function publicProfile(provider, profile, { includeCommission = false } = {}) {
@@ -94,7 +95,7 @@ export function approveProvider(providerId) {
 
   const run = getDb().transaction(() => {
     repository.approve(providerId);
-    notificationsRepository.insert({
+    if (!getProviderEventWrites()) notificationsRepository.insert({
       recipientRole: "provider",
       recipientId: providerId,
       type: "provider_approved",
@@ -103,7 +104,7 @@ export function approveProvider(providerId) {
       orderId: null,
     });
     // Area C: the extracted Notifications service consumes this event from the broker. The direct
-    // writer above stays until the coordinated cutover; the legacy relay ignores this type.
+    // writer above is disabled only by explicit event-writer composition; legacy relay ignores this type.
     insertEvent("provider.approved", "provider", providerId, { provider_id: providerId });
   });
   run();
