@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "13.1.0",
+    "@pact-foundation/pact": "^17.1.4",
     "ajv": "8.20.0"
   }
 }
