@@ -1,5 +1,7 @@
 # C monolith activation — recorded validation, 7 November 2026
 
+> Historical 7 November evidence follows. The 8 November main-sync and fixture correction below supersede statements that A has no activation adapter/UI yet.
+
 Branch `feat/c-monolith-activation` from `main` at `b4d0b46`. These are the commands and results actually observed. Node v22.23.4, better-sqlite3, no network. Payments is a fake behind A's real Booking adapter, plus an `activate` method with the agreed shape (A's real method is not written yet).
 
 | Check | Command | Result |
@@ -33,3 +35,18 @@ Not done here: A's adapter/client `activate` and coded-error parsing, the paymen
   1. Worker A's late success after worker B claimed the activation is discarded, and B's lease is kept. B's coded 409 then gives `blocked`, never `ready`.
   2. A late unknown, conflict or fence from A after B's claim leaves attempts unchanged and writes no attention row. B's success then gives `activated`.
   3. A coded 503 or a coded unknown stays `pending` (attempts 1, no attention). A coded 409, direct or as upstream 409, gives `blocked`.
+
+## A main-sync and test compatibility correction — 8 November 2026
+
+The lead authorized fixing PR #29 directly. C head `652f152` was synchronized with main `393d940` by a normal merge (no history rewrite). No production saga, lease, migration, auth or caller behavior was changed by this correction.
+
+The original `test/booking-saga.test.js` fake only implemented create/query/cancel. Main's real Booking adapter now exposes `activate`, so the fake was incomplete and recovery counts included activation work. On the synchronized source before correction, its timeout and restart child tests failed (9 reported tests: 6 pass / 3 fail, counting the failed parent).
+
+The fixture now implements activation for an existing created intent, checks the saved activation key and records activation calls. Timeout/restart assertions verify the target saga completes, becomes ready, activates once, and retains one intent/the original create key. The live-lease case checks that target state/owner and delivery count are unchanged and its slots remain held. The test expires that lease explicitly instead of relying on a 100 ms scheduling window. No runtime guard or assertion about financial effects was removed to make the suite green.
+
+Observed on copied source in Node 20 Docker:
+
+- Full monolith `npm test`: **178 pass, 0 fail/skipped**, including activation stale-claim/classification, exact-schema upgrade and existing caller tests.
+- Additional temporary integration probe: **5 pass, 0 fail/skipped** against an isolated PostgreSQL 16 database. It adapts the existing payment-views boundary fixture to use C's actual `paymentSetupFor` and `activate`: the initial activation has an explicit unknown outcome, readiness remains pending, then C → A adapter/client → Payments HTTP/participant commits activation and readiness becomes ready. Simulation/replay yields one charge; Booking still awaits its paid event; wallet provisioning retains the pending/history behavior.
+
+The additional probe changed only a temporary source copy, not the committed integration fixture; its authentication remains a test double. This is not Keycloak, broker/worker/full-stack or live-cutover evidence. No browser test or image rebuild was repeated for the fixture/documentation-only correction. All checks used isolated in-memory SQLite or disposable PG tmpfs, no published ports, and no useful data. `git diff --check` passed.
