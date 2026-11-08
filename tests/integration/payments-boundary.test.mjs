@@ -29,7 +29,7 @@ test("monolith Payments client interoperates with HTTP/PostgreSQL and preserves 
     assert.equal(wallet.provider_id,base+1);assert.equal(wallet.balance_cents,0);assert.equal(wallet.commission_owed_cents,150);
     assert.deepEqual(wallet.transactions,[effect]);assert.equal(metadata[0],"payment-boundary");
     assert.deepEqual(await client.listCustomerTransactions({token:"test-customer"}),[effect]);
-    assert.deepEqual(await client.getWallet({token:"test-other"}),{provider_id:base+2,balance_cents:0,commission_owed_cents:0,transactions:[]});
+    assert.deepEqual(await client.getWallet({token:"test-other"}),{provider_id:base+2,balance_cents:null,commission_owed_cents:null,transactions:[],wallet_setup:"pending"});
     await assert.rejects(client.getWallet({token:"test-customer"}),error=>error.statusCode===403);
     await assert.rejects(client.listCustomerTransactions({token:"invalid"}),error=>error.statusCode===401);
     const saga_id="test-saga:"+base,commandId="test-create:"+base;

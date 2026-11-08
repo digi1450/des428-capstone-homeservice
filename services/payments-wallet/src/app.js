@@ -9,7 +9,7 @@ import { context, trace, isSpanContextValid } from "@opentelemetry/api";
 // Area E — Prometheus metrics
 import { metricsMiddleware, metricsHandler } from "./metrics.js";
 
-export function createApp({ database, authenticate, authenticateService, paymentCommands }) {
+export function createApp({ database, authenticate, authenticateService, paymentCommands, paymentHooks }) {
   const app = express();
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -64,10 +64,10 @@ export function createApp({ database, authenticate, authenticateService, payment
       res.status(503).json({ service: serviceName, status: "not_ready", requestId: req.requestId });
     }
   });
-  app.use("/api", createPaymentsRouter({ database, authenticate }));
+  app.use("/api", createPaymentsRouter({ database, authenticate, paymentHooks }));
   app.use("/internal", createPaymentCommandRouter({ authenticateService, paymentCommands }));
   // Internal command HTTP is a fail-closed B/C seam, not a participant implementation.
-  // Settlement/completion/refund routes and live saga activation remain pending.
+  // Simulated settlement requires separately injected C hooks; completion/refund cutover and live saga activation remain pending.
   app.use((req, res) => res.status(404).json({ error: "NOT_FOUND", requestId: req.requestId }));
   app.use(errorHandler);
   return app;

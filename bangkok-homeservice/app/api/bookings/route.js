@@ -8,6 +8,8 @@ import { getAuth } from "#lib/http/auth.js";
 import { parse, readJson } from "#lib/http/validate.js";
 import { parsePagination, paginationHeaders } from "#lib/http/pagination.js";
 import * as booking from "#lib/modules/booking/service.js";
+import { AppError } from "#lib/errors.js";
+import { getPaymentsAccess } from "#lib/modules/payments/access.js";
 import { getBookingSaga, placeGatewayBooking } from "#lib/modules/booking/saga.js";
 
 const placeSchema = z.object({
@@ -35,8 +37,10 @@ export const POST = handle(async (req) => {
   // Area C: gateway bookings go through the Booking-orchestrated saga once A/B configure it.
   if (input.payment_method === "gateway" && getBookingSaga()) {
     const result = await placeGatewayBooking(auth.sub, input, idempotencyKeyOf(req));
-    return json(result.body, { status: result.statusCode, headers: result.headers });
+    const body=result.statusCode===201 ? {...result.body,payment_setup:"pending"} : result.body;
+    return json(body, { status: result.statusCode, headers: result.headers });
   }
+  if(input.payment_method==="gateway" && getPaymentsAccess()) throw new AppError(503,"gateway provisioning is not configured");
   const { statusCode, body } = booking.placeBooking(auth.sub, input, idempotencyKeyOf(req));
   return json(body, { status: statusCode, headers: { Location: `/api/bookings/${body.order.id}` } });
 });

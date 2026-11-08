@@ -359,11 +359,11 @@ export function rescheduleBooking(orderId, auth, { service_date, starting_time }
 }
 
 // ---------- reads ----------
-export function getBooking(orderId, auth) {
+export function getBooking(orderId, auth, { includeLocalPayment = true } = {}) {
   const order = repository.findOrderById(orderId);
   if (!order) throw new NotFoundError(`booking ${orderId} not found`);
   assertParticipant(order, auth);
-  const intent = paymentsRepository.findIntentByOrderId(orderId);
+  const intent = includeLocalPayment ? paymentsRepository.findIntentByOrderId(orderId) : undefined;
   const out = {
     ...toPublicOrder(order),
     items: repository.listOrderItems(orderId),

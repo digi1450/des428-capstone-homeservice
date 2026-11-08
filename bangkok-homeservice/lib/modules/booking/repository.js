@@ -158,3 +158,8 @@ export function markPaid(orderId) {
 export function markRefunded(orderId) {
   return getDb().prepare("UPDATE orders SET payment_status = 'refunded' WHERE id = ?").run(orderId).changes;
 }
+
+// Booking-owned workflow lookup; never reads the extracted Payments database.
+export function findSagaByOrderId(orderId) {
+  return getDb().prepare("SELECT saga_id FROM booking_sagas WHERE order_id=?").get(orderId);
+}

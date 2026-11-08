@@ -1,5 +1,7 @@
 # A extraction inventory — initial source audit
 
+> 8 November caller update: [Payment setup and caller handoff](payment-setup-callers-handoff.md) supersedes the historical unchanged-caller/unmounted-simulation statements below. Explicit remote intent/simulate/wallet/history paths and pending UI are prepared; default production composition and the remaining writers/cutover are still gated.
+
 Status: source inventory for the first scaffold, not a completed extraction. Notifications repository/service/router and an unused monolith HTTP client are now implemented; see [Notifications handoff](notifications-handoff.md). All existing callers below still run in the monolith. Preserve their public paths, authorization, field types and behavior when replacing direct imports/SQL with authorized service clients. See [migration handoff](migration-handoff.md) for selected boundaries and saga rules.
 
 | Existing path | Current access/effect | Required destination / coordination |

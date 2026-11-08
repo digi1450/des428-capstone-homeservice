@@ -21,5 +21,12 @@
     "balance_cents": 0,
     "commission_owed_cents": 0,
     "transactions": []
+  },
+  "pending": {
+    "provider_id": 4,
+    "balance_cents": null,
+    "commission_owed_cents": null,
+    "transactions": [],
+    "wallet_setup": "pending"
   }
 }
