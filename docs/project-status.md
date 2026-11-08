@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A step 5D legacy-only rehearsal — 9 November 2026
+
+[Legacy rehearsal](legacy-cutover-rehearsal-handoff.md) adds known distributed-source/attention guards to the read-only exporter, eight synthetic historical cohorts, actual C runtime/imported-data boundary checks, a WAL backup fixture and CI. Python16 and Node/PG34 tests passed locally using disposable data. Import preserves history but does not adopt/activate legacy intents; C/B eligibility/work/auth and the shared checkpoint/final cutover remain open. Known mixed SQLite/PG/broker state now requires explicit review rather than a SQLite-only export. No runtime schema, useful data, credentials or routing was changed.
+
 ## Step 5C A runtime preparation — 9 November 2026
 
 [Financial runtime handoff](financial-finalization-runtime-handoff.md) supersedes the contract-only implementation status below. A now supplies three financial command/query HTTP routes, a separately authenticated callback, strict service-owned validation, the saved-key client, injectable Booking completion/cancellation/status/guard callers and pending/attention UI. Default production remains unwired; no schema, data, routing or real auth was activated. C still supplies durable financial operations, atomic Booking work/guards and recovery; B real verification/delegation; D faults; E final processes/tracing/Pact. See the handoff for exact validation and fixture limitations; step 5C as a whole and legacy eligibility/cutover remain open.

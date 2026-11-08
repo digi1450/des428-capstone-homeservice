@@ -1,0 +1,22 @@
+name: Offline legacy migration rehearsal
+on:
+  pull_request:
+jobs:
+  legacy-rehearsal:
+    name: Legacy export and two-owner PostgreSQL rehearsal
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            services/notifications/package-lock.json
+            services/payments-wallet/package-lock.json
+      - name: Install locked service dependencies
+        run: |
+          npm ci --prefix services/notifications
+          npm ci --prefix services/payments-wallet
+      - name: Synthetic SQLite to isolated PostgreSQL rehearsal
+        run: sh tools/data-migration/run-tests.sh
