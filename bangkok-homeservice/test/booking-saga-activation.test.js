@@ -164,6 +164,87 @@ test("booking saga activation delivery", async (t) => {
     assert.equal(activation(orderId).state, ACTIVATION.ACTIVATED);
   });
 
+  // Review #29 P1: results are fenced by a per-claim token, so a worker whose lease expired cannot
+  // overwrite (or release) a newer claim.
+  const manual = (fake) => {
+    const pending = [];
+    fake.adapter.activate = (workflow) => new Promise((resolve, reject) => { fake.calls.activate.push(workflow); pending.push({ resolve, reject }); });
+    return pending;
+  };
+  const expireLease = (sagaId) => getDb().prepare("UPDATE booking_saga_activations SET locked_until = '2000-01-01T00:00:00.000Z' WHERE saga_id = ?").run(sagaId);
+  const fencedError = () => { const e = new AppError(409, "payment setup was cancelled"); e.code = SETUP_CANCELLED; return e; };
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+  await t.test("late old success after lease replacement cannot override the newer claim's fence", async () => {
+    const fake = setup();
+    fake.mode.activate = "timeout";
+    const orderId = (await place(request("10:00"), "a-stale-ok")).body.order.id;
+    const sagaId = saga(orderId).saga_id;
+    const pending = manual(fake);
+    await tick();
+    const workerA = activate(sagaId);
+    await settle();
+    const tokenA = activation(orderId).locked_by;
+    expireLease(sagaId);
+    const workerB = activate(sagaId);
+    await settle();
+    const tokenB = activation(orderId).locked_by;
+    assert.notEqual(tokenB, tokenA, "each claim has its own token, even in one process");
+    pending[0].resolve({ outcome: "activated" }); // A's late success
+    await workerA;
+    assert.equal(activation(orderId).state, ACTIVATION.PENDING, "stale success discarded");
+    assert.equal(activation(orderId).locked_by, tokenB, "stale worker did not release the newer lease");
+    pending[1].reject(fencedError());
+    await workerB;
+    assert.equal(activation(orderId).state, ACTIVATION.BLOCKED);
+    assert.equal(paymentSetupFor(orderId), ACTIVATION.BLOCKED, "never falsely ready");
+    assert.deepEqual(attention(orderId), ["payment_setup_cancelled"]);
+  });
+
+  await t.test("late old unknown / conflict / fence after lease replacement change nothing", async () => {
+    for (const [late, key] of [[() => new PaymentOutcomeUnknownError("activate", "x", "timeout"), "a-stale-unknown"],
+      [() => new AppError(409, "uncoded"), "a-stale-conflict"], [fencedError, "a-stale-fence"]]) {
+      const fake = setup();
+      fake.mode.activate = "timeout";
+      const orderId = (await place(request("10:00"), key)).body.order.id;
+      const sagaId = saga(orderId).saga_id;
+      const attemptsBefore = activation(orderId).attempts;
+      const pending = manual(fake);
+      await tick();
+      const workerA = activate(sagaId);
+      await settle();
+      expireLease(sagaId);
+      const workerB = activate(sagaId);
+      await settle();
+      pending[0].reject(late());
+      await workerA;
+      assert.equal(activation(orderId).state, ACTIVATION.PENDING, key);
+      assert.equal(activation(orderId).attempts, attemptsBefore, `${key}: no stale retry bookkeeping`);
+      assert.deepEqual(attention(orderId), [], `${key}: no stale attention`);
+      pending[1].resolve({ outcome: "activated" });
+      await workerB;
+      assert.equal(activation(orderId).state, ACTIVATION.ACTIVATED, key);
+    }
+  });
+
+  // Review #29 P2: the code alone is not a fence; it must arrive on a validated 409.
+  await t.test("a cancellation code on a non-409 error stays pending (unconfirmed), not blocked", async () => {
+    const coded503 = () => { const e = new AppError(503, "unconfirmed"); e.code = SETUP_CANCELLED; return e; };
+    const codedUnknown = () => { const e = new PaymentOutcomeUnknownError("activate", "x", "timeout"); e.code = SETUP_CANCELLED; return e; };
+    const codedUnknown409 = () => { const e = new PaymentOutcomeUnknownError("activate", "x", "unexpected_status", 409); e.code = SETUP_CANCELLED; return e; };
+    for (const [make, key, expected] of [[coded503, "a-coded-503", ACTIVATION.PENDING], [codedUnknown, "a-coded-unknown", ACTIVATION.PENDING],
+      [codedUnknown409, "a-coded-409", ACTIVATION.BLOCKED], [fencedError, "a-coded-409-direct", ACTIVATION.BLOCKED]]) {
+      const fake = setup();
+      fake.adapter.activate = async () => { throw make(); };
+      const orderId = (await place(request("10:00"), key)).body.order.id;
+      assert.equal(activation(orderId).state, expected, key);
+      if (expected === ACTIVATION.PENDING) {
+        assert.equal(activation(orderId).attempts, 1, `${key}: retried later with the same key`);
+        assert.deepEqual(attention(orderId), []);
+      }
+    }
+  });
+
   await t.test("restart: a new runtime delivers activation left pending by a dead process", async () => {
     const fake = setup();
     fake.mode.activate = "timeout";
@@ -172,9 +253,9 @@ test("booking saga activation delivery", async (t) => {
     getDb().prepare("UPDATE booking_saga_activations SET locked_by = 'dead-worker', locked_until = '2000-01-01T00:00:00.000Z' WHERE saga_id = ?").run(saga(orderId).saga_id);
     const next = setup();
     await tick();
-    assert.equal(await recoverOnce(), 1);
+    assert.ok(await recoverOnce() >= 1);
     assert.equal(activation(orderId).state, ACTIVATION.ACTIVATED);
-    assert.equal(next.calls.activate[0].activateCommandId, `activate:${saga(orderId).saga_id}`);
+    assert.equal(next.calls.activate.find((c) => c.sagaId === saga(orderId).saga_id).activateCommandId, `activate:${saga(orderId).saga_id}`);
     assert.equal(activation(orderId).locked_by, null);
   });
 });

@@ -181,62 +181,76 @@ function attention(saga, activation, reason) {
     "INSERT INTO consistency_attention (consumer_name, event_id, event_type, aggregate_id, reason) VALUES ('booking-saga', ?, 'payment.activation', ?, ?)",
   ).run(activation.activate_command_id, String(saga.order_id), reason);
 }
-function settleActivation(activation, to, error) {
-  const changed = getDb().prepare(
-    "UPDATE booking_saga_activations SET state = ?, last_error = ?, updated_at = ? WHERE saga_id = ? AND state = 'pending'",
-  ).run(to, error ?? null, iso(), activation.saga_id).changes;
-  if (changed !== 1) throw new Error(`activation ${activation.saga_id} moved concurrently`);
+// Every result write is fenced by the claim token of THIS attempt. A worker whose lease expired
+// (and was replaced by a newer claim) changes nothing: its late success, fence, conflict or
+// unknown result is discarded, and it cannot release the newer claim's lease.
+function settleActivation(sagaId, token, to, error) {
+  return getDb().prepare(
+    `UPDATE booking_saga_activations SET state = ?, last_error = ?, updated_at = ?
+      WHERE saga_id = ? AND state = 'pending' AND locked_by = ?`,
+  ).run(to, error ?? null, iso(), sagaId, token).changes === 1;
 }
-// Only a validated, coded 409 is a confirmed fence. An uncoded 409 (also when A's client reports it
-// as an unknown outcome with upstreamStatus 409) is unresolved: reconcile, never ready, never a fence.
+// Only a validated HTTP 409 carrying the allow-listed code is a confirmed fence; a code on a 5xx,
+// transport or other unknown error is NOT. An uncoded 409 (also an unknown outcome with
+// upstreamStatus 409) is unresolved: reconcile, never ready, never a fence.
+const status409 = (error) => error?.statusCode === 409 || error?.upstreamStatus === 409;
 const classify = (error) => {
-  if (error?.code === SETUP_CANCELLED) return "fenced";
-  if (error?.upstreamStatus === 409 || (!error?.outcomeUnknown && error?.statusCode === 409)) return "conflict";
+  if (status409(error) && error?.code === SETUP_CANCELLED) return "fenced";
+  if (status409(error) && !error?.code) return "conflict";
   return "unknown";
 };
 
-async function deliverActivation(activation) {
-  if (typeof runtime.payments?.activate !== "function") return; // A's adapter method not wired yet
+async function deliverActivation(activation, token, rt) {
   const saga = find(activation.saga_id);
+  let outcome;
   try {
-    await runtime.payments.activate({ createCommandId: saga.create_command_id, sagaId: saga.saga_id,
-      activateCommandId: activation.activate_command_id }, await runtime.credentials());
+    await rt.payments.activate({ createCommandId: saga.create_command_id, sagaId: saga.saga_id,
+      activateCommandId: activation.activate_command_id }, await rt.credentials());
+    outcome = { kind: "activated" };
   } catch (error) {
-    const kind = classify(error);
-    getDb().transaction(() => {
-      if (kind === "fenced") {
-        settleActivation(activation, ACTIVATION.BLOCKED, SETUP_CANCELLED);
-        attention(saga, activation, "payment_setup_cancelled");
-        return;
-      }
-      if (kind === "conflict") {
-        settleActivation(activation, ACTIVATION.RECONCILE, "uncoded_conflict");
-        attention(saga, activation, "activation_conflict");
-        return;
-      }
-      // Unknown outcome: stay pending, same key, bounded backoff; escalate once for visibility.
-      const attempts = activation.attempts + 1;
-      const backoff = Math.min(runtime.maxBackoffMs, runtime.baseBackoffMs * 2 ** (attempts - 1));
-      getDb().prepare("UPDATE booking_saga_activations SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ?")
-        .run(attempts, iso(backoff), String(error?.reason ?? error?.name ?? "error").slice(0, 120), iso(), activation.saga_id);
-      if (attempts === runtime.activateEscalateAfter) attention(saga, activation, "activation_unconfirmed");
-    }).immediate();
-    return;
+    outcome = { kind: classify(error), error };
   }
-  getDb().transaction(() => settleActivation(activation, ACTIVATION.ACTIVATED)).immediate();
+  const applied = getDb().transaction(() => {
+    if (outcome.kind === "activated") return settleActivation(saga.saga_id, token, ACTIVATION.ACTIVATED);
+    if (outcome.kind === "fenced") {
+      if (!settleActivation(saga.saga_id, token, ACTIVATION.BLOCKED, SETUP_CANCELLED)) return false;
+      attention(saga, activation, "payment_setup_cancelled");
+      return true;
+    }
+    if (outcome.kind === "conflict") {
+      if (!settleActivation(saga.saga_id, token, ACTIVATION.RECONCILE, "uncoded_conflict")) return false;
+      attention(saga, activation, "activation_conflict");
+      return true;
+    }
+    // Unknown outcome: stay pending, same key, bounded backoff; escalate once for visibility.
+    const current = getDb().prepare("SELECT attempts FROM booking_saga_activations WHERE saga_id = ? AND state = 'pending' AND locked_by = ?")
+      .get(saga.saga_id, token);
+    if (!current) return false;
+    const attempts = current.attempts + 1;
+    const backoff = Math.min(rt.maxBackoffMs, rt.baseBackoffMs * 2 ** (attempts - 1));
+    getDb().prepare("UPDATE booking_saga_activations SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ? AND locked_by = ?")
+      .run(attempts, iso(backoff), String(outcome.error?.reason ?? outcome.error?.name ?? "error").slice(0, 120), iso(), saga.saga_id, token);
+    if (attempts === rt.activateEscalateAfter) attention(saga, activation, "activation_unconfirmed");
+    return true;
+  }).immediate();
+  if (!applied) logger.warn({ saga: saga.saga_id, outcome: outcome.kind }, "stale activation result discarded (lease was replaced)");
 }
 
-// One delivery attempt under a lease (two workers never deliver the same activation at once).
+// One delivery attempt under a lease with a unique claim token (two attempts, even in one process,
+// never share a claim). The runtime is captured at claim time for the whole attempt.
 export async function activate(sagaId) {
+  const rt = runtime;
+  if (typeof rt.payments?.activate !== "function") return findActivation(sagaId); // A's adapter method not wired yet
+  const token = `${rt.owner}:${randomUUID()}`;
   const claimed = getDb().prepare(
     `UPDATE booking_saga_activations SET locked_by = ?, locked_until = ?
       WHERE saga_id = ? AND state = 'pending' AND (locked_until IS NULL OR locked_until < ?)`,
-  ).run(runtime.owner, iso(runtime.leaseMs), sagaId, iso()).changes === 1;
+  ).run(token, iso(rt.leaseMs), sagaId, iso()).changes === 1;
   if (!claimed) return findActivation(sagaId);
   try {
-    await deliverActivation(findActivation(sagaId));
+    await deliverActivation(findActivation(sagaId), token, rt);
   } finally {
-    getDb().prepare("UPDATE booking_saga_activations SET locked_by = NULL, locked_until = NULL WHERE saga_id = ? AND locked_by = ?").run(sagaId, runtime.owner);
+    getDb().prepare("UPDATE booking_saga_activations SET locked_by = NULL, locked_until = NULL WHERE saga_id = ? AND locked_by = ?").run(sagaId, token);
   }
   return findActivation(sagaId);
 }
