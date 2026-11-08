@@ -2,13 +2,13 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { getSession } from "#lib/http/session.js";
-import * as notifications from "#lib/modules/notifications/service.js";
+import { listNotifications } from "#lib/modules/notifications/access.js";
 import { ActionButton } from "../_ui/client.js";
 
-export default function NotificationsPage() {
+export default async function NotificationsPage() {
   const session = getSession();
   if (!session) redirect("/login");
-  const list = notifications.listForUser({ sub: session.sub, role: session.role });
+  const list = await listNotifications(session);
 
   return (
     <div>
