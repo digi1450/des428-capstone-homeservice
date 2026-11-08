@@ -1,0 +1,18 @@
+
+name: Pact Contract Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pact-contracts:
+    name: Consumer and Provider Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Pact contract tests
+        run: docker compose -f docker-compose.pact.yml run --rm --build pact-tests

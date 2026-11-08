@@ -7,10 +7,14 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:pact:consumer": "node --test pact/notifications.consumer.test.js pact/payments.consumer.test.js",
+    "test:pact:provider": "node --test pact/notifications.provider.test.js pact/payments.provider.test.js",
+    "test:pact": "npm run test:pact:consumer && npm run test:pact:provider"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "13.1.0",
+    "@pact-foundation/pact": "^17.1.4",
     "ajv": "8.20.0"
   }
 }

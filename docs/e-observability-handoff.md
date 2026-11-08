@@ -2,6 +2,8 @@
 
 Status: E's logging, HTTP metrics, Grafana provisioning, per-service tracing and service-test CI have been integrated with main through C PRs #14–18 on this branch. This remains a partial final stack, not completed Area E or live business cutover. See [validation](validation/e-main-sync-2026-11-07.md), [C messaging handoff](c-messaging-handoff.md), [shared status](project-status.md), [gateway](nginx-handoff.md) and [data/caller runbook](data-cutover-handoff.md).
 
+> 8 November branch update: [messaging tracing and worker integration](e-cross-service-tracing-handoff.md) adds RabbitMQ and two event workers, preserves C lifecycle fixes and records context/Pact checks. This supersedes the historical no-broker/Pact statements below for this branch, without claiming final-stack completion.
+
 ## Available
 
 - Both HTTP apps emit JSON request logs with service/requestId/traceId/method/path/status/duration; no request body, query string or authorization header is logged by this middleware.

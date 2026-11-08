@@ -1,0 +1,44 @@
+
+services:
+  notifications-pact-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifications_pact_test
+      POSTGRES_USER: pact_test
+      POSTGRES_PASSWORD: pact_test_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pact_test -d notifications_pact_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  payments-pact-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payments_pact_test
+      POSTGRES_USER: pact_test
+      POSTGRES_PASSWORD: pact_test_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pact_test -d payments_pact_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  pact-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.pact
+    working_dir: /workspace
+    environment:
+      NOTIFICATIONS_PACT_DATABASE_URL: postgresql://pact_test:pact_test_only@notifications-pact-db:5432/notifications_pact_test
+      PAYMENTS_PACT_DATABASE_URL: postgresql://pact_test:pact_test_only@payments-pact-db:5432/payments_pact_test
+      PACT_DO_NOT_TRACK: "true"
+    depends_on:
+      notifications-pact-db:
+        condition: service_healthy
+      payments-pact-db:
+        condition: service_healthy
+    volumes:
+      - ./contracts/pacts:/workspace/contracts/pacts
+    # Generation must finish successfully before any provider reads its contract.
+    command: ["npm", "--prefix", "contracts", "run", "test:pact"]

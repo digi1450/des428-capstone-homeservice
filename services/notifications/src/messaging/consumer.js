@@ -8,6 +8,7 @@
 import amqp from "amqplib";
 import { parseEnvelope, PermanentEventError } from "./envelope.js";
 import { QUEUE, assertConsumerTopology } from "./topology.js";
+import { traceMessageProcessing } from "../messaging-tracing.js";
 
 export class ConsumerSetupError extends Error {
   constructor(message, cause) { super(message, { cause }); this.name = "ConsumerSetupError"; this.code = cause?.code; }
@@ -49,10 +50,12 @@ export async function startConsumer({ amqpUrl, inbox, prefetch = 10, deliveryLim
       const messageId = message.properties.messageId;
       let envelope;
       try {
-        envelope = parseEnvelope(message.content, messageId);
-        const result = await inbox.handle(envelope);
-        if (!ended) channel.ack(message);
-        log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type, effects: result.effects });
+        await traceMessageProcessing(message, async () => {
+          envelope = parseEnvelope(message.content, messageId);
+          const result = await inbox.handle(envelope);
+          if (!ended) channel.ack(message);
+          log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type, effects: result.effects });
+        });
       } catch (error) {
         if (ended) return; // unacked messages are redelivered by the broker
         if (error instanceof PermanentEventError) {

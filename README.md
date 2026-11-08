@@ -17,6 +17,8 @@ Start with the [shared project status and handoff](docs/project-status.md): merg
 
 E integration: [logging/metrics/tracing/CI and initial root Compose](docs/e-observability-handoff.md) now coexist with C's merged messaging/saga modules. Final business activation, broker/IdP wiring and full-stack evidence remain pending. Normal SQLite startup now preserves data; review [startup and persistence](docs/sqlite-startup-handoff.md) before using an existing database. Full cutover remains pending.
 
+This branch adds [RabbitMQ workers and messaging-trace continuity](docs/e-cross-service-tracing-handoff.md), plus Pact consumer/provider checks. Root `.env.example` includes the new broker password/UI-port settings. Final auth, remaining workers, live business traces and cutover are still integration gates.
+
 ## Run the original system
 
 Install and start Docker with Docker Compose. From the repository root:
