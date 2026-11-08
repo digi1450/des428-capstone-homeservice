@@ -7,6 +7,7 @@ import { config } from "../../config.js";
 import { getDb } from "../../db/index.js";
 import { signToken } from "../../http/auth.js";
 import * as repository from "./repository.js";
+import { insertEvent } from "../../db/events.js";
 import * as providersRepository from "../providers/repository.js";
 import { ConflictError, UnauthorizedError, NotFoundError } from "../../errors.js";
 
@@ -44,6 +45,9 @@ export function registerProvider({ email, password, name, phone, company_name })
     const id = repository.insertProvider({ email, passwordHash, name, phone });
     repository.insertProviderProfile(id, company_name);
     repository.insertProviderWallet(id);
+    // Area C: same transaction as the provider row, so Payments & Wallet can never miss a
+    // provider (outbox -> broker -> idempotent wallet consumer). No personal data in the event.
+    insertEvent("provider.registered", "provider", id, { provider_id: id });
     return id;
   });
   const id = create();

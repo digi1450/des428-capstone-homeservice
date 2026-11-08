@@ -1,6 +1,6 @@
 
 import {
-  context,
+  ROOT_CONTEXT,
   propagation,
   trace,
   SpanKind,
@@ -13,7 +13,7 @@ export async function traceMessageProcessing(message, operation) {
   const headers = message.properties.headers ?? {};
 
   const parentContext = propagation.extract(
-    context.active(),
+    ROOT_CONTEXT,
     headers
   );
 

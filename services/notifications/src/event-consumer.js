@@ -4,7 +4,7 @@
 // events wait durably in RabbitMQ and are applied once it recovers.
 import { createDatabase } from "./database.js";
 import { createInbox } from "./messaging/inbox.js";
-import { startConsumer } from "./messaging/consumer.js";
+import { superviseConsumer } from "./messaging/consumer.js";
 
 function positive(name, fallback) {
   const value = Number(process.env[name] ?? fallback);
@@ -21,33 +21,16 @@ const options = {
 const log = fields => console.log(JSON.stringify({ service: "notifications", component: "event-consumer", ...fields }));
 const database = createDatabase(process.env.DATABASE_URL);
 const inbox = createInbox(database);
-let consumer = null;
+const supervisor = superviseConsumer({ amqpUrl: process.env.AMQP_URL, inbox, log, ...options });
 let stopping = false;
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-async function run() {
-  let delay = 500;
-  while (!stopping) {
-    try {
-      consumer = await startConsumer({ amqpUrl: process.env.AMQP_URL, inbox, log, ...options });
-      log({ event: "consumer_started" });
-      delay = 500;
-      await consumer.closed;
-      if (!stopping) log({ event: "broker_disconnected" });
-    } catch (error) {
-      log({ event: "consumer_error", kind: error?.code ?? error?.name ?? "error" });
-    }
-    if (!stopping) { await sleep(delay); delay = Math.min(delay * 2, 10000); }
-  }
-}
 
 async function stop() {
   if (stopping) return;
   stopping = true;
   const deadline = setTimeout(() => process.exit(1), 10000);
   deadline.unref();
-  try { if (consumer) await consumer.close(); await database.close(); } finally { clearTimeout(deadline); }
+  try { await supervisor.stop(); await database.close(); } finally { clearTimeout(deadline); }
 }
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);
-run().catch(() => process.exit(1));
+supervisor.done.catch(() => process.exit(1));

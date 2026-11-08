@@ -9,17 +9,25 @@ import { loginSeededCustomer, loginSeededProvider, registerCustomer, futureWeekd
 import * as bookings from "../app/api/bookings/route.js";
 import { createBookingPaymentsAdapter } from "../lib/modules/booking/payment-adapter.js";
 import { PaymentOutcomeUnknownError } from "../lib/modules/payments/client.js";
-import { configureBookingSaga, resetBookingSaga, recoverOnce, transitions, STATES } from "../lib/modules/booking/saga.js";
+import { configureBookingSaga, resetBookingSaga, recoverOnce, paymentSetupFor, transitions, STATES } from "../lib/modules/booking/saga.js";
 
 freshBoot();
 
 function fakePayments() {
   const operations = new Map(); // create_command_id -> { outcome, intent }
-  const calls = { create: [], cancel: [] };
+  const calls = { create: [], cancel: [], activate: [] };
   let nextId = 1;
   const mode = { create: "ok", cancel: "ok" };
   const unknown = (op, id, reason) => new PaymentOutcomeUnknownError(op, id, reason);
   const client = {
+    async activateIntent(ctx, credentials) {
+      const operation = operations.get(ctx.create_command_id);
+      assert.equal(operation?.outcome, "created", "activation follows an existing create, not a fence");
+      assert.equal(operation.intent.status, "requires_payment");
+      assert.equal(credentials.commandId, `activate:${ctx.saga_id}`, "reuse the persisted activation key");
+      calls.activate.push(credentials.commandId);
+      return { create_command_id: ctx.create_command_id, saga_id: ctx.saga_id, outcome: "activated" };
+    },
     async createIntent(ctx, credentials) {
       const id = credentials.commandId;
       calls.create.push(id);
@@ -110,8 +118,12 @@ test("booking-orchestrated saga", async (t) => {
     assert.equal(clash.status, 409, "the held slot cannot be taken meanwhile");
     fake.mode.create = "ok";
     await tick();
-    assert.equal(await recoverOnce(), 1);
+    // Recovery now includes activation work; assert this booking's durable effects, not
+    // the old global count (which assumed create/cancel were the only work kinds).
+    await recoverOnce();
     assert.equal(saga(orderId).state, STATES.COMPLETED);
+    assert.equal(paymentSetupFor(orderId), "ready");
+    assert.deepEqual(fake.calls.activate, [`activate:${saga(orderId).saga_id}`]);
     assert.equal(new Set(fake.calls.create).size, 1, "every attempt reused the same create command");
     assert.equal(fake.intentsFor(orderId).length, 1);
     const replay = await place(request("13:00"), "k-timeout");
@@ -201,14 +213,25 @@ test("booking-orchestrated saga", async (t) => {
     const res = await place(request("15:00", { service_date: futureWeekday(10) }), "k-restart");
     const orderId = res.body.order_id;
     getDb().prepare("UPDATE booking_sagas SET locked_by = 'dead-process', locked_until = ? WHERE order_id = ?")
-      .run(new Date(Date.now() + 100).toISOString(), orderId);
+      .run(new Date(Date.now() + 60000).toISOString(), orderId);
     resetBookingSaga();
     configureBookingSaga({ payments: fake.adapter, baseBackoffMs: 1, maxBackoffMs: 1 }); // "new process"
     fake.mode.create = "ok";
-    assert.equal(await recoverOnce(), 0, "a live lease from the dead process is respected");
-    await new Promise((resolve) => setTimeout(resolve, 120));
-    assert.equal(await recoverOnce(), 1);
+    const createCallsBefore = fake.calls.create.length;
+    await recoverOnce();
+    assert.equal(saga(orderId).state, STATES.CREATE_PENDING, "a live lease is respected");
+    assert.equal(saga(orderId).locked_by, "dead-process");
+    assert.equal(fake.calls.create.length, createCallsBefore, "no delivery while the prior lease is live");
+    assert.ok(holds(orderId) > 0, "pending booking keeps its slots");
+    // Expire the test lease explicitly instead of depending on wall-clock scheduling.
+    getDb().prepare("UPDATE booking_sagas SET locked_until = '2000-01-01T00:00:00.000Z' WHERE order_id = ?").run(orderId);
+    await tick();
+    // Recovery now includes activation work; assert this booking's durable effects, not
+    // the old global count (which assumed create/cancel were the only work kinds).
+    await recoverOnce();
     assert.equal(saga(orderId).state, STATES.COMPLETED);
+    assert.equal(paymentSetupFor(orderId), "ready");
+    assert.deepEqual(fake.calls.activate, [`activate:${saga(orderId).saga_id}`]);
     assert.equal(fake.intentsFor(orderId).length, 1);
   });
 

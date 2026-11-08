@@ -2,7 +2,7 @@
 
 Recorded 7 November 2026. Owner: C (Peerawit). Implements the lead-selected decision in [migration handoff §5](migration-handoff.md#5-booking-orchestration-and-compensation): Booking in the monolith orchestrates gateway booking provisioning; Payments & Wallet is a participant. Evidence: [validation record](validation/c-booking-saga-2026-11-07.md).
 
-**Status:** implemented and tested in the monolith against a contract-faithful fake and an HTTP fixture through A's real client. **Not active:** `POST /api/bookings` uses the saga only after `configureBookingSaga()` is called, and nothing calls it yet because the Payments internal endpoints are unmounted and B's service credentials don't exist. COD bookings never enter the saga.
+**Status (updated 8 November 2026):** implemented and tested against fixtures and the prepared HTTP boundary. A's activation HTTP, client/adapter and pending UI are available on main through #32–34; PR #29 has been synchronized with that main. **Not active:** production still does not configure the saga/access/participant/auth seams. Real B identity/credentials and coordinated C recovery/process wiring remain gates. COD bookings never enter the provisioning saga.
 
 ## Steps and compensation
 
@@ -57,6 +57,21 @@ startSagaRecovery();
 - **B:** supply the service-caller credential. The saga never forwards end-user tokens.
 - **D:** retry and timeout values. The foreground waits for one client timeout, then returns 503.
 - **Settlement eligibility (`assertSettlementAllowed`)** must let a payment settle only for a `COMPLETED` saga. This needs Payments-side eligibility state written with the command result. It is not done yet.
+
+## Activation delivery (added 7 Nov 2026)
+
+`COMPLETED` means *provisioned*, not payable. In the same SQLite transaction that sets `COMPLETED`, the saga inserts a `booking_saga_activations` row (`pending`, key `activate:<saga_id>`). Delivery runs afterwards, outside any transaction, under its own lease: first right after the 201, then from `recoverOnce()`.
+
+| Payments answer | Activation state | Effect |
+|---|---|---|
+| success (fresh or replay) | `activated` | `paymentSetupFor(orderId)` → `"ready"` |
+| unknown outcome (timeout, lost reply, 5xx) | stays `pending` | same key retried with backoff; one `consistency_attention` row (`activation_unconfirmed`) after `activateEscalateAfter` attempts; the booking is never cancelled |
+| validated 409 with `code: PAYMENT_SETUP_CANCELLED` | `blocked` | attention `payment_setup_cancelled`; no further delivery |
+| uncoded 409 (also `PaymentOutcomeUnknownError` with `upstreamStatus` 409) | `reconcile` | attention `activation_conflict`; never treated as a fence, slots kept |
+
+**Interface change to review with A:** the agreed text put `activation_state` / `activate_command_id` on `booking_sagas`. SQLite's `ALTER TABLE ADD COLUMN` stores a different `CREATE` text than a fresh database, so #23's exact-schema guard could never accept an upgraded file. The state therefore lives in its own table, and `lib/db/migrate.js` gains a reviewed, additive `UPGRADES` list: a file whose schema and marker are exactly the previous one (fingerprint `6c9ccb3f…`, main at `b4d0b46`) gets the new objects with the same `CREATE` text plus a backfill (`COMPLETED` sagas with an intent → `pending`), all in one IMMEDIATE transaction, then a full exact-schema check. Anything else still fails closed.
+
+**A integration update (8 November):** the adapter/client `activate` and strict coded/uncoded 409 parsing are implemented in #32–33. The UI/access seam in #34 accepts `readSetup: paymentSetupFor`, but no startup wires it automatically. See [activation client](payment-activation-client-handoff.md) and [payment setup callers](payment-setup-callers-handoff.md). Remaining work is actual B credentials, Payments participant/hooks composition and recovery-process enablement with real auth/fault tests. Missing `activate` still leaves rows pending. **D:** retry numbers remain existing defaults, not final measured policy.
 
 ## Defence material
 

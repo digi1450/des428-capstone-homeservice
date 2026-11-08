@@ -49,6 +49,15 @@ Publish-subscribe: another consumer (e.g. the monolith Booking paid-flag or Rati
 
 Start order matters once: a consumer must have declared its queue before events are published, otherwise `mandatory` returns them and they stay pending in the outbox (safe, retried with backoff) rather than being lost.
 
+## Wallet provisioning (added 7 Nov 2026)
+
+- **Monolith:** `registerProvider` writes `provider.registered` (`aggregate_type` `provider`, `data: { provider_id }`, no personal data) in the **same** SQLite transaction as the provider row. It is in `PUBLISHED_TYPES`. The inherited SQLite `provider_wallets` row is still written until cutover.
+- **Payments & Wallet:** `node src/wallet-consumer.js` (`DATABASE_URL`, `AMQP_URL`).
+  - Queue `payments.events` (quorum, delivery limit), bound to `provider.registered`, with DLQ `payments.events.dlq` through `homeservice.dead-letter`.
+  - Consumer name `payments.wallets`. It accepts producer `monolith` only. The `processed_events` row and A's `provisionWallet(provider_id, { client })` share one transaction, and the message is acked after commit.
+  - An existing wallet (for example an imported one) is kept unchanged.
+- **E:** add the `wallet-consumer` process next to `outbox-relay` in Compose. The monolith relay publishes with `mandatory`, so `provider.registered` stays pending (with retries) until this queue has been declared once.
+
 ## Requests to teammates
 
 - **A**: (1) pass `stageEvent: createOutbox().stage` when you wire the Payments settlement route; (2) A reviewed the importer pin change and added an explicit empty-message-state gate/locking; see [7 November importer review](validation/importer-c-state-2026-11-07.md). No legacy events are copied. Any existing outbox/dedupe state rejects import and is never cleared by the tool; (3) settlement eligibility `assertSettlementAllowed` is **not** in this PR — it needs Booking saga state and comes with the saga work.

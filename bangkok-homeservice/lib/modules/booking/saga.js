@@ -16,6 +16,13 @@
 //     never falsely CANCELLED.
 //   * The customer's Idempotency-Key maps to one saga: a retry resumes it and finally replays the
 //     original 201 body; the same key with a different request is a 409.
+//
+// Activation (docs/c-payment-participant-interface.md §4): COMPLETED means provisioned, NOT payable.
+// The same transaction that sets COMPLETED queues a booking_saga_activations row with the stable
+// key activate:<saga_id>; delivery happens afterwards, outside any SQLite transaction, under its
+// own lease. Unknown outcomes keep it pending and retry the same key (never cancel the booking);
+// only a coded PAYMENT_SETUP_CANCELLED marks it blocked; an uncoded conflict goes to reconcile.
+// Payment is ready only when the row is 'activated' (Payments' assertSettlementAllowed is the gate).
 import { createHash, randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { getDb } from "../../db/index.js";
@@ -24,6 +31,8 @@ import { ConflictError } from "../../errors.js";
 import * as repository from "./repository.js";
 import { reserveBooking, emitBookingPlaced, toPublicOrder } from "./service.js";
 
+export const SETUP_CANCELLED = "PAYMENT_SETUP_CANCELLED";
+export const ACTIVATION = Object.freeze({ PENDING: "pending", ACTIVATED: "activated", BLOCKED: "blocked", RECONCILE: "reconcile" });
 export const STATES = Object.freeze({
   CREATE_PENDING: "INTENT_CREATE_PENDING",
   COMPLETED: "COMPLETED",
@@ -39,9 +48,12 @@ let runtime = null;
 // payments: A's createBookingPaymentsAdapter({ paymentsClient }) (prepare / cancel).
 // credentials: async () => service-caller credentials from B (token etc.).
 // Not configured by default: POST /api/bookings keeps the inherited flow until A/B wire this.
+// payments.activate({ createCommandId, sagaId, activateCommandId }, credentials) is A's adapter
+// method (pending). Until it exists, activation rows simply stay pending (never "ready").
+// Retry numbers are the existing saga defaults, not D-selected production values.
 export function configureBookingSaga({ payments, credentials = async () => ({}), maxCreateAttempts = 5,
-  maxCancelAttempts = 5, baseBackoffMs = 1000, maxBackoffMs = 30000, leaseMs = 15000, retryAfterSeconds = 2 } = {}) {
-  runtime = { payments, credentials, maxCreateAttempts, maxCancelAttempts, baseBackoffMs, maxBackoffMs, leaseMs, retryAfterSeconds,
+  maxCancelAttempts = 5, activateEscalateAfter = 5, baseBackoffMs = 1000, maxBackoffMs = 30000, leaseMs = 15000, retryAfterSeconds = 2 } = {}) {
+  runtime = { payments, credentials, maxCreateAttempts, maxCancelAttempts, activateEscalateAfter, baseBackoffMs, maxBackoffMs, leaseMs, retryAfterSeconds,
     owner: `booking-saga:${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}` };
   return runtime;
 }
@@ -110,6 +122,10 @@ async function step(saga) {
     try {
       getDb().transaction(() => {
         move(saga, STATES.COMPLETED, "payment intent created", { intent_json: JSON.stringify(operation.payment_intent) });
+        if (operation?.payment_intent) {
+          getDb().prepare("INSERT INTO booking_saga_activations (saga_id, activate_command_id, state) VALUES (?, ?, 'pending')")
+            .run(saga.saga_id, `activate:${saga.saga_id}`);
+        }
         emitBookingPlaced(saga.order_id, snapshot.customer_id, snapshot.provider_id); // deferred outbox event
       }).immediate();
     } catch (error) {
@@ -146,6 +162,97 @@ export async function advance(sagaId) {
     releaseLease(sagaId);
   }
   return find(sagaId);
+}
+
+// ---- Activation delivery -------------------------------------------------------------------
+const findActivation = (sagaId) => getDb().prepare("SELECT * FROM booking_saga_activations WHERE saga_id = ?").get(sagaId);
+
+// What A's Booking UI may show: "ready" only after Payments acknowledged eligibility.
+export function paymentSetupFor(orderId) {
+  const row = getDb().prepare(
+    "SELECT a.state FROM booking_saga_activations a JOIN booking_sagas s ON s.saga_id = a.saga_id WHERE s.order_id = ?",
+  ).get(orderId);
+  if (!row) return null;
+  return row.state === ACTIVATION.ACTIVATED ? "ready" : row.state === ACTIVATION.PENDING ? "pending" : row.state;
+}
+
+function attention(saga, activation, reason) {
+  getDb().prepare(
+    "INSERT INTO consistency_attention (consumer_name, event_id, event_type, aggregate_id, reason) VALUES ('booking-saga', ?, 'payment.activation', ?, ?)",
+  ).run(activation.activate_command_id, String(saga.order_id), reason);
+}
+// Every result write is fenced by the claim token of THIS attempt. A worker whose lease expired
+// (and was replaced by a newer claim) changes nothing: its late success, fence, conflict or
+// unknown result is discarded, and it cannot release the newer claim's lease.
+function settleActivation(sagaId, token, to, error) {
+  return getDb().prepare(
+    `UPDATE booking_saga_activations SET state = ?, last_error = ?, updated_at = ?
+      WHERE saga_id = ? AND state = 'pending' AND locked_by = ?`,
+  ).run(to, error ?? null, iso(), sagaId, token).changes === 1;
+}
+// Only a validated HTTP 409 carrying the allow-listed code is a confirmed fence; a code on a 5xx,
+// transport or other unknown error is NOT. An uncoded 409 (also an unknown outcome with
+// upstreamStatus 409) is unresolved: reconcile, never ready, never a fence.
+const status409 = (error) => error?.statusCode === 409 || error?.upstreamStatus === 409;
+const classify = (error) => {
+  if (status409(error) && error?.code === SETUP_CANCELLED) return "fenced";
+  if (status409(error) && !error?.code) return "conflict";
+  return "unknown";
+};
+
+async function deliverActivation(activation, token, rt) {
+  const saga = find(activation.saga_id);
+  let outcome;
+  try {
+    await rt.payments.activate({ createCommandId: saga.create_command_id, sagaId: saga.saga_id,
+      activateCommandId: activation.activate_command_id }, await rt.credentials());
+    outcome = { kind: "activated" };
+  } catch (error) {
+    outcome = { kind: classify(error), error };
+  }
+  const applied = getDb().transaction(() => {
+    if (outcome.kind === "activated") return settleActivation(saga.saga_id, token, ACTIVATION.ACTIVATED);
+    if (outcome.kind === "fenced") {
+      if (!settleActivation(saga.saga_id, token, ACTIVATION.BLOCKED, SETUP_CANCELLED)) return false;
+      attention(saga, activation, "payment_setup_cancelled");
+      return true;
+    }
+    if (outcome.kind === "conflict") {
+      if (!settleActivation(saga.saga_id, token, ACTIVATION.RECONCILE, "uncoded_conflict")) return false;
+      attention(saga, activation, "activation_conflict");
+      return true;
+    }
+    // Unknown outcome: stay pending, same key, bounded backoff; escalate once for visibility.
+    const current = getDb().prepare("SELECT attempts FROM booking_saga_activations WHERE saga_id = ? AND state = 'pending' AND locked_by = ?")
+      .get(saga.saga_id, token);
+    if (!current) return false;
+    const attempts = current.attempts + 1;
+    const backoff = Math.min(rt.maxBackoffMs, rt.baseBackoffMs * 2 ** (attempts - 1));
+    getDb().prepare("UPDATE booking_saga_activations SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ? AND locked_by = ?")
+      .run(attempts, iso(backoff), String(outcome.error?.reason ?? outcome.error?.name ?? "error").slice(0, 120), iso(), saga.saga_id, token);
+    if (attempts === rt.activateEscalateAfter) attention(saga, activation, "activation_unconfirmed");
+    return true;
+  }).immediate();
+  if (!applied) logger.warn({ saga: saga.saga_id, outcome: outcome.kind }, "stale activation result discarded (lease was replaced)");
+}
+
+// One delivery attempt under a lease with a unique claim token (two attempts, even in one process,
+// never share a claim). The runtime is captured at claim time for the whole attempt.
+export async function activate(sagaId) {
+  const rt = runtime;
+  if (typeof rt.payments?.activate !== "function") return findActivation(sagaId); // A's adapter method not wired yet
+  const token = `${rt.owner}:${randomUUID()}`;
+  const claimed = getDb().prepare(
+    `UPDATE booking_saga_activations SET locked_by = ?, locked_until = ?
+      WHERE saga_id = ? AND state = 'pending' AND (locked_until IS NULL OR locked_until < ?)`,
+  ).run(token, iso(rt.leaseMs), sagaId, iso()).changes === 1;
+  if (!claimed) return findActivation(sagaId);
+  try {
+    await deliverActivation(findActivation(sagaId), token, rt);
+  } finally {
+    getDb().prepare("UPDATE booking_saga_activations SET locked_by = NULL, locked_until = NULL WHERE saga_id = ? AND locked_by = ?").run(sagaId, token);
+  }
+  return findActivation(sagaId);
 }
 
 function response(saga) {
@@ -191,6 +298,11 @@ export async function placeGatewayBooking(customerId, input, idempotencyKey) {
   }
   if (saga.request_digest !== requestDigest) throw new ConflictError("Idempotency-Key has already been used for a different request");
   if (ACTIVE.includes(saga.state) && saga.next_attempt_at <= iso()) saga = await advance(saga.saga_id);
+  // Best-effort first delivery; failures stay durable and recovery retries the same key.
+  const pending = saga.state === STATES.COMPLETED && findActivation(saga.saga_id);
+  if (pending?.state === ACTIVATION.PENDING && pending.next_attempt_at <= iso()) {
+    try { await activate(saga.saga_id); } catch (error) { logger.error({ saga: saga.saga_id, err: error.message }, "activation attempt failed"); }
+  }
   return response(saga);
 }
 
@@ -203,7 +315,15 @@ export async function recoverOnce({ batchSize = 20 } = {}) {
   for (const { saga_id: sagaId } of due) {
     try { await advance(sagaId); } catch (error) { logger.error({ saga: sagaId, err: error.message }, "saga recovery step failed"); }
   }
-  return due.length;
+  // COMPLETED sagas whose activation is still pending (after restarts, timeouts, lost replies).
+  const activations = typeof runtime.payments?.activate === "function" ? getDb().prepare(
+    `SELECT saga_id FROM booking_saga_activations WHERE state = 'pending' AND next_attempt_at <= ? AND (locked_until IS NULL OR locked_until < ?)
+      ORDER BY next_attempt_at LIMIT ?`,
+  ).all(iso(), iso(), batchSize) : [];
+  for (const { saga_id: sagaId } of activations) {
+    try { await activate(sagaId); } catch (error) { logger.error({ saga: sagaId, err: error.message }, "activation recovery step failed"); }
+  }
+  return due.length + activations.length;
 }
 
 const RECOVERY = Symbol.for("edemand.booking-saga.recovery");

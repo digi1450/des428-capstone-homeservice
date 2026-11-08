@@ -1,6 +1,7 @@
 
 import {
   context,
+  ROOT_CONTEXT,
   propagation,
   trace,
   SpanKind,
@@ -10,6 +11,10 @@ import {
 const tracer = trace.getTracer("homeservice-rabbitmq");
 
 export async function traceMessagePublishing(row, publish) {
+  // The relay runs after the originating request, often in another process. Restore
+  // the durable carrier before creating this publish span; never replace its trace with
+  // an unrelated background/ambient context. Copy the carrier so retry state is immutable.
+  const parent = propagation.extract(ROOT_CONTEXT, row.headers ?? {});
   return tracer.startActiveSpan(
     "rabbitmq publish",
     {
@@ -22,6 +27,7 @@ export async function traceMessagePublishing(row, publish) {
         "messaging.rabbitmq.destination.routing_key": row.event_type
       }
     },
+    parent,
     async span => {
       try {
         const headers = { ...(row.headers ?? {}) };

@@ -9,6 +9,7 @@ export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS booking_saga_transitions;
+DROP TABLE IF EXISTS booking_saga_activations;
 DROP TABLE IF EXISTS booking_sagas;
 DROP TABLE IF EXISTS consistency_attention;
 DROP TABLE IF EXISTS processed_events;
@@ -338,4 +339,25 @@ CREATE TABLE booking_saga_transitions (
   reason TEXT,
   at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+
+-- Area C: durable activation delivery for COMPLETED gateway sagas (one row per saga, written in the
+-- SAME transaction as COMPLETED). Payment stays disabled until state = 'activated'.
+--   pending    deliver activate-by-command with the stable key; unknown outcomes retry the same key
+--   activated  Payments acknowledged effective eligibility
+--   blocked    Payments confirmed a cancellation fence (coded PAYMENT_SETUP_CANCELLED)
+--   reconcile  uncoded conflict or retries exhausted: never ready, visible in consistency_attention
+-- Kept as its own table so the #23 upgrade path can add it with the exact same CREATE text.
+CREATE TABLE booking_saga_activations (
+  saga_id TEXT PRIMARY KEY REFERENCES booking_sagas(saga_id),
+  activate_command_id TEXT NOT NULL UNIQUE,
+  state TEXT NOT NULL CHECK (state IN ('pending','activated','blocked','reconcile')),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  locked_by TEXT,
+  locked_until TEXT,
+  last_error TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_booking_saga_activations_due ON booking_saga_activations(next_attempt_at) WHERE state = 'pending';
 `;

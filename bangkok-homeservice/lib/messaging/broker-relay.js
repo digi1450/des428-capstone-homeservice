@@ -20,6 +20,7 @@ import { createPublisher } from "./publisher.js";
 // payments module still emits it locally, but across the boundary only Payments & Wallet may.
 export const PUBLISHED_TYPES = Object.freeze([
   "booking.status_changed", "booking.completed", "bid.accepted", "review.created", "provider.approved",
+  "provider.registered", // Area C: Payments & Wallet provisions the provider wallet from this
 ]);
 const MAX_BACKOFF_MS = 60000;
 const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
