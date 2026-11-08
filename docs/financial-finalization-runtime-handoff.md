@@ -113,7 +113,9 @@ Default legacy flow remains compatible. In coordinated financial mode:
   transition buttons and simulation are guarded while cancellation is pending;
   Payments/C transaction checks remain authoritative, not the UI.
 - A persisted cancellation-attention response refreshes the UI to show its state;
-  it is not treated as successful refund. No background polling is introduced.
+  it is not treated as successful refund. No background polling is introduced. Existing custom-job ending times such as
+  `24:00`/`25:00` are preserved in schemas and runtime projections; no date wrapping
+  or change to Booking/Bidding scheduling is introduced.
 
 Do not select the new mode piecemeal in production. Compose the C work/runtime,
 B user/service/gateway credentials, #40 reader/#41 writer/#42 relay changes,
@@ -125,7 +127,7 @@ The optional seams are preparation, not instructions to enable traffic now.
 Dedicated disposable PostgreSQL 16/RabbitMQ 4.1 containers, no host ports, synthetic
 rows only. No unrelated stack or useful database was stopped or migrated.
 
-- Monolith **213 passed**, Node 20: inherited flows and new client/caller validation,
+- Monolith **214 passed**, Node 20: inherited flows and new client/caller validation,
   pending/attention holds, synchronous transaction guards, no moved-table fallback.
 - Payments **100 passed**, Node 22, PG/MQ enabled: HTTP validation/status/error/auth
   separation plus existing business/provisioning tests. New actual HTTP callback
@@ -136,7 +138,7 @@ rows only. No unrelated stack or useful database was stopped or migrated.
   provisioning/eligibility -> PG. The financial participant fixture has **no
   durable command/result or money effect**, so this does not prove C completion,
   refund/fence/recovery/races or real authentication.
-- Production standalone Next build passed. Static contract suite **29 passed**;
+- Production standalone Next build passed. Static contract suite **30 passed**;
   ordered existing read Pact **2 consumer + 2 provider passed**, in that order.
   Financial HTTP tests are separate from those read Pacts, and do not constitute
   new financial Pact consumer/provider coverage.

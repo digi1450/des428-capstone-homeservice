@@ -102,3 +102,9 @@ test('public completion and cancellation projections cannot fabricate final canc
  assert.equal(validate('EmptyCancellationRequest',{}),true);
  assert.equal(validate('EmptyCancellationRequest',{order_id:42}),false);
 });
+
+test('custom-job public projections preserve midnight and extended ending times',()=>{
+ for(const name of ['completedMidnight','completedExtended'])assert.doesNotThrow(()=>assertPublicFinancialResult('completion',f.public[name]));
+ for(const name of ['cancelPendingMidnight','cancelVoidedMidnight'])assert.doesNotThrow(()=>assertPublicFinancialResult('cancellation',f.public[name]));
+ for(const ending_time of ['24:60','-1:00','25:xx'])assert.throws(()=>assertPublicFinancialResult('completion',{...f.public.completedMidnight,ending_time}),TypeError);
+});

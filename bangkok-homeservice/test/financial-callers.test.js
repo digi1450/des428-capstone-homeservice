@@ -1,6 +1,7 @@
 import {freshBoot,getDb} from '../test-helpers/boot.js';import test from 'node:test';import assert from 'node:assert/strict';
 import {call} from '../test-helpers/call.js';import {signToken} from '../lib/http/auth.js';
 import * as complete from '../app/api/bookings/[id]/complete/route.js';import * as cancel from '../app/api/bookings/[id]/cancel/route.js';import * as webhook from '../app/api/payments/webhook/route.js';
+import * as bidding from '../lib/modules/bidding/service.js';
 import * as booking from '../lib/modules/booking/service.js';import * as repo from '../lib/modules/booking/repository.js';
 import {configureBookingFinancialAccess,resetBookingFinancialAccess,financialStatus} from '../lib/modules/booking/financial-access.js';
 import {configureWebhookAccess,resetWebhookAccess} from '../lib/modules/payments/webhook-access.js';
@@ -69,6 +70,23 @@ test('A public financial callers use C ownership seam and fail closed',async t=>
   for(const body of [{amount_cents:1},7,true,'value'])assert.equal((await call(cancel.POST,{token:p.customerToken,params:{id:String(p.id)},body})).status,400);
   assert.equal((await call(complete.POST,{token:p.providerToken,params:{id:String(p.id)},body:{otp:123456,provider_id:9}})).status,400);
   r.callbacks.assertTransitionAllowed=async()=>true;assert.throws(()=>booking.startBooking(p.id,p.provider),e=>e.statusCode===503);assert.equal(repo.findOrderById(p.id).status,'confirmed');
+ });
+ await t.test('actual accepted custom jobs retain 24:00/extended endings through new completion/cancellation projections',async()=>{
+  function custom(p,duration){
+   p.db.prepare('UPDATE provider_profiles SET is_approved=1,is_accepting_custom_jobs=1 WHERE provider_id=?').run(p.provider);
+   const category_id=p.db.prepare('SELECT id FROM categories ORDER BY id LIMIT 1').get().id;
+   const job=bidding.postJob(p.customer,{category_id,title:'Extended ending fixture',min_price_cents:100,max_price_cents:100,window_start:'2026-12-01T23:00',window_end:'2026-12-02T02:00'});
+   const bid=bidding.placeBid(job.id,p.provider,{counter_price_cents:100,duration_min:duration});
+   const accepted=bidding.acceptBid(job.id,bid.id,p.customer);p.id=accepted.order.id;return accepted.otp;
+  }
+  for(const duration of [60,120]){
+   const p=fixture(),otp=custom(p,duration);booking.confirmBooking(p.id,p.provider);booking.startBooking(p.id,p.provider);install(p);
+   const completed=await call(complete.POST,{token:p.providerToken,params:{id:String(p.id)},body:{otp}});
+   assert.equal(completed.status,200);assert.equal(completed.body.ending_time,duration===60?'24:00':'25:00');
+   const q=fixture('awaiting');custom(q,duration);const r=install(q);
+   const invoke=()=>call(cancel.POST,{token:q.customerToken,params:{id:String(q.id)},method:'POST'});
+   assert.equal((await invoke()).status,202);r.state('ready');assert.equal((await invoke()).status,200);
+  }
  });
  await t.test('remote callback never falls back to legacy shared secret or SQLite settlement',async()=>{
   const p=fixture();install(p);p.db.exec('DROP TABLE payment_intents; DROP TABLE webhook_events');
