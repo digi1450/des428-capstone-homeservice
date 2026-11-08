@@ -57,8 +57,8 @@ export function ActionButton({ url, body, method = "POST", label, redirectTo, cl
           setErr(null);
           const r = await postJSON(url, body, method);
           setBusy(false);
-          if (r.ok) {
-            if (redirectTo) window.location.href = redirectTo;
+          if (r.ok || r.data?.cancellation_status === "attention") {
+            if (redirectTo && r.data?.cancellation_status !== "attention") window.location.href = redirectTo;
             else window.location.reload();
           } else {
             setErr(errText(r.data));

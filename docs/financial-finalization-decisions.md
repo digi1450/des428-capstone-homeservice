@@ -16,6 +16,8 @@ parallel. Report an implementation blocker or unsafe/incompatible assumption for
 coordinated revision instead of silently changing it. Existing integration,
 migration and real-auth verification gates still apply before activation.
 
+> Exact v1 contract follow-up: [wire/callable handoff](financial-finalization-contract-handoff.md) and [OpenAPI](../contracts/financial-finalization.openapi.json) supply A’s request/result/status fixtures. Implementation and real integration remain pending.
+
 ## Lead-selected policies
 
 | Decision | Selected behavior |

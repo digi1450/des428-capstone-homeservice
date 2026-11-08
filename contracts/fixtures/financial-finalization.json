@@ -1,0 +1,619 @@
+{
+  "completeGateway": {
+    "command_id": "complete:11111111-1111-4111-8111-111111111111",
+    "request": {
+      "operation_id": "11111111-1111-4111-8111-111111111111",
+      "order_id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "amount_cents": 10700,
+      "currency": "THB",
+      "payment_method": "gateway",
+      "commission_cents": 1070,
+      "provisioning": {
+        "create_command_id": "intent-create:booking-42",
+        "saga_id": "booking-saga:42"
+      }
+    }
+  },
+  "completeCod": {
+    "command_id": "complete:22222222-2222-4222-8222-222222222222",
+    "request": {
+      "operation_id": "22222222-2222-4222-8222-222222222222",
+      "order_id": 43,
+      "customer_id": 7,
+      "provider_id": 3,
+      "amount_cents": 10700,
+      "currency": "THB",
+      "payment_method": "cod",
+      "commission_cents": 1070
+    }
+  },
+  "cancelGateway": {
+    "command_id": "cancel:33333333-3333-4333-8333-333333333333",
+    "request": {
+      "operation_id": "33333333-3333-4333-8333-333333333333",
+      "order_id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "amount_cents": 10700,
+      "currency": "THB",
+      "payment_method": "gateway",
+      "provisioning": {
+        "create_command_id": "intent-create:booking-42",
+        "saga_id": "booking-saga:42"
+      },
+      "reason": "customer_cancelled"
+    }
+  },
+  "cancelCod": {
+    "command_id": "cancel:44444444-4444-4444-8444-444444444444",
+    "request": {
+      "operation_id": "44444444-4444-4444-8444-444444444444",
+      "order_id": 43,
+      "customer_id": 7,
+      "provider_id": 3,
+      "amount_cents": 10700,
+      "currency": "THB",
+      "payment_method": "cod",
+      "reason": "customer_cancelled"
+    }
+  },
+  "results": {
+    "completionGatewayReady": {
+      "command_id": "complete:11111111-1111-4111-8111-111111111111",
+      "kind": "completion",
+      "request": {
+        "operation_id": "11111111-1111-4111-8111-111111111111",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "commission_cents": 1070,
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        }
+      },
+      "state": "ready",
+      "accounting": {
+        "transaction_id": 81,
+        "kind": "payout_credit",
+        "amount_cents": 9630
+      }
+    },
+    "completionCodReady": {
+      "command_id": "complete:22222222-2222-4222-8222-222222222222",
+      "kind": "completion",
+      "request": {
+        "operation_id": "22222222-2222-4222-8222-222222222222",
+        "order_id": 43,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "cod",
+        "commission_cents": 1070
+      },
+      "state": "ready",
+      "accounting": {
+        "transaction_id": 82,
+        "kind": "commission_owed",
+        "amount_cents": 1070
+      }
+    },
+    "completionPending": {
+      "command_id": "complete:11111111-1111-4111-8111-111111111111",
+      "kind": "completion",
+      "request": {
+        "operation_id": "11111111-1111-4111-8111-111111111111",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "commission_cents": 1070,
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        }
+      },
+      "state": "pending",
+      "reason": "awaiting_settlement"
+    },
+    "completionCodPending": {
+      "command_id": "complete:22222222-2222-4222-8222-222222222222",
+      "kind": "completion",
+      "request": {
+        "operation_id": "22222222-2222-4222-8222-222222222222",
+        "order_id": 43,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "cod",
+        "commission_cents": 1070
+      },
+      "state": "pending",
+      "reason": "processing"
+    },
+    "completionAttention": {
+      "command_id": "complete:11111111-1111-4111-8111-111111111111",
+      "kind": "completion",
+      "request": {
+        "operation_id": "11111111-1111-4111-8111-111111111111",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "commission_cents": 1070,
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        }
+      },
+      "state": "attention",
+      "reason": "settlement_contradiction"
+    },
+    "cancelGatewayNoPayment": {
+      "command_id": "cancel:33333333-3333-4333-8333-333333333333",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "33333333-3333-4333-8333-333333333333",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "ready",
+      "settlement_fenced": true,
+      "outcome": "no_payment"
+    },
+    "cancelCodNoPayment": {
+      "command_id": "cancel:44444444-4444-4444-8444-444444444444",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "44444444-4444-4444-8444-444444444444",
+        "order_id": 43,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "cod",
+        "reason": "customer_cancelled"
+      },
+      "state": "ready",
+      "settlement_fenced": true,
+      "outcome": "no_payment"
+    },
+    "cancelVoided": {
+      "command_id": "cancel:33333333-3333-4333-8333-333333333333",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "33333333-3333-4333-8333-333333333333",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "ready",
+      "settlement_fenced": true,
+      "outcome": "voided",
+      "voided_intent_id": 17
+    },
+    "cancelRefunded": {
+      "command_id": "cancel:33333333-3333-4333-8333-333333333333",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "33333333-3333-4333-8333-333333333333",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "ready",
+      "settlement_fenced": true,
+      "outcome": "refunded",
+      "refund_transaction_id": 83
+    },
+    "cancelPending": {
+      "command_id": "cancel:33333333-3333-4333-8333-333333333333",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "33333333-3333-4333-8333-333333333333",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "pending",
+      "reason": "processing"
+    },
+    "cancelCodPending": {
+      "command_id": "cancel:44444444-4444-4444-8444-444444444444",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "44444444-4444-4444-8444-444444444444",
+        "order_id": 43,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "cod",
+        "reason": "customer_cancelled"
+      },
+      "state": "pending",
+      "reason": "processing"
+    },
+    "cancelAttention": {
+      "command_id": "cancel:33333333-3333-4333-8333-333333333333",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "33333333-3333-4333-8333-333333333333",
+        "order_id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "amount_cents": 10700,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "provisioning": {
+          "create_command_id": "intent-create:booking-42",
+          "saga_id": "booking-saga:42"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "attention",
+      "reason": "completion_accounted"
+    }
+  },
+  "public": {
+    "completedPending": {
+      "id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "address_id": 9,
+      "service_date": "2026-12-01",
+      "starting_time": "10:00",
+      "ending_time": "10:30",
+      "duration_min": 30,
+      "subtotal_cents": 10000,
+      "tax_cents": 700,
+      "total_cents": 10700,
+      "commission_pct": 10,
+      "commission_cents": 1070,
+      "provider_earnings_cents": 9630,
+      "payment_method": "gateway",
+      "payment_status": "paid",
+      "status": "completed",
+      "job_request_id": null,
+      "created_at": "2026-11-08T00:00:00.000Z",
+      "updated_at": "2026-11-08T01:00:00.000Z",
+      "accounting_status": "pending"
+    },
+    "completedReady": {
+      "id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "address_id": 9,
+      "service_date": "2026-12-01",
+      "starting_time": "10:00",
+      "ending_time": "10:30",
+      "duration_min": 30,
+      "subtotal_cents": 10000,
+      "tax_cents": 700,
+      "total_cents": 10700,
+      "commission_pct": 10,
+      "commission_cents": 1070,
+      "provider_earnings_cents": 9630,
+      "payment_method": "gateway",
+      "payment_status": "paid",
+      "status": "completed",
+      "job_request_id": null,
+      "created_at": "2026-11-08T00:00:00.000Z",
+      "updated_at": "2026-11-08T01:00:00.000Z",
+      "accounting_status": "ready"
+    },
+    "completedAttention": {
+      "id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "address_id": 9,
+      "service_date": "2026-12-01",
+      "starting_time": "10:00",
+      "ending_time": "10:30",
+      "duration_min": 30,
+      "subtotal_cents": 10000,
+      "tax_cents": 700,
+      "total_cents": 10700,
+      "commission_pct": 10,
+      "commission_cents": 1070,
+      "provider_earnings_cents": 9630,
+      "payment_method": "gateway",
+      "payment_status": "paid",
+      "status": "completed",
+      "job_request_id": null,
+      "created_at": "2026-11-08T00:00:00.000Z",
+      "updated_at": "2026-11-08T01:00:00.000Z",
+      "accounting_status": "attention"
+    },
+    "cancelPending": {
+      "order": {
+        "id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "address_id": 9,
+        "service_date": "2026-12-01",
+        "starting_time": "10:00",
+        "ending_time": "10:30",
+        "duration_min": 30,
+        "subtotal_cents": 10000,
+        "tax_cents": 700,
+        "total_cents": 10700,
+        "commission_pct": 10,
+        "commission_cents": null,
+        "provider_earnings_cents": null,
+        "payment_method": "gateway",
+        "payment_status": "paid",
+        "status": "confirmed",
+        "job_request_id": null,
+        "created_at": "2026-11-08T00:00:00.000Z",
+        "updated_at": "2026-11-08T01:00:00.000Z"
+      },
+      "cancellation_status": "pending"
+    },
+    "cancelAttention": {
+      "order": {
+        "id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "address_id": 9,
+        "service_date": "2026-12-01",
+        "starting_time": "10:00",
+        "ending_time": "10:30",
+        "duration_min": 30,
+        "subtotal_cents": 10000,
+        "tax_cents": 700,
+        "total_cents": 10700,
+        "commission_pct": 10,
+        "commission_cents": null,
+        "provider_earnings_cents": null,
+        "payment_method": "gateway",
+        "payment_status": "paid",
+        "status": "confirmed",
+        "job_request_id": null,
+        "created_at": "2026-11-08T00:00:00.000Z",
+        "updated_at": "2026-11-08T01:00:00.000Z"
+      },
+      "cancellation_status": "attention"
+    },
+    "cancelRefunded": {
+      "order": {
+        "id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "address_id": 9,
+        "service_date": "2026-12-01",
+        "starting_time": "10:00",
+        "ending_time": "10:30",
+        "duration_min": 30,
+        "subtotal_cents": 10000,
+        "tax_cents": 700,
+        "total_cents": 10700,
+        "commission_pct": 10,
+        "commission_cents": null,
+        "provider_earnings_cents": null,
+        "payment_method": "gateway",
+        "payment_status": "refunded",
+        "status": "cancelled",
+        "job_request_id": null,
+        "created_at": "2026-11-08T00:00:00.000Z",
+        "updated_at": "2026-11-08T01:00:00.000Z"
+      },
+      "refunded": true,
+      "cancellation_status": "ready"
+    },
+    "cancelVoided": {
+      "order": {
+        "id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "address_id": 9,
+        "service_date": "2026-12-01",
+        "starting_time": "10:00",
+        "ending_time": "10:30",
+        "duration_min": 30,
+        "subtotal_cents": 10000,
+        "tax_cents": 700,
+        "total_cents": 10700,
+        "commission_pct": 10,
+        "commission_cents": null,
+        "provider_earnings_cents": null,
+        "payment_method": "gateway",
+        "payment_status": "pending",
+        "status": "cancelled",
+        "job_request_id": null,
+        "created_at": "2026-11-08T00:00:00.000Z",
+        "updated_at": "2026-11-08T01:00:00.000Z"
+      },
+      "refunded": false,
+      "cancellation_status": "ready"
+    },
+    "completedMidnight": {
+      "id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "address_id": null,
+      "service_date": "2026-12-01",
+      "starting_time": "23:00",
+      "ending_time": "24:00",
+      "duration_min": 60,
+      "subtotal_cents": 10000,
+      "tax_cents": 700,
+      "total_cents": 10700,
+      "commission_pct": 10,
+      "commission_cents": 1070,
+      "provider_earnings_cents": 9630,
+      "payment_method": "cod",
+      "payment_status": "pending",
+      "status": "completed",
+      "job_request_id": 11,
+      "created_at": "2026-11-08T00:00:00.000Z",
+      "updated_at": "2026-11-08T01:00:00.000Z",
+      "accounting_status": "pending"
+    },
+    "completedExtended": {
+      "id": 42,
+      "customer_id": 7,
+      "provider_id": 3,
+      "address_id": null,
+      "service_date": "2026-12-01",
+      "starting_time": "23:00",
+      "ending_time": "25:00",
+      "duration_min": 120,
+      "subtotal_cents": 10000,
+      "tax_cents": 700,
+      "total_cents": 10700,
+      "commission_pct": 10,
+      "commission_cents": 1070,
+      "provider_earnings_cents": 9630,
+      "payment_method": "cod",
+      "payment_status": "pending",
+      "status": "completed",
+      "job_request_id": 11,
+      "created_at": "2026-11-08T00:00:00.000Z",
+      "updated_at": "2026-11-08T01:00:00.000Z",
+      "accounting_status": "pending"
+    },
+    "cancelPendingMidnight": {
+      "order": {
+        "id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "address_id": null,
+        "service_date": "2026-12-01",
+        "starting_time": "23:00",
+        "ending_time": "24:00",
+        "duration_min": 60,
+        "subtotal_cents": 10000,
+        "tax_cents": 700,
+        "total_cents": 10700,
+        "commission_pct": 10,
+        "commission_cents": null,
+        "provider_earnings_cents": null,
+        "payment_method": "cod",
+        "payment_status": "pending",
+        "status": "confirmed",
+        "job_request_id": 11,
+        "created_at": "2026-11-08T00:00:00.000Z",
+        "updated_at": "2026-11-08T01:00:00.000Z"
+      },
+      "cancellation_status": "pending"
+    },
+    "cancelVoidedMidnight": {
+      "order": {
+        "id": 42,
+        "customer_id": 7,
+        "provider_id": 3,
+        "address_id": null,
+        "service_date": "2026-12-01",
+        "starting_time": "23:00",
+        "ending_time": "24:00",
+        "duration_min": 60,
+        "subtotal_cents": 10000,
+        "tax_cents": 700,
+        "total_cents": 10700,
+        "commission_pct": 10,
+        "commission_cents": null,
+        "provider_earnings_cents": null,
+        "payment_method": "cod",
+        "payment_status": "pending",
+        "status": "cancelled",
+        "job_request_id": 11,
+        "created_at": "2026-11-08T00:00:00.000Z",
+        "updated_at": "2026-11-08T01:00:00.000Z"
+      },
+      "refunded": false,
+      "cancellation_status": "ready"
+    }
+  },
+  "webhook": {
+    "gateway_event_id": "MOCK-EVT-fixture-1",
+    "type": "payment_intent.succeeded",
+    "gateway_ref": "MOCK-INTENT-fixture-42"
+  },
+  "webhookAcks": [
+    {
+      "received": true,
+      "replayed": false,
+      "settled": true
+    },
+    {
+      "received": true,
+      "replayed": true
+    },
+    {
+      "received": true,
+      "replayed": false,
+      "already_settled": true
+    }
+  ],
+  "error": {
+    "error": "financial dependency unavailable",
+    "requestId": "fixture-request-1"
+  },
+  "conflicts": [
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_COMMAND_CONFLICT"
+    },
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_CONTEXT_MISMATCH"
+    },
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_OPERATION_BLOCKED"
+    },
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_LEGACY_RECONCILIATION_REQUIRED"
+    }
+  ]
+}

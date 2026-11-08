@@ -1,0 +1,40 @@
+name: Financial caller and HTTP boundary
+on:
+  pull_request:
+jobs:
+  financial-boundary:
+    name: Booking callers and financial HTTP boundary
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: financial_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d financial_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://test_user:test_password@localhost:5432/financial_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            bangkok-homeservice/package-lock.json
+            services/payments-wallet/package-lock.json
+      - name: Install locked monolith and Payments dependencies
+        run: |
+          npm ci --prefix bangkok-homeservice
+          npm ci --prefix services/payments-wallet
+      - name: Monolith callers and client tests
+        run: npm test --prefix bangkok-homeservice
+      - name: Financial client to HTTP and PostgreSQL boundary
+        run: node --test tests/integration/financial-finalization-boundary.test.mjs
