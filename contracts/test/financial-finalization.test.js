@@ -8,10 +8,10 @@ const f=JSON.parse(await readFile(new URL('../fixtures/financial-finalization.js
 const copy=value=>structuredClone(value);
 const expected=(key)=>({kind:key.startsWith('complete')?'completion':'cancellation',commandId:f[key].command_id,request:copy(f[key].request)});
 
-test('financial finalization OpenAPI validates and marks all new behavior unimplemented',async()=>{
+test('financial finalization OpenAPI validates and marks production wiring pending',async()=>{
  await SwaggerParser.validate(fileURLToPath(new URL('../financial-finalization.openapi.json',import.meta.url)));
  for(const [path,item] of Object.entries(spec.paths)){
-  for(const operation of Object.values(item))assert.match(operation['x-implementation-status'],/not-(mounted|implemented)$/);
+  for(const operation of Object.values(item))assert.match(operation['x-implementation-status'],/^(http-implemented-production-unwired|public-callers-prepared-C-runtime-unwired)$/);
   if(path.startsWith('/internal/'))assert.deepEqual(spec.security,[{serviceBearer:[]}]);
  }
  assert.equal(spec.info.version,'1.0.0');

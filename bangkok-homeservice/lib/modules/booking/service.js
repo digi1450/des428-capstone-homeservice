@@ -12,6 +12,9 @@ import { insertEvent } from "../../db/events.js";
 import * as repository from "./repository.js";
 import * as catalogRepository from "../catalog/repository.js";
 import * as providersRepository from "../providers/repository.js";
+import {assertFinancialTransition} from "./financial-state.js";
+import {usesRemotePayments} from "../payments/ownership.js";
+import {AppError} from "../../errors.js";
 import * as paymentsRepository from "../payments/repository.js";
 import { slotRange, timeToMinutes, minutesToTime, weekdayOf, todayDate } from "./slots.js";
 import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from "../../errors.js";
@@ -220,6 +223,7 @@ export function confirmBooking(orderId, providerId) {
   if (order.provider_id !== providerId) throw new ForbiddenError("you are not the provider on this booking");
 
   const run = getDb().transaction(() => {
+    assertFinancialTransition(orderId,"confirm");
     const changes = repository.confirmAtomic(orderId, providerId);
     if (changes === 0) throw new ConflictError(`cannot confirm booking from status '${order.status}'`);
     insertEvent("booking.status_changed", "order", orderId, {
@@ -237,6 +241,7 @@ export function startBooking(orderId, providerId) {
   if (order.provider_id !== providerId) throw new ForbiddenError("you are not the provider on this booking");
 
   const run = getDb().transaction(() => {
+    assertFinancialTransition(orderId,"start");
     const changes = repository.startAtomic(orderId, providerId);
     if (changes === 0) throw new ConflictError(`cannot start booking from status '${order.status}'`);
     insertEvent("booking.status_changed", "order", orderId, {
@@ -253,6 +258,7 @@ export function startBooking(orderId, providerId) {
 // once. Matches the real product's `otp==$otp` gate + `balance += total-commission` / `commission
 // owed += commission` split, but made race-safe and idempotent.
 export function completeBooking(orderId, providerId, otp) {
+  if(usesRemotePayments(orderId))throw new AppError(503,"legacy completion disabled for remote ownership");
   const order = repository.findOrderById(orderId);
   if (!order) throw new NotFoundError(`booking ${orderId} not found`);
   if (order.provider_id !== providerId) throw new ForbiddenError("you are not the provider on this booking");
@@ -301,6 +307,7 @@ export function completeBooking(orderId, providerId, otp) {
 }
 
 export function cancelBooking(orderId, customerId) {
+  if(usesRemotePayments(orderId))throw new AppError(503,"legacy cancellation disabled for remote ownership");
   const order = repository.findOrderById(orderId);
   if (!order) throw new NotFoundError(`booking ${orderId} not found`);
   if (order.customer_id !== customerId) throw new ForbiddenError("you are not the customer on this booking");
@@ -340,6 +347,7 @@ export function rescheduleBooking(orderId, auth, { service_date, starting_time }
   }
 
   const run = getDb().transaction(() => {
+    assertFinancialTransition(orderId,"reschedule");
     const endingTime = validateWindow(order.provider_id, service_date, starting_time, order.duration_min);
     // Drop this order's own holds first (so re-holding an overlapping window is fine), then re-hold.
     // A clash with ANOTHER order's holds throws ConflictError -> the whole tx rolls back, which

@@ -8,7 +8,7 @@ export function paymentStatus(view) {
 }
 export function canSimulatePayment(view) {
   const order=view?.order;
-  return order?.payment_method==='gateway' && order.status!=='cancelled' && !['paid','refunded'].includes(paymentStatus(view)) &&
+  return !['pending','attention'].includes(order?.cancellation_status) && order?.payment_method==='gateway' && order.status!=='cancelled' && !['paid','refunded'].includes(paymentStatus(view)) &&
     view.payment_intent?.status==='requires_payment' &&
     (view.payment_setup===undefined || view.payment_setup==='ready');
 }

@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## Step 5C A runtime preparation — 9 November 2026
+
+[Financial runtime handoff](financial-finalization-runtime-handoff.md) supersedes the contract-only implementation status below. A now supplies three financial command/query HTTP routes, a separately authenticated callback, strict service-owned validation, the saved-key client, injectable Booking completion/cancellation/status/guard callers and pending/attention UI. Default production remains unwired; no schema, data, routing or real auth was activated. C still supplies durable financial operations, atomic Booking work/guards and recovery; B real verification/delegation; D faults; E final processes/tracing/Pact. See the handoff for exact validation and fixture limitations; step 5C as a whole and legacy eligibility/cutover remain open.
+
 ## Step 5C exact contract v1.0.0 — 8 November 2026
 
 [Financial finalization contract](financial-finalization-contract-handoff.md) publishes strict OpenAPI/fixtures plus dev-only shape/identity/arithmetic validation for completion/cancellation/query/webhook and new-mode Booking projections. Local static conformance29 (19 existing+10 new) passed; a dedicated API schema/fixture CI job is added alongside ordered Pact. This is A's contract deliverable, not new endpoints/C persistence/B auth or live acceptance. Gateway v1 requires existing reviewed provisioning references, COD forbids them, and legacy adoption remains gated. A router/client and C/B integration are next; current startup/data/routing remain unchanged.

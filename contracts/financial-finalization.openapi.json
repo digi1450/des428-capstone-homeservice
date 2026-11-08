@@ -1,14 +1,14 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Homeservice financial finalization \u2014 implementation contract only",
+    "title": "Homeservice financial finalization",
     "version": "1.0.0",
-    "description": "Lead-selected step5C baseline, exact A/C/B contract. No new financial route, participant, callback verifier or public pending projection is implemented by this document. Default production remains unchanged; tests validate static schemas/fixtures, not runtime atomicity/auth/recovery."
+    "description": "Lead-selected step5C v1.0.0 A/C/B contract. A HTTP validation/client/callers are implemented as explicit injection seams. Production remains unwired: C durable financial participant/Booking work/recovery and B real verification are required. Schema and fixture checks do not prove runtime atomicity/auth/recovery."
   },
   "servers": [
     {
       "url": "http://localhost:3002",
-      "description": "Payments origin, internal commands stay private and unmounted until actual implementation."
+      "description": "Payments origin. Financial HTTP routes are mounted but fail closed without the required real verifier/participant."
     }
   ],
   "security": [
@@ -20,7 +20,7 @@
     "/internal/booking-completions": {
       "post": {
         "operationId": "completeBookingFinancialOperation",
-        "x-implementation-status": "contract-only-not-mounted",
+        "x-implementation-status": "http-implemented-production-unwired",
         "x-required-operation": "complete_financial",
         "parameters": [
           {
@@ -138,7 +138,7 @@
     "/internal/booking-cancellations": {
       "post": {
         "operationId": "cancelBookingFinancialOperation",
-        "x-implementation-status": "contract-only-not-mounted",
+        "x-implementation-status": "http-implemented-production-unwired",
         "x-required-operation": "cancel_financial",
         "parameters": [
           {
@@ -256,7 +256,7 @@
     "/internal/financial-operations/{command_id}": {
       "get": {
         "operationId": "getFinancialOperation",
-        "x-implementation-status": "contract-only-not-mounted",
+        "x-implementation-status": "http-implemented-production-unwired",
         "x-required-operation": "query_financial",
         "parameters": [
           {
@@ -326,7 +326,7 @@
     "/api/payments/webhook": {
       "post": {
         "operationId": "receiveFinancialWebhook",
-        "x-implementation-status": "contract-only-not-mounted",
+        "x-implementation-status": "http-implemented-production-unwired",
         "x-required-operation": "settle_webhook",
         "security": [
           {
@@ -444,7 +444,7 @@
             "endUserBearer": []
           }
         ],
-        "x-implementation-status": "legacy-route-exists-new-mode-not-implemented",
+        "x-implementation-status": "public-callers-prepared-C-runtime-unwired",
         "parameters": [
           {
             "name": "id",
@@ -559,7 +559,7 @@
             "endUserBearer": []
           }
         ],
-        "x-implementation-status": "legacy-route-exists-new-mode-not-implemented",
+        "x-implementation-status": "public-callers-prepared-C-runtime-unwired",
         "parameters": [
           {
             "name": "id",

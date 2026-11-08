@@ -4,13 +4,15 @@ import { randomUUID } from "node:crypto";
 import { serviceName } from "./config.js";
 import { createPaymentCommandRouter } from "./command-router.js";
 import { createPaymentsRouter } from "./router.js";
+import { createFinancialRouter } from "./financial-router.js";
+import { createPaymentsService } from "./service.js";
 import { errorHandler } from "./errors.js";
 import { context, trace, isSpanContextValid } from "@opentelemetry/api";
 
 // Area E — Prometheus metrics
 import { metricsMiddleware, metricsHandler } from "./metrics.js";
 
-export function createApp({ database, authenticate, authenticateService, paymentCommands, paymentHooks }) {
+export function createApp({ database, authenticate, authenticateService, paymentCommands, paymentHooks, financialOperations, authenticateWebhook }) {
   const app = express();
   app.disable("x-powered-by");
   app.use((req, res, next) => {
@@ -67,6 +69,7 @@ export function createApp({ database, authenticate, authenticateService, payment
       res.status(503).json({ service: serviceName, status: "not_ready", requestId: req.requestId });
     }
   });
+  app.use(createFinancialRouter({authenticateService,financialOperations,authenticateWebhook,payments:createPaymentsService(database,paymentHooks)}));
   app.use("/api", createPaymentsRouter({ database, authenticate, paymentHooks }));
   app.use("/internal", createPaymentCommandRouter({ authenticateService, paymentCommands }));
   // Internal command HTTP is a fail-closed B/C seam, not a participant implementation.

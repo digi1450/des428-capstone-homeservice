@@ -2,8 +2,11 @@
 
 8 November 2026, based on main `7cbec6a` and the
 [lead-selected baseline](financial-finalization-decisions.md).
-This PR delivers schemas, fixtures, conformance validation and CI. **No new HTTP
-route/financial mode, C persistence/worker, B verifier or migration is implemented.**
+Initial delivery supplied schemas, fixtures, conformance validation and CI.
+**Superseding runtime update, 9 November:** A HTTP/client/callers are now prepared;
+read [runtime handoff](financial-finalization-runtime-handoff.md) for the exact
+injection and evidence limits. C durable financial persistence/work/recovery,
+B real verification and production activation are still pending.
 Existing legacy endpoints keep their behavior; new projection contracts below
 apply only to the later coordinated financial mode. Do not enable any selector
 or candidate gateway based on static contract tests.
@@ -101,7 +104,7 @@ or mark cancelled from them.
 
 ## C callable seam and B verifier seam
 
-A's future router injects a `financialOperations` object; no duplicate A store:
+A's router injects a `financialOperations` object; no duplicate A store:
 
 ```js
 // Interface only, not an implementation.
@@ -143,13 +146,13 @@ failed/unknown transaction. No new event schema is introduced.
 
 ## Public Booking mode and pending visibility
 
-The future financial-mode completion route keeps provider/OTP ownership checks
+The prepared financial-mode completion route keeps provider/OTP ownership checks
 and the existing flat completed order fields, adding accounting_status
 pending/ready/attention. It returns 200 once completed+work is durably committed,
 even if accounting is pending. No financial success is inferred from that 200.
 OTP stays a public input to Booking only and is not forwarded to Payments.
 
-The future cancellation route accepts no body or an empty JSON object only.
+The prepared cancellation route accepts no body or an empty JSON object only.
 202 returns `{order:<awaiting|confirmed>,cancellation_status:'pending'}`; keep
 holds and C's local transition guard. 409 may expose the corresponding attention
 projection. Terminal 200 returns `{order:<cancelled>,refunded:boolean,
@@ -163,13 +166,13 @@ retries; do not create a new work UUID just because the HTTP response was lost.
 Completion replay still verifies provider and OTP; cancellation replay verifies
 customer. Existing detail GET must expose applicable accounting/cancellation
 status when implemented, so refresh can inspect pending work. Its full existing
-items/participant/OTP projection is not redefined by this contract. A updates UI,
-replay responses and detail projection with the actual work adapter later.
+items/participant/OTP projection is not redefined by this contract. A now prepares UI, replay responses and detail projection through the injectable
+C Booking adapter; C must supply the actual durable work implementation.
 
 ## Remaining implementation and evidence
 
-A next implements validation/router/client against these fixtures, initially
-fail-closed without C/B. C owns new participant/work/guards/recovery/migrations;
+A validation/router/client/callers are now prepared and fail closed without C/B;
+see the linked runtime handoff for the superseding execution evidence. C owns new participant/work/guards/recovery/migrations;
 B real verification; D faults; E final processes/tracing/Pact. New C schema must
 be reviewed against importer and preserved SQLite startup before activation.
 Do not enable #40/#41/#42 selectors or route webhook traffic to an unmounted API.
@@ -178,8 +181,8 @@ Local conformance run: **29 tests passed** (19 existing + 10 new), no failures,
 skips or cancellations, Node 22 in a network-disabled container with read-only
 source. OpenAPI parser and fixtures/reference invariants passed. A dedicated
 `API schemas and fixtures` job is added alongside existing Pact CI; ordered
-consumer/provider Pact execution is unchanged. This PR does not add Pact
-verification of the unimplemented financial endpoints. No application/business,
+consumer/provider Pact execution is unchanged. Existing Pact coverage remains the Notifications and wallet-read boundaries;
+financial HTTP boundary tests are separate, not newly claimed Pact verification. No application/business,
 real SQL/HTTP/auth/race/recovery/Jaeger/load evidence is claimed from these static
 tests; their acceptance cases remain in the selected baseline.
 
