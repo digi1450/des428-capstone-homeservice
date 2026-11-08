@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For provider signup-wallet and approval-notification event-only writer preparation, read `docs/provider-event-writes-handoff.md`; it reuses C events and must not be enabled while remaining financial/inbox writers still own SQLite.
+
 - For Notifications API/page readers and the explicit credential/client seam, read `docs/notifications-callers-handoff.md`; remote reader preparation does not retire SQLite writers or activate cutover.
 
 - For A step 5 remaining SQLite callers/writers, existing C producers, implementation order and data/routing gates, read `docs/a-step5-caller-audit.md`; its source snapshot is explicit and it does not activate cutover.

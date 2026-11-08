@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A step 5B provider writer preparation — 8 November 2026
+
+[Provider event writers](provider-event-writes-handoff.md) add an explicit, disabled-by-default mode that omits signup SQLite wallet and approval SQLite notification writes while retaining C's existing transaction-bound events. Default responses/behavior remain compatible. Validation: monolith197, Notifications42, Payments90, actual monolith→RabbitMQ→two PG owner consumer boundary5 and standalone Next build passed. Remaining completion/refund/webhook, legacy notification relay/ratings, data/watermark/seed and real B/final-stack gates still prevent a production ownership switch. This does not close step 5B for all notification writers.
+
 ## A step 5A reader preparation — 8 November 2026
 
 [Notifications caller composition](notifications-callers-handoff.md) prepares async inbox API/page readers behind the existing HTTP client and B credential callback. Default startup remains legacy; remote mode never falls back to local inbox SQL. [The step-5 audit](a-step5-caller-audit.md) distinguishes remaining direct writers and current C producers. Validation: monolith190, Notifications42, real HTTP/PG caller boundary5, standalone build and default-mode HTML smoke passed. Auth is fixture-only in boundary tests; production B auth, notification writer/event/data handover, final-stack and cutover are still gated. Earlier unchanged-caller statements below are historical.

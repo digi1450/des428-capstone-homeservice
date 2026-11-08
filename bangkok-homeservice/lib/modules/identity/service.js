@@ -1,7 +1,7 @@
 // Identity business logic: registration, login, and the /me projection for each role. Password
 // hashing (bcryptjs, synchronous) and JWT issuance live here, at the service layer, not in routes.
-// A provider register is one transaction that also creates the provider_profiles + provider_wallets
-// rows, so a provider can never exist without its profile/wallet.
+// Registration commits provider/profile and durable wallet-provisioning event together.
+// The inherited local wallet remains the default until the coordinated event-writer cutover.
 import bcrypt from "bcryptjs";
 import { config } from "../../config.js";
 import { getDb } from "../../db/index.js";
@@ -9,6 +9,7 @@ import { signToken } from "../../http/auth.js";
 import * as repository from "./repository.js";
 import { insertEvent } from "../../db/events.js";
 import * as providersRepository from "../providers/repository.js";
+import { getProviderEventWrites } from "../providers/event-writes.js";
 import { ConflictError, UnauthorizedError, NotFoundError } from "../../errors.js";
 
 function publicCustomer(row) {
@@ -44,7 +45,7 @@ export function registerProvider({ email, password, name, phone, company_name })
   const create = getDb().transaction(() => {
     const id = repository.insertProvider({ email, passwordHash, name, phone });
     repository.insertProviderProfile(id, company_name);
-    repository.insertProviderWallet(id);
+    if (!getProviderEventWrites()) repository.insertProviderWallet(id);
     // Area C: same transaction as the provider row, so Payments & Wallet can never miss a
     // provider (outbox -> broker -> idempotent wallet consumer). No personal data in the event.
     insertEvent("provider.registered", "provider", id, { provider_id: id });

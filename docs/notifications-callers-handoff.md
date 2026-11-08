@@ -37,6 +37,8 @@ A remote outage is an error, not an empty inbox. The exported reset helper is
 for tests or coordinated teardown, not automatic failure recovery; never reset
 composition while serving traffic to make an outage use stale SQLite.
 
+> Provider writer follow-up: [signup/approval events-only preparation](provider-event-writes-handoff.md) is available but remains disabled; it does not retire every notification writer or activate readers.
+
 ## Activation gate — unchanged
 
 Nothing is added to production bootstrap. The default Notifications server still
