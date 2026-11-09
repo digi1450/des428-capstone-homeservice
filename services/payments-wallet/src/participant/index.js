@@ -11,6 +11,7 @@
 // No HTTP or other network call happens inside these transactions.
 import { createHash } from "node:crypto";
 import { HttpError } from "../errors.js";
+import { orderFenced } from "../financial/index.js";
 
 const conflict = (message, code) => {
   const error = new HttpError(409, message);
@@ -68,6 +69,8 @@ export function createPaymentParticipant({ database, business }) {
         if (state?.state === "fenced") throw conflict("payment setup was cancelled before this create arrived", SETUP_CANCELLED);
         if (state) throw conflict("provisioning exists without its create result");
         await lockOrder(tx, request.order_id);
+        // Step 5C: a financial cancellation fence on this order also blocks a late create.
+        if (await orderFenced(tx, request.order_id)) throw conflict("payment setup was cancelled before this create arrived", SETUP_CANCELLED);
         if (await one(tx, "SELECT 1 FROM payment_provisioning WHERE order_id=$1", [request.order_id])) {
           throw conflict("booking is already bound to another payment command");
         }
@@ -137,6 +140,8 @@ export function createPaymentParticipant({ database, business }) {
         const state = await provisioning(tx, callerId, target);
         if (state?.state === "fenced") throw conflict("payment setup was cancelled", SETUP_CANCELLED);
         if (!state || state.saga_id !== request.saga_id) throw conflict("no matching payment provisioning to activate");
+        // Step 5C: a refunded cancellation leaves provisioning 'activated' but fences the order.
+        if (await orderFenced(tx, state.order_id)) throw conflict("payment setup was cancelled", SETUP_CANCELLED);
         if (prior) return { replayed: true, result: prior.result };
         if (state.state === "created") {
           await lockOrder(tx, state.order_id);
@@ -153,6 +158,7 @@ export function createPaymentParticipant({ database, business }) {
     // Hook for A's settleWebhook: runs inside its transaction, which already holds lock 2.
     async assertSettlementAllowed(client, intent) {
       const state = await one(client, "SELECT state, intent_id FROM payment_provisioning WHERE order_id=$1", [intent.order_id]);
+      if (await orderFenced(client, intent.order_id)) return false; // step 5C financial cancellation fence
       return state?.state === "activated" && state.intent_id === intent.id;
     },
   };

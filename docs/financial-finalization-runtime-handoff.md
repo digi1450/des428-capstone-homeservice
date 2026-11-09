@@ -5,6 +5,8 @@ and [lead-selected baseline](financial-finalization-decisions.md), based on main
 `7cbec6a`. This is A's prepared implementation, not completed financial cutover.
 No production selector, schema, useful data, credentials or gateway route changed.
 
+> C follow-up: [Payments financial implementation](c-financial-operations-handoff.md) now supplies the explicit durable participant/fences and migration005. This supersedes the earlier missing-Payments-implementation status below; Booking financial work/recovery and B real verification remain pending, and production stays unwired.
+
 ## Payments HTTP and ownership
 
 `services/payments-wallet/src/financial-router.js` mounts these routes before the
