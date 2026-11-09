@@ -85,3 +85,13 @@ No local runtime or actual Keycloak test results are claimed.
 GitHub Actions **Area B security verification** run 42634091148 completed successfully for both Notifications and Payments Wallet tests. These are Node test suites with synthetic JWT/JWKS fixtures and mock identity responses; this does **not** constitute real-Keycloak or final-stack verification. The new monolith SQLite mapping test was added afterward and has a separate CI run pending. Financial operations from Area C are now composed at Payments startup; cross-team acceptance and database migration still require verification.
 
 **Cutover blockers:** real Keycloak issuer and client credentials, Keycloak service-account/client-role grants, browser authorization-code login and credential forwarding, deployed identity owner endpoint and secret provisioning, full ownership/BOLA matrix, and final E stack integration. Keep `AREA_B_AUTH_ENABLED=false` until these are verified.
+
+## Opt-in browser OIDC flow implemented (not production-validated)
+
+- `GET /api/auth/keycloak/start` generates a state, nonce and S256 PKCE verifier, stores the pending transaction in an AES-GCM authenticated HttpOnly SameSite cookie and redirects to Keycloak.
+- `GET /api/auth/keycloak/callback` checks callback origin, state and age; exchanges the one-time code; validates the ID token's RS256 signature, issuer, audience, expiry and nonce; checks the monolith-owned binding; then issues a short-lived encrypted HttpOnly session.
+- `POST /api/auth/keycloak/logout` clears local OIDC cookies. This is **not** Keycloak global logout or token revocation.
+- `lib/security/oidc-server-session.js` supplies a **server-only** Authorization header for Next server-side service calls. It is not a client/browser token endpoint.
+- Configuration: `OIDC_LOGIN_ENABLED=true`, `KEYCLOAK_ISSUER`, `OIDC_REDIRECT_URI` (exact public callback URL), `OIDC_SESSION_SECRET` (at least 32 random characters), `IDENTITY_MAPPING_DB_PATH`. Deploy over HTTPS; the callback URI must be allowlisted in Keycloak.
+- Browser session is intentionally capped to ten minutes and **does not implement refresh-token rotation**. Existing legacy login is not replaced. Application pages/API handlers must explicitly adopt the new session; legacy JWT and Keycloak sessions are not interchangeable.
+- Test source: `bangkok-homeservice/test/oidc-session.test.js`. The CI workflow now runs the new tests. Real TLS/Keycloak and full E stack remain external acceptance gates.
