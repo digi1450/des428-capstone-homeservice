@@ -8,6 +8,8 @@ test("realm has isolated human, Booking and gateway clients",()=>{
  assert.equal(realm.realm,"homeservice");
  assert.equal(clients["homeservice-web"].publicClient,true);
  assert.equal(clients["homeservice-web"].standardFlowEnabled,true);
+ assert.deepEqual(clients["homeservice-web"].redirectUris,["http://localhost:3000/api/auth/keycloak/callback"]);
+ assert.equal(clients["homeservice-web"].directAccessGrantsEnabled,false);
  for(const id of ["booking-service","mock-gateway-service"]){
   assert.equal(clients[id].serviceAccountsEnabled,true);
   assert.equal(clients[id].standardFlowEnabled,false);
