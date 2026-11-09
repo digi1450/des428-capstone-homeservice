@@ -27,7 +27,7 @@ export function createUserVerifier({ issuer, audience, resolveIdentity, fetchImp
       for (const k of json.keys) {
         if (k?.kty === "RSA" && k.use !== "enc" && (!k.alg || k.alg === "RS256") &&
             typeof k.kid === "string" && k.kid && typeof k.n === "string" && typeof k.e === "string")
-          next.set(k.kid, createPublicKey({ key: k, format: "jwk" }));
+          { try { next.set(k.kid, createPublicKey({ key: k, format: "jwk" })); } catch { /* ignore invalid trusted-key entries */ } }
       }
       if (!next.size) throw Error("empty jwks");
       cache = next;
@@ -45,7 +45,7 @@ export function createUserVerifier({ issuer, audience, resolveIdentity, fetchImp
     try {
       header = parse(a); claims = parse(b); signature = Buffer.from(c, "base64url");
     } catch { throw fail(401); }
-    if (header?.alg !== "RS256" || typeof header.kid !== "string" ||
+    if (!header || typeof header !== "object" || !claims || typeof claims !== "object" || header.alg !== "RS256" || typeof header.kid !== "string" ||
         header.jku || header.jwk || header.x5u || header.crit) throw fail(401);
     let key = (await keys()).get(header.kid);
     if (!key) key = (await keys(true)).get(header.kid);
