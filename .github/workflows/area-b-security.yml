@@ -56,4 +56,4 @@ jobs:
           cache: npm
           cache-dependency-path: bangkok-homeservice/package-lock.json
       - run: npm ci
-      - run: NODE_ENV=test node --test test/identity-mapping.test.js test/oidc-pkce.test.js test/oidc-session.test.js test/oidc-routes.test.js test/oidc-service-fetch.test.js test/oidc-payments-proxy.test.js test/keycloak-realm-contract.test.js test/area-b-inherited-intent-bola.test.js
+      - run: NODE_ENV=test node --test test/identity-mapping.test.js test/oidc-pkce.test.js test/oidc-session.test.js test/oidc-routes.test.js test/oidc-refresh-identity.test.js test/oidc-service-fetch.test.js test/oidc-payments-proxy.test.js test/keycloak-realm-contract.test.js test/area-b-inherited-intent-bola.test.js
