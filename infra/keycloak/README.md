@@ -34,3 +34,9 @@ After authenticating `kcadm.sh` as a realm administrator, run `bash infra/keyclo
 ## OIDC login status
 
 `bangkok-homeservice/lib/security/oidc-pkce.js` implements cryptographically random state, nonce, S256 PKCE challenge and authorization-code exchange as **server-side primitives only**. A complete browser session flow must verify the ID token signature, issuer, audience, nonce and state; bind tokens to an HttpOnly server session; implement refresh and logout; and preserve the legacy login until migration. These primitives are intentionally **not exposed as live login routes** before those checks exist.
+
+## Human role provisioning and contract test
+
+For an already-created human Keycloak account, authenticate `kcadm.sh` and run `KEYCLOAK_USERNAME=<username> bash infra/keycloak/assign-user-roles.sh`. This grants `user:read` for Notifications and Payments Wallet only; it refuses service-account usernames and does not create credentials or map legacy IDs. Separately provision `(issuer,sub)` using the monolith identity-binding CLI.
+
+The CI contract test `bangkok-homeservice/test/keycloak-realm-contract.test.js` checks client isolation, configured audiences and role names. It does not replace a Keycloak import or signed-token integration test. A deployment still needs actual TLS, reviewed callback URIs, service account credentials and verified token claims.
