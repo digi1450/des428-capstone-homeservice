@@ -28,6 +28,7 @@ import { hostname } from "node:os";
 import { getDb } from "../../db/index.js";
 import { logger } from "../../logger.js";
 import { ConflictError } from "../../errors.js";
+import { retryDelay } from "./backoff.js";
 import * as repository from "./repository.js";
 import { reserveBooking, emitBookingPlaced, toPublicOrder } from "./service.js";
 
@@ -52,8 +53,9 @@ let runtime = null;
 // method (pending). Until it exists, activation rows simply stay pending (never "ready").
 // Retry numbers are the existing saga defaults, not D-selected production values.
 export function configureBookingSaga({ payments, credentials = async () => ({}), maxCreateAttempts = 5,
-  maxCancelAttempts = 5, activateEscalateAfter = 5, baseBackoffMs = 1000, maxBackoffMs = 30000, leaseMs = 15000, retryAfterSeconds = 2 } = {}) {
-  runtime = { payments, credentials, maxCreateAttempts, maxCancelAttempts, activateEscalateAfter, baseBackoffMs, maxBackoffMs, leaseMs, retryAfterSeconds,
+  maxCancelAttempts = 5, activateEscalateAfter = 5, baseBackoffMs = 1000, maxBackoffMs = 30000, leaseMs = 15000, retryAfterSeconds = 2,
+  random = Math.random } = {}) { // `random` only for deterministic tests
+  runtime = { payments, credentials, maxCreateAttempts, maxCancelAttempts, activateEscalateAfter, baseBackoffMs, maxBackoffMs, leaseMs, retryAfterSeconds, random,
     owner: `booking-saga:${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}` };
   return runtime;
 }
@@ -100,10 +102,9 @@ function recordFailure(saga, error, limit, exhaustedTo, exhaustedReason) {
       move(saga, exhaustedTo, `${exhaustedReason} after ${attempts} unconfirmed attempts (${kind})`,
         exhaustedTo === STATES.COMPENSATION_PENDING ? { cancel_reason: "booking_setup_failed" } : {});
     } else {
-      const backoff = Math.min(runtime.maxBackoffMs, runtime.baseBackoffMs * 2 ** (attempts - 1));
-      const jitteredBackoff = Math.floor(backoff * (0.5 + Math.random() * 0.5));
+      const delay = retryDelay(attempts, { baseMs: runtime.baseBackoffMs, maxMs: runtime.maxBackoffMs, random: runtime.random });
       getDb().prepare("UPDATE booking_sagas SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ?")
-        .run(attempts, iso(jitteredBackoff), String(kind).slice(0, 120), iso(), saga.saga_id);
+        .run(attempts, iso(delay), String(kind).slice(0, 120), iso(), saga.saga_id);
     }
   }).immediate();
 }
@@ -228,7 +229,7 @@ async function deliverActivation(activation, token, rt) {
       .get(saga.saga_id, token);
     if (!current) return false;
     const attempts = current.attempts + 1;
-    const backoff = Math.min(rt.maxBackoffMs, rt.baseBackoffMs * 2 ** (attempts - 1));
+    const backoff = retryDelay(attempts, { baseMs: rt.baseBackoffMs, maxMs: rt.maxBackoffMs, random: rt.random }); // same jittered policy as saga steps
     getDb().prepare("UPDATE booking_saga_activations SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ? AND locked_by = ?")
       .run(attempts, iso(backoff), String(outcome.error?.reason ?? outcome.error?.name ?? "error").slice(0, 120), iso(), saga.saga_id, token);
     if (attempts === rt.activateEscalateAfter) attention(saga, activation, "activation_unconfirmed");
