@@ -33,7 +33,7 @@ export async function GET(request){
   if(accessClaims.iss!==issuer||accessClaims.sub!==verified.sub||accessClaims.azp!=="homeservice-web"||
      !Number.isSafeInteger(accessClaims.exp)||accessClaims.exp<=Math.floor(Date.now()/1000))throw Error("invalid access token claims");
   const expiry=Math.min(verified.exp,accessClaims.exp,Math.floor(Date.now()/1000)+600);
-  const session=seal({issuer,sub:verified.sub,role:identity.role,domainId:identity.domainId,exp:expiry,accessToken:tokens.access_token},secret);
+  const session=seal({issuer,sub:verified.sub,role:identity.role,domainId:identity.domainId,exp:expiry,accessToken:tokens.access_token,refreshToken:typeof tokens.refresh_token==="string"?tokens.refresh_token:null,refreshUntil:Math.floor(Date.now()/1000)+1800},secret);
   const headers=new Headers({"Location":"/","Cache-Control":"no-store"});
   headers.append("Set-Cookie",clear);
   headers.append("Set-Cookie",cookie("homeservice_oidc_session",session,{maxAge:Math.max(1,expiry-Math.floor(Date.now()/1000)),secure}));
