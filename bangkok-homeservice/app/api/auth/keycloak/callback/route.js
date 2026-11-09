@@ -25,7 +25,14 @@ export async function GET(request){
   let identity;
   try{store=createIdentityMappingStore({path});identity=store.lookup({issuer,sub:verified.sub});}finally{store?.close();}
   if(!identity)return Response.json({error:"account not provisioned"},{status:403,headers:{"Set-Cookie":clear}});
-  const expiry=Math.min(verified.exp,Math.floor(Date.now()/1000)+600);
+  // Decode the access-token expiry only as a session lifetime bound.
+  // The downstream service performs the authoritative JWT verification.
+  const accessParts=tokens.access_token.split(".");
+  if(accessParts.length!==3)throw Error("invalid access token");
+  const accessClaims=JSON.parse(Buffer.from(accessParts[1],"base64url").toString("utf8"));
+  if(accessClaims.iss!==issuer||accessClaims.sub!==verified.sub||accessClaims.azp!=="homeservice-web"||
+     !Number.isSafeInteger(accessClaims.exp)||accessClaims.exp<=Math.floor(Date.now()/1000))throw Error("invalid access token claims");
+  const expiry=Math.min(verified.exp,accessClaims.exp,Math.floor(Date.now()/1000)+600);
   const session=seal({issuer,sub:verified.sub,role:identity.role,domainId:identity.domainId,exp:expiry,accessToken:tokens.access_token},secret);
   const headers=new Headers({"Location":"/","Cache-Control":"no-store"});
   headers.append("Set-Cookie",clear);
