@@ -5,10 +5,11 @@ export async function verifyOidcIdToken({token,issuer,clientId="homeservice-web"
  const parts=token.split(".");
  if(parts.length!==3)throw Error("invalid ID token");
  const [h,p,s]=parts,header=decode(h),claims=decode(p);
+ if(!/^[A-Za-z0-9_-]+$/.test(s)||s.length>8192)throw Error("invalid signature encoding");
  if(!header||header.alg!=="RS256"||typeof header.kid!=="string"||!header.kid||header.jku||header.jwk||header.x5u||header.crit)throw Error("invalid ID token header");
  const seconds=Math.floor(now()/1000);
- if(!claims||claims.iss!==issuer||claims.aud!==clientId||claims.nonce!==nonce||typeof claims.sub!=="string"||!claims.sub||
- !Number.isSafeInteger(claims.exp)||claims.exp<=seconds||!Number.isSafeInteger(claims.iat)||claims.iat>seconds||
+ if(!claims||claims.iss!==issuer||!(claims.aud===clientId||(Array.isArray(claims.aud)&&claims.aud.includes(clientId)&&claims.azp===clientId))||claims.nonce!==nonce||typeof claims.sub!=="string"||!claims.sub||
+ !Number.isSafeInteger(claims.exp)||claims.exp<=seconds||!Number.isSafeInteger(claims.iat)||claims.iat>seconds||claims.iat<seconds-86400||
  (claims.nbf!==undefined&&(!Number.isSafeInteger(claims.nbf)||claims.nbf>seconds))||
  (claims.azp!==undefined&&claims.azp!==clientId))throw Error("invalid ID token claims");
  const endpoint=new URL(issuer);
