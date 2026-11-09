@@ -108,7 +108,7 @@ configureBookingFinancialAccess({ bookingFinalization }); // A's seam; then call
 
 - **Work table** `booking_financial_work` (SQLite) holds one row per accepted logical completion or cancellation: `UNIQUE(order_id, kind)`, the operation UUID, `command_id`, the frozen v1 snapshot and its state. It has its own lease and backoff. Existing files gain it through `migrate.js` `UPGRADES` step 2, starting empty: legacy money is never replayed.
 - **complete:** in ONE transaction it rechecks provider, OTP and `started`, runs `completeAtomic`, emits the same `booking.completed` and `status_changed` events, and saves the work, with no SQLite wallet or ledger write. It then makes one best-effort delivery and returns the completed order with `accounting_status`.
-  - A gateway order takes its provisioning refs from its COMPLETED saga.
+  - Completion takes gateway provisioning refs from its COMPLETED saga. Cancellation may also use the saved refs of an in-progress saga; it never fabricates refs for legacy orders.
   - A legacy gateway order without a saga gets 409, and everything rolls back.
 - **cancel:** in ONE transaction it rechecks the customer and `awaiting`/`confirmed`, then saves the work. The order and its holds are **kept**.
   - Only a ready Payments result finalizes, in one transaction: `cancelAtomic`, release holds, `markRefunded` only when the outcome is `refunded`, and one status event.
@@ -120,3 +120,25 @@ configureBookingFinancialAccess({ bookingFinalization }); // A's seam; then call
 - A's exporter guard now also rejects sources with `booking_financial_work` history.
 
 Still needed: B's service credentials, A/E composition (timer + selector), D's retry values, the legacy gateway gate.
+
+## A review fix: customer cancellation during setup — 9 November
+
+A legal cancellation is durably accepted even when its gateway saga is
+INTENT_CREATE_PENDING, COMPENSATION_PENDING or RECOVERY_PENDING. It uses the saved
+create/saga references and the same financial cancellation key on recovery.
+While its financial result is unknown, keep the order/holds and block competing
+Booking transitions. Provisioning recovery excludes these orders, and in-flight
+prepare/compensation/activation results cannot overwrite the accepted cancellation.
+Only a safe Payments acknowledgement atomically cancels Booking, releases holds,
+marks unfinished provisioning CANCELLED and blocks activation. Existing COMPLETED
+provisioning history is retained. Attention requires explicit reconciliation;
+legacy gateway orders without a saga still fail closed.
+
+The added regression fails on the original PR49 implementation and passes after
+this fix (9 tests including parent). Monolith241 and actual HTTP/PG boundaries
+15 + 7 passed, no skips. The 7-test boundary includes cancellation during a
+Payments outage before create, same-key recovery, and real rejection of late
+create/activate by the persisted Payments fence. Auth remains an explicit fixture;
+production composition, credential verification and recovery timer are not enabled.
+CI runs the older boundaries first, then Booking finalization, so synthetic wallet
+state cannot invalidate an earlier pending-wallet fixture. No schema/contract change.

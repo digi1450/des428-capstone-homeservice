@@ -45,22 +45,26 @@ test("Booking finalization against real Payments financial operations", { skip: 
   const customer = db.prepare("SELECT id FROM customers ORDER BY id LIMIT 1").get().id;
   const provider = db.prepare("SELECT id FROM providers ORDER BY id LIMIT 1").get().id;
   let n = 0;
-  async function booking({ status, method }) {
+  async function booking({ status, method, provision = true }) {
     n += 1;
     const day = `2027-03-${String(n).padStart(2, "0")}`;
-    const id = db.prepare(`INSERT INTO orders (customer_id,provider_id,service_date,starting_time,ending_time,duration_min,subtotal_cents,tax_cents,total_cents,commission_pct,payment_method,otp,status)
-      VALUES (?,?,?,'10:00','10:30',30,10000,700,10700,10,?,123456,?)`).run(customer, provider, day, method, status).lastInsertRowid;
+    const id = db.prepare(`INSERT INTO orders (id,customer_id,provider_id,service_date,starting_time,ending_time,duration_min,subtotal_cents,tax_cents,total_cents,commission_pct,payment_method,otp,status)
+      VALUES (?,?,?,?,'10:00','10:30',30,10000,700,10700,10,?,123456,?)`).run(490000 + n, customer, provider, day, method, status).lastInsertRowid;
     db.prepare("INSERT INTO slot_holds (provider_id, service_date, slot_time, order_id) VALUES (?,?,'10:00',?)").run(provider, day, id);
     if (method !== "gateway") return { id };
     // The provisioning saga already completed: real C participant create + activate in Payments,
     // and the matching saga row in SQLite (same create command / saga ids).
     const create = `create:${randomUUID()}`, saga = `saga:${randomUUID()}`;
-    const { result } = await runtime.participant.create({ callerId, commandId: create,
-      request: { order_id: id, customer_id: customer, provider_id: provider, amount_cents: 10700, currency: "THB", saga_id: saga } });
-    await runtime.participant.activate({ callerId, commandId: `activate:${saga}`, request: { create_command_id: create, saga_id: saga } });
+    let intent = null;
+    if (provision) {
+      const { result } = await runtime.participant.create({ callerId, commandId: create,
+        request: { order_id: id, customer_id: customer, provider_id: provider, amount_cents: 10700, currency: "THB", saga_id: saga } });
+      intent = result.payment_intent;
+      await runtime.participant.activate({ callerId, commandId: `activate:${saga}`, request: { create_command_id: create, saga_id: saga } });
+    }
     db.prepare(`INSERT INTO booking_sagas (saga_id,order_id,customer_id,request_key,request_digest,state,create_command_id,cancel_command_id,snapshot_json,intent_json)
-      VALUES (?,?,?,?,'d','COMPLETED',?,?,'{}',?)`).run(saga, id, customer, `k-${id}`, create, `cancel:${saga}`, JSON.stringify(result.payment_intent));
-    return { id, intent: result.payment_intent };
+      VALUES (?,?,?,?,'d',?,?,?,'{}',?)`).run(saga, id, customer, `k-${id}`, provision ? "COMPLETED" : "INTENT_CREATE_PENDING", create, `cancel:${saga}`, JSON.stringify(intent));
+    return { id, intent, create, saga };
   }
   const settle = (intent) => runtime.business.settleWebhook({ gateway_event_id: `evt:${randomUUID()}`, type: "payment_intent.succeeded", gateway_ref: intent.gateway_ref });
   const complete = (id) => call(completeRoute.POST, { token: signToken({ sub: provider, role: "provider" }), params: { id: String(id) }, body: { otp: 123456 } });
@@ -97,6 +101,26 @@ test("Booking finalization against real Payments financial operations", { skip: 
     assert.equal(holds(id), 0);
     await assert.rejects(settle(intent), (e) => e.statusCode === 409, "late payment cannot settle after the fence");
     assert.deepEqual(await ledger(id), []);
+  });
+
+  await t.test("cancel before create: durable pending while down, recovery fences late create and activation", async () => {
+    const { id, create, saga } = await booking({ status: "awaiting", method: "gateway", provision: false });
+    await stop();
+    const res = await cancel(id);
+    assert.deepEqual([res.status, res.body.cancellation_status, holds(id)], [202, "pending", 1]);
+    const key = db.prepare("SELECT command_id FROM booking_financial_work WHERE order_id=?").get(id).command_id;
+    await listen(); await tick(); await recoverFinalizationOnce();
+    assert.deepEqual([order(id).status, holds(id)], ["cancelled", 0]);
+    assert.equal(db.prepare("SELECT state FROM booking_sagas WHERE order_id=?").get(id).state, "CANCELLED");
+    assert.deepEqual((await pg.query("SELECT command_id,state FROM financial_commands WHERE order_id=$1", [id])).rows,
+      [{ command_id: key, state: "ready" }]);
+    await assert.rejects(runtime.participant.create({ callerId, commandId: create,
+      request: { order_id: id, customer_id: customer, provider_id: provider, amount_cents: 10700, currency: "THB", saga_id: saga } }),
+      e => e.statusCode === 409 && e.code === "PAYMENT_SETUP_CANCELLED");
+    await assert.rejects(runtime.participant.activate({ callerId, commandId: `activate:${saga}`,
+      request: { create_command_id: create, saga_id: saga } }), e => e.statusCode === 409 && e.code === "PAYMENT_SETUP_CANCELLED");
+    assert.deepEqual(await ledger(id), []);
+    assert.equal((await cancel(id)).body.cancellation_status, "ready");
   });
 
   await t.test("paid gateway cancellation: one refund in Payments, booking refunded", async () => {

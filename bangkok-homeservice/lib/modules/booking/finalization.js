@@ -60,7 +60,7 @@ function snapshot(order, kind, operationId) {
     const saga = sagaFor(order.id);
     // Never fabricate provisioning references for legacy gateway bookings (A/C legacy gate).
     if (!saga) throw new ConflictError("legacy gateway booking requires financial reconciliation");
-    if (saga.state !== "COMPLETED") throw new ConflictError("payment setup for this booking is still in progress");
+    if (kind === "completion" && saga.state !== "COMPLETED") throw new ConflictError("payment setup for this booking is still in progress");
     request.provisioning = { create_command_id: saga.create_command_id, saga_id: saga.saga_id };
   }
   return request;
@@ -182,6 +182,16 @@ function finalizeCancellation(work, token, result) {
   if (!settle(work, token, WORK.READY, { result })) return false;
   if (repository.cancelAtomic(work.order_id, request.customer_id) !== 1) throw new Error("cancellation finalize raced");
   repository.deleteSlotHoldsForOrder(work.order_id);
+  // Financial cancellation owns this lifecycle now. Stop provisioning/activation in the
+  // SAME local commit; a late network reply must not recreate activation or release holds early.
+  const saga = sagaFor(work.order_id);
+  if (saga) {
+    if (!["COMPLETED", "CANCELLED"].includes(saga.state)) {
+      db().prepare("UPDATE booking_sagas SET state = 'CANCELLED', cancel_reason = 'customer_cancelled', updated_at = ? WHERE saga_id = ?").run(iso(), saga.saga_id);
+      db().prepare("INSERT INTO booking_saga_transitions (saga_id, from_state, to_state, reason) VALUES (?, ?, 'CANCELLED', 'financial cancellation confirmed')").run(saga.saga_id, saga.state);
+    }
+    db().prepare("UPDATE booking_saga_activations SET state = 'blocked', last_error = 'financial_cancellation', updated_at = ? WHERE saga_id = ?").run(iso(), saga.saga_id);
+  }
   if (refunded) repository.markRefunded(work.order_id);
   insertEvent("booking.status_changed", "order", work.order_id, {
     order_id: work.order_id, from: order.status, to: "cancelled",
