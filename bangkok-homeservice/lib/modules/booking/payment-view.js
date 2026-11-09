@@ -1,12 +1,12 @@
 // Own Booking data is authorized locally; intent/simulation ownership is verified again in Payments.
 import * as booking from './service.js';
 import * as repository from './repository.js';
+import {financialStatus} from './financial-access.js';
+import {usesRemotePayments} from '../payments/ownership.js';
+export {usesRemotePayments} from '../payments/ownership.js';
 import {getPaymentsAccess} from '../payments/access.js';
 import {simulateSucceeded} from '../payments/gateway.js';
 import {AppError,ForbiddenError,ConflictError} from '../../errors.js';
-export function usesRemotePayments(orderId) {
-  return !!getPaymentsAccess() || !!repository.findSagaByOrderId(orderId);
-}
 async function setup(orderId,access) {
   if(!access?.readSetup) return 'pending';
   try {return (await access.readSetup(orderId))==='ready'?'ready':'pending';} catch {return 'pending';}
@@ -14,6 +14,7 @@ async function setup(orderId,access) {
 export async function getBookingView(orderId,auth,context) {
   const remote=usesRemotePayments(orderId);
   const out=booking.getBooking(orderId,auth,{includeLocalPayment:!remote});
+  Object.assign(out,await financialStatus(orderId,auth,context));
   if(!remote || out.payment_method!=='gateway') return out;
   out.payment_setup='pending';
   const access=getPaymentsAccess();
@@ -35,6 +36,7 @@ export async function simulateBookingPayment(orderId,auth,context) {
   const order=booking.getBooking(orderId,auth,{includeLocalPayment:!remote});
   if(order.status==='cancelled') throw new ConflictError('cancelled booking cannot be paid');
   if(!remote) return simulateSucceeded(orderId,auth.sub);
+  if(['pending','attention'].includes((await financialStatus(orderId,auth,context)).cancellation_status))throw new ConflictError('cancellation is being reconciled');
   if(order.payment_method!=='gateway') throw new ConflictError('booking has no online payment');
   const access=getPaymentsAccess();
   if(!access || await setup(orderId,access)!=='ready') throw new AppError(503,'payment setup is still pending');

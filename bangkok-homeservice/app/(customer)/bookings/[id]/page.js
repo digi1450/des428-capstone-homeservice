@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { getSession } from "#lib/http/session.js";
 import { getBookingView } from "#lib/modules/booking/payment-view.js";
 import { paymentStatus } from "../../../_ui/payment-state.js";
+import { FinancialStatus } from "../../../_ui/financial-status.js";
 import { money, Badge } from "../../../_ui/format.js";
 import { ActionButton, ReviewForm, BookingPayment } from "../../../_ui/client.js";
 
@@ -19,7 +20,7 @@ export default async function BookingDetailPage({ params }) {
     redirect("/");
   }
 
-  const canCancel = session.role === "customer" && ["awaiting", "confirmed"].includes(b.status);
+  const canCancel = session.role === "customer" && ["awaiting", "confirmed"].includes(b.status) && !["pending","attention"].includes(b.cancellation_status);
   const canReview = session.role === "customer" && b.status === "completed";
 
   return (
@@ -41,6 +42,7 @@ export default async function BookingDetailPage({ params }) {
         </div>
       </div>
 
+      <FinancialStatus order={b} />
       {session.role === "customer" ? <BookingPayment initial={{order:b,payment_intent:b.payment_intent,payment_setup:b.payment_setup}} /> : null}
 
       {b.items && b.items.length ? (

@@ -1,0 +1,2322 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Homeservice financial finalization",
+    "version": "1.0.0",
+    "description": "Lead-selected step5C v1.0.0 A/C/B contract. A HTTP validation/client/callers are implemented as explicit injection seams. Production remains unwired: C durable financial participant/Booking work/recovery and B real verification are required. Schema and fixture checks do not prove runtime atomicity/auth/recovery."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3002",
+      "description": "Payments origin. Financial HTTP routes are mounted but fail closed without the required real verifier/participant."
+    }
+  ],
+  "security": [
+    {
+      "serviceBearer": []
+    }
+  ],
+  "paths": {
+    "/internal/booking-completions": {
+      "post": {
+        "operationId": "completeBookingFinancialOperation",
+        "x-implementation-status": "http-implemented-production-unwired",
+        "x-required-operation": "complete_financial",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "^complete:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "description": "Must equal complete:<body.operation_id>; persist once and reuse unchanged."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "200": {
+            "description": "Validated durable ready result; identical terminal replay returns the same result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletionReady"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durably accepted pending operation. No financial success/final cancellation inferred.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletionPending"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Durable attention or coded conflict. Uncoded conflict is reconciliation, never a confirmed cancellation.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CompletionAttention"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CodedConflict"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Service-to-service only; Booking owns trusted immutable context. Additional cross-field identity/arithmetic constraints are in the handoff and reference validator. No HTTP is performed inside local SQL transactions."
+      }
+    },
+    "/internal/booking-cancellations": {
+      "post": {
+        "operationId": "cancelBookingFinancialOperation",
+        "x-implementation-status": "http-implemented-production-unwired",
+        "x-required-operation": "cancel_financial",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "^cancel:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "description": "Must equal cancel:<body.operation_id>; persist once and reuse unchanged."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancellationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "200": {
+            "description": "Validated durable ready result; identical terminal replay returns the same result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancellationReady"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durably accepted pending operation. No financial success/final cancellation inferred.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancellationPending"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Durable attention or coded conflict. Uncoded conflict is reconciliation, never a confirmed cancellation.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CancellationAttention"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CodedConflict"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Service-to-service only; Booking owns trusted immutable context. Additional cross-field identity/arithmetic constraints are in the handoff and reference validator. No HTTP is performed inside local SQL transactions."
+      }
+    },
+    "/internal/financial-operations/{command_id}": {
+      "get": {
+        "operationId": "getFinancialOperation",
+        "x-implementation-status": "http-implemented-production-unwired",
+        "x-required-operation": "query_financial",
+        "parameters": [
+          {
+            "name": "command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CommandId"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "200": {
+            "description": "Successful lookup, NOT financial success: inspect state ready/pending/attention.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancialOperation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown for this stable caller. Do not infer failure or safe release; retry/query original operation.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/webhook": {
+      "post": {
+        "operationId": "receiveFinancialWebhook",
+        "x-implementation-status": "http-implemented-production-unwired",
+        "x-required-operation": "settle_webhook",
+        "security": [
+          {
+            "gatewayBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "200": {
+            "description": "Authenticated callback receipt/effect transaction completed; no duplicate charge/outbox.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAck"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown gateway reference; no effect committed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed event payload, cancellation fence or other consistency conflict; never acknowledge as success.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CodedConflict"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Preserve public callback path/payload. This Payments route is not mounted. B supplies mock-gateway authentication, distinct from Booking/customer. Unsupported type is rejected; retry the same gateway event ID."
+      }
+    },
+    "/api/bookings/{id}/complete": {
+      "post": {
+        "operationId": "completeBookingPublicFinancialMode",
+        "servers": [
+          {
+            "url": "http://localhost:3000",
+            "description": "Monolith origin; this projection is only for the future financial mode."
+          }
+        ],
+        "security": [
+          {
+            "endUserBearer": []
+          }
+        ],
+        "x-implementation-status": "public-callers-prepared-C-runtime-unwired",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DomainId"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "404": {
+            "description": "Booking not found",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Illegal local state/OTP/ownership transition or reconciliation required.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Booking completed with authoritative accounting_status; pending is not payout confirmation.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedOrder"
+                }
+              }
+            }
+          }
+        },
+        "description": "No browser-supplied financial command ID or money. Booking persists its operation UUID/key once; retries must recover that work. Cookie-based browser credentials require B integration; this contract illustrates bearer API clients.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletePublicRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/cancel": {
+      "post": {
+        "operationId": "cancelBookingPublicFinancialMode",
+        "servers": [
+          {
+            "url": "http://localhost:3000",
+            "description": "Monolith origin; this projection is only for the future financial mode."
+          }
+        ],
+        "security": [
+          {
+            "endUserBearer": []
+          }
+        ],
+        "x-implementation-status": "public-callers-prepared-C-runtime-unwired",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DomainId"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "415": {
+            "$ref": "#/components/responses/Error415"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          },
+          "404": {
+            "description": "Booking not found",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Illegal transition or cancellation attention; do not release slots from an untyped conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CancellationPublicAttention"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Cancelled only after safe Payments acknowledgement; refunded is confirmed, not guessed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancellationPublicReady"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Cancellation pending; original order/slots retained. No refunded field.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/X-Request-Id"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancellationPublicPending"
+                }
+              }
+            }
+          }
+        },
+        "description": "No browser-supplied financial command ID or money. Booking persists its operation UUID/key once; retries must recover that work. Cookie-based browser credentials require B integration; this contract illustrates bearer API clients.",
+        "requestBody": {
+          "required": false,
+          "description": "No body or an empty JSON object only; no browser money/owner/work fields.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCancellationRequest"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "serviceBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "B verified Booking service principal; audience payments-wallet-service and exact operation permission."
+      },
+      "gatewayBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Dedicated mock-gateway bearer credential verified by B callback verifier. No customer/Booking-token or legacy-secret fallback; B owns token validation and principal provisioning."
+      },
+      "endUserBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "B verified customer/provider API credentials; browser session/delegation wiring remains integration work."
+      }
+    },
+    "schemas": {
+      "OperationId": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      },
+      "CommandId": {
+        "type": "string",
+        "pattern": "^(complete|cancel):[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        "maxLength": 128
+      },
+      "DomainId": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 1,
+        "maximum": 2147483647
+      },
+      "Money": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0,
+        "maximum": 2147483647
+      },
+      "Provisioning": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "create_command_id",
+          "saga_id"
+        ],
+        "properties": {
+          "create_command_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._:-]+$"
+          },
+          "saga_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._:-]+$"
+          }
+        }
+      },
+      "CompletionGatewayRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation_id",
+          "order_id",
+          "customer_id",
+          "provider_id",
+          "amount_cents",
+          "currency",
+          "payment_method",
+          "commission_cents",
+          "provisioning"
+        ],
+        "properties": {
+          "operation_id": {
+            "$ref": "#/components/schemas/OperationId"
+          },
+          "order_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "amount_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "THB"
+            ]
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "gateway"
+            ]
+          },
+          "commission_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/Provisioning"
+          }
+        }
+      },
+      "CompletionCodRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation_id",
+          "order_id",
+          "customer_id",
+          "provider_id",
+          "amount_cents",
+          "currency",
+          "payment_method",
+          "commission_cents"
+        ],
+        "properties": {
+          "operation_id": {
+            "$ref": "#/components/schemas/OperationId"
+          },
+          "order_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "amount_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "THB"
+            ]
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "cod"
+            ]
+          },
+          "commission_cents": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "CompletionRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CompletionGatewayRequest"
+          },
+          {
+            "$ref": "#/components/schemas/CompletionCodRequest"
+          }
+        ]
+      },
+      "CancellationGatewayRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation_id",
+          "order_id",
+          "customer_id",
+          "provider_id",
+          "amount_cents",
+          "currency",
+          "payment_method",
+          "reason",
+          "provisioning"
+        ],
+        "properties": {
+          "operation_id": {
+            "$ref": "#/components/schemas/OperationId"
+          },
+          "order_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "amount_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "THB"
+            ]
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "gateway"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "customer_cancelled"
+            ]
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/Provisioning"
+          }
+        }
+      },
+      "CancellationCodRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation_id",
+          "order_id",
+          "customer_id",
+          "provider_id",
+          "amount_cents",
+          "currency",
+          "payment_method",
+          "reason"
+        ],
+        "properties": {
+          "operation_id": {
+            "$ref": "#/components/schemas/OperationId"
+          },
+          "order_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "amount_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "THB"
+            ]
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "cod"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "customer_cancelled"
+            ]
+          }
+        }
+      },
+      "CancellationRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CancellationGatewayRequest"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationCodRequest"
+          }
+        ]
+      },
+      "CompletionPending": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "reason"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "completion"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CompletionRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "processing",
+              "awaiting_settlement"
+            ]
+          }
+        }
+      },
+      "CompletionAttention": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "reason"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "completion"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CompletionRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "attention"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "context_mismatch",
+              "legacy_reconciliation_required",
+              "cancellation_fenced",
+              "completion_accounted",
+              "settlement_contradiction"
+            ]
+          }
+        }
+      },
+      "CancellationPending": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "reason"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "cancellation"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CancellationRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "processing"
+            ]
+          }
+        }
+      },
+      "CancellationAttention": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "reason"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "cancellation"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CancellationRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "attention"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "context_mismatch",
+              "legacy_reconciliation_required",
+              "completion_accounted",
+              "settlement_contradiction"
+            ]
+          }
+        }
+      },
+      "CompletionGatewayReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "accounting"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "completion"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CompletionGatewayRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "accounting": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "transaction_id",
+              "kind",
+              "amount_cents"
+            ],
+            "properties": {
+              "transaction_id": {
+                "$ref": "#/components/schemas/DomainId"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "payout_credit"
+                ]
+              },
+              "amount_cents": {
+                "$ref": "#/components/schemas/Money"
+              }
+            }
+          }
+        }
+      },
+      "CompletionCodReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "accounting"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "completion"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CompletionCodRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "accounting": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "transaction_id",
+              "kind",
+              "amount_cents"
+            ],
+            "properties": {
+              "transaction_id": {
+                "$ref": "#/components/schemas/DomainId"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "commission_owed"
+                ]
+              },
+              "amount_cents": {
+                "$ref": "#/components/schemas/Money"
+              }
+            }
+          }
+        }
+      },
+      "CompletionReady": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CompletionGatewayReady"
+          },
+          {
+            "$ref": "#/components/schemas/CompletionCodReady"
+          }
+        ]
+      },
+      "CancellationNoPaymentGatewayReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "settlement_fenced",
+          "outcome"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "cancellation"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CancellationGatewayRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "settlement_fenced": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "no_payment"
+            ]
+          }
+        }
+      },
+      "CancellationNoPaymentCodReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "settlement_fenced",
+          "outcome"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "cancellation"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CancellationCodRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "settlement_fenced": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "no_payment"
+            ]
+          }
+        }
+      },
+      "CancellationVoidedReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "settlement_fenced",
+          "outcome",
+          "voided_intent_id"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "cancellation"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CancellationGatewayRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "settlement_fenced": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "voided"
+            ]
+          },
+          "voided_intent_id": {
+            "$ref": "#/components/schemas/DomainId"
+          }
+        }
+      },
+      "CancellationRefundedReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command_id",
+          "kind",
+          "request",
+          "state",
+          "settlement_fenced",
+          "outcome",
+          "refund_transaction_id"
+        ],
+        "properties": {
+          "command_id": {
+            "$ref": "#/components/schemas/CommandId"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "cancellation"
+            ]
+          },
+          "request": {
+            "$ref": "#/components/schemas/CancellationGatewayRequest"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "settlement_fenced": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "refunded"
+            ]
+          },
+          "refund_transaction_id": {
+            "$ref": "#/components/schemas/DomainId"
+          }
+        }
+      },
+      "CancellationReady": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CancellationNoPaymentGatewayReady"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationNoPaymentCodReady"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationVoidedReady"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationRefundedReady"
+          }
+        ]
+      },
+      "CompletionOperation": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CompletionReady"
+          },
+          {
+            "$ref": "#/components/schemas/CompletionPending"
+          },
+          {
+            "$ref": "#/components/schemas/CompletionAttention"
+          }
+        ]
+      },
+      "CancellationOperation": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CancellationReady"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationPending"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationAttention"
+          }
+        ]
+      },
+      "FinancialOperation": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CompletionOperation"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationOperation"
+          }
+        ]
+      },
+      "AttentionOperation": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CompletionAttention"
+          },
+          {
+            "$ref": "#/components/schemas/CancellationAttention"
+          }
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "requestId"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+          }
+        }
+      },
+      "CodedConflict": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "requestId",
+          "code"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "requestId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "FINANCIAL_COMMAND_CONFLICT",
+              "FINANCIAL_CONTEXT_MISMATCH",
+              "FINANCIAL_OPERATION_BLOCKED",
+              "FINANCIAL_LEGACY_RECONCILIATION_REQUIRED"
+            ]
+          }
+        }
+      },
+      "WebhookRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gateway_event_id",
+          "type",
+          "gateway_ref"
+        ],
+        "properties": {
+          "gateway_event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": ".*\\S.*"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "payment_intent.succeeded"
+            ]
+          },
+          "gateway_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": ".*\\S.*"
+          }
+        }
+      },
+      "WebhookSettled": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "received",
+          "replayed",
+          "settled"
+        ],
+        "properties": {
+          "received": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "replayed": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "settled": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "WebhookReplay": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "received",
+          "replayed"
+        ],
+        "properties": {
+          "received": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "replayed": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "WebhookAlreadySettled": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "received",
+          "replayed",
+          "already_settled"
+        ],
+        "properties": {
+          "received": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "replayed": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "already_settled": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "WebhookAck": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WebhookSettled"
+          },
+          {
+            "$ref": "#/components/schemas/WebhookReplay"
+          },
+          {
+            "$ref": "#/components/schemas/WebhookAlreadySettled"
+          }
+        ]
+      },
+      "CompletedOrder": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "customer_id",
+          "provider_id",
+          "address_id",
+          "service_date",
+          "starting_time",
+          "ending_time",
+          "duration_min",
+          "subtotal_cents",
+          "tax_cents",
+          "total_cents",
+          "commission_pct",
+          "commission_cents",
+          "provider_earnings_cents",
+          "payment_method",
+          "payment_status",
+          "status",
+          "job_request_id",
+          "created_at",
+          "updated_at",
+          "accounting_status"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "address_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "service_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "starting_time": {
+            "type": "string",
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "ending_time": {
+            "type": "string",
+            "pattern": "^[0-9]{2,}:[0-5][0-9]$",
+            "description": "Preserved minutesToTime output: custom jobs may end at 24:00 or later extended hours without date wrapping."
+          },
+          "duration_min": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "subtotal_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "tax_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "total_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "commission_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "commission_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "provider_earnings_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "gateway",
+              "cod"
+            ]
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "job_request_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "accounting_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "attention"
+            ]
+          }
+        }
+      },
+      "PendingCancellationOrder": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "customer_id",
+          "provider_id",
+          "address_id",
+          "service_date",
+          "starting_time",
+          "ending_time",
+          "duration_min",
+          "subtotal_cents",
+          "tax_cents",
+          "total_cents",
+          "commission_pct",
+          "commission_cents",
+          "provider_earnings_cents",
+          "payment_method",
+          "payment_status",
+          "status",
+          "job_request_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "address_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "service_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "starting_time": {
+            "type": "string",
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "ending_time": {
+            "type": "string",
+            "pattern": "^[0-9]{2,}:[0-5][0-9]$",
+            "description": "Preserved minutesToTime output: custom jobs may end at 24:00 or later extended hours without date wrapping."
+          },
+          "duration_min": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "subtotal_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "tax_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "total_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "commission_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "commission_cents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "provider_earnings_cents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "gateway",
+              "cod"
+            ]
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "awaiting",
+              "confirmed"
+            ]
+          },
+          "job_request_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CancelledOrder": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "customer_id",
+          "provider_id",
+          "address_id",
+          "service_date",
+          "starting_time",
+          "ending_time",
+          "duration_min",
+          "subtotal_cents",
+          "tax_cents",
+          "total_cents",
+          "commission_pct",
+          "commission_cents",
+          "provider_earnings_cents",
+          "payment_method",
+          "payment_status",
+          "status",
+          "job_request_id",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "customer_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/DomainId"
+          },
+          "address_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "service_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "starting_time": {
+            "type": "string",
+            "pattern": "^(?:[01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "ending_time": {
+            "type": "string",
+            "pattern": "^[0-9]{2,}:[0-5][0-9]$",
+            "description": "Preserved minutesToTime output: custom jobs may end at 24:00 or later extended hours without date wrapping."
+          },
+          "duration_min": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "subtotal_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "tax_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "total_cents": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "commission_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "commission_cents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "provider_earnings_cents": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "gateway",
+              "cod"
+            ]
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "paid",
+              "refunded"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "cancelled"
+            ]
+          },
+          "job_request_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CancellationPublicPending": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "order",
+          "cancellation_status"
+        ],
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/PendingCancellationOrder"
+          },
+          "cancellation_status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          }
+        }
+      },
+      "CancellationPublicAttention": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "order",
+          "cancellation_status"
+        ],
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/PendingCancellationOrder"
+          },
+          "cancellation_status": {
+            "type": "string",
+            "enum": [
+              "attention"
+            ]
+          }
+        }
+      },
+      "CancellationPublicReady": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "order",
+          "refunded",
+          "cancellation_status"
+        ],
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/CancelledOrder"
+          },
+          "refunded": {
+            "type": "boolean"
+          },
+          "cancellation_status": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          }
+        }
+      },
+      "CompletePublicRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "otp"
+        ],
+        "properties": {
+          "otp": {
+            "type": "integer",
+            "minimum": 100000,
+            "maximum": 999999
+          }
+        }
+      },
+      "EmptyCancellationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    },
+    "headers": {
+      "X-Request-Id": {
+        "schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+        },
+        "description": "Correlation only; never the command identity."
+      },
+      "Cache-Control": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "no-store"
+          ]
+        }
+      }
+    },
+    "responses": {
+      "Error400": {
+        "description": "Malformed body/key/unsupported context",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/X-Request-Id"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error401": {
+        "description": "Missing or invalid credentials",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/X-Request-Id"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error403": {
+        "description": "Verified caller lacks the operation permission",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/X-Request-Id"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error413": {
+        "description": "Body exceeds 16 KiB",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/X-Request-Id"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error415": {
+        "description": "application/json with supported encoding required",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/X-Request-Id"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error500": {
+        "description": "Sanitized unexpected error; financial outcome remains unknown",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/X-Request-Id"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error503": {
+        "description": "Runtime/auth/participant or dependency unavailable; outcome is unknown",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/X-Request-Id"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-c-participant": {
+    "injectionName": "financialOperations",
+    "complete": {
+      "input": [
+        "callerId",
+        "commandId",
+        "request",
+        "context"
+      ],
+      "return": "{replayed:boolean,result:CompletionOperation}"
+    },
+    "cancel": {
+      "input": [
+        "callerId",
+        "commandId",
+        "request",
+        "context"
+      ],
+      "return": "{replayed:boolean,result:CancellationOperation}"
+    },
+    "get": {
+      "input": [
+        "callerId",
+        "commandId",
+        "context"
+      ],
+      "return": "FinancialOperation|null"
+    }
+  },
+  "x-b-authentication": {
+    "authenticateService": {
+      "operations": [
+        "complete_financial",
+        "cancel_financial",
+        "query_financial"
+      ],
+      "return": "{service:'booking',callerId:<stable-string>}"
+    },
+    "authenticateWebhook": {
+      "operations": [
+        "settle_webhook"
+      ],
+      "return": "{service:'mock-gateway',callerId:<stable-string>}"
+    }
+  },
+  "x-requirements": [
+    "Reject nonempty unknown query fields and unknown body fields; command/webhook bodies limited to16KiB.",
+    "Operation/key equality, complete request echo and completion arithmetic require explicit validators beyond OpenAPI structural validation.",
+    "Pending results may progress under the same saved command. Ready result and financial effects replay unchanged; request identity never changes.",
+    "POST200 means ready; POST202 means durable pending; GET200 only means lookup succeeded.",
+    "No gateway legacy intent without reviewed provisioning references is adopted by v1. No fabricated references for COD or imported legacy data.",
+    "A/C schema and importer/startup review is mandatory before activation; this contract supplies no new persistence."
+  ]
+}

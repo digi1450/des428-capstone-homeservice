@@ -1,5 +1,37 @@
 # Shared project status and handoff
 
+## A step 5D legacy-only rehearsal — 9 November 2026
+
+[Legacy rehearsal](legacy-cutover-rehearsal-handoff.md) adds known distributed-source/attention guards to the read-only exporter, eight synthetic historical cohorts, actual C runtime/imported-data boundary checks, a WAL backup fixture and CI. Python16 and Node/PG34 tests passed locally using disposable data. Import preserves history but does not adopt/activate legacy intents; C/B eligibility/work/auth and the shared checkpoint/final cutover remain open. Known mixed SQLite/PG/broker state now requires explicit review rather than a SQLite-only export. No runtime schema, useful data, credentials or routing was changed.
+
+## Step 5C A runtime preparation — 9 November 2026
+
+[Financial runtime handoff](financial-finalization-runtime-handoff.md) supersedes the contract-only implementation status below. A now supplies three financial command/query HTTP routes, a separately authenticated callback, strict service-owned validation, the saved-key client, injectable Booking completion/cancellation/status/guard callers and pending/attention UI. Default production remains unwired; no schema, data, routing or real auth was activated. C still supplies durable financial operations, atomic Booking work/guards and recovery; B real verification/delegation; D faults; E final processes/tracing/Pact. See the handoff for exact validation and fixture limitations; step 5C as a whole and legacy eligibility/cutover remain open.
+
+## Step 5C exact contract v1.0.0 — 8 November 2026
+
+[Financial finalization contract](financial-finalization-contract-handoff.md) publishes strict OpenAPI/fixtures plus dev-only shape/identity/arithmetic validation for completion/cancellation/query/webhook and new-mode Booking projections. Local static conformance29 (19 existing+10 new) passed; a dedicated API schema/fixture CI job is added alongside ordered Pact. This is A's contract deliverable, not new endpoints/C persistence/B auth or live acceptance. Gateway v1 requires existing reviewed provisioning references, COD forbids them, and legacy adoption remains gated. A router/client and C/B integration are next; current startup/data/routing remain unchanged.
+
+## Step 5C baseline adopted by the lead — 8 November 2026
+
+The lead has now adopted [financial finalization policies and technical direction](financial-finalization-decisions.md) as the team baseline, superseding the proposal/review-before-code status recorded in #43 and the historical section below. A can author the exact versioned OpenAPI/payload/outcome/callable fixtures and implement its endpoints/client/callers without waiting for C/B direction approval. C owns the durable participant/work/recovery and B the real auth/permissions/callback verifier; both implement against the common baseline and report blockers rather than changing interfaces independently. This records a lead instruction, not teammate notification/acknowledgement or implemented runtime behavior; real integration/schema/data gates remain open.
+
+## A step 5C decisions — 8 November 2026
+
+[Financial finalization decisions](financial-finalization-decisions.md) record the lead's six selected A/C policies: completed with accounting pending, cancellation/hold release only after safe Payments confirmation, serialized settlement/fence/refund, same-key recovery/attention and Payments-owned callback. The separate technical proposal calls out COD without provisioning, local pending-cancel guards, payout eligibility and schema/importer review. No new endpoint, command store, caller, auth or runtime behavior is implemented; C/B technical contract review is next.
+
+## A step 5B local relay retirement preparation — 8 November 2026
+
+[Notification event delivery](notification-event-delivery-handoff.md) adds an explicit disabled-by-default mode that stops/guards the inherited relay without claiming local `processed_at`. C's existing separate ratings inbox retains Catalog/Provider aggregates in monolith. Validation: monolith202, Notifications42, actual SQLite→RabbitMQ→Notes plus monolith ratings boundary4, lifecycle5 and standalone build passed. Startup remains legacy. Provider writers/readers, B auth, old-event watermark/inbox migration and remaining financial writers must switch coherently; null local processed markers after new ownership are not permission to stamp or replay history.
+
+## A step 5B provider writer preparation — 8 November 2026
+
+[Provider event writers](provider-event-writes-handoff.md) add an explicit, disabled-by-default mode that omits signup SQLite wallet and approval SQLite notification writes while retaining C's existing transaction-bound events. Default responses/behavior remain compatible. Validation: monolith197, Notifications42, Payments90, actual monolith→RabbitMQ→two PG owner consumer boundary5 and standalone Next build passed. Remaining completion/refund/webhook, legacy notification relay/ratings, data/watermark/seed and real B/final-stack gates still prevent a production ownership switch. This does not close step 5B for all notification writers.
+
+## A step 5A reader preparation — 8 November 2026
+
+[Notifications caller composition](notifications-callers-handoff.md) prepares async inbox API/page readers behind the existing HTTP client and B credential callback. Default startup remains legacy; remote mode never falls back to local inbox SQL. [The step-5 audit](a-step5-caller-audit.md) distinguishes remaining direct writers and current C producers. Validation: monolith190, Notifications42, real HTTP/PG caller boundary5, standalone build and default-mode HTML smoke passed. Auth is fixture-only in boundary tests; production B auth, notification writer/event/data handover, final-stack and cutover are still gated. Earlier unchanged-caller statements below are historical.
+
 Recorded 6 November 2026 against `main` at `67bd023fa64df9b12a2a6424473e389b565e80b2`. This is a shared implementation snapshot, not the final dossier. Check newer merged PRs, current code and affected owners before treating a pending item as current. A missing merged evidence link does not mean a teammate has not started work on a branch.
 
 ## Step 4 runtime assembly — 8 November 2026

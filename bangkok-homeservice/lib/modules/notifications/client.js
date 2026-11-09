@@ -1,4 +1,5 @@
-// Prepared adapter; existing routes/pages/relay do not use this until B/C cutover.
+// API/page access composition can select this adapter explicitly after B/C/data handover.
+// Production bootstrap still does not select it; notification writers remain separate.
 // The verified end-user token goes to B's service verifier; never forward role/ID
 // headers or fall back to SQLite after a remote error.
 import { z } from "zod";

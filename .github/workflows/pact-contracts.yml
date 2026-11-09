@@ -16,3 +16,20 @@ jobs:
 
       - name: Run Pact contract tests
         run: docker compose -f docker-compose.pact.yml run --rm --build pact-tests
+
+  api-contracts:
+    name: API schemas and fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: contracts/package-lock.json
+      - name: Install locked contract dependencies
+        run: npm ci --prefix contracts
+      - name: Validate OpenAPI, fixtures and reference invariants
+        run: npm test --prefix contracts

@@ -1,4 +1,4 @@
-"""Offline, read-only export. Never imports application bootstrap (which reseeds SQLite)."""
+"""Offline, read-only export. Never imports or runs application bootstrap."""
 import argparse
 import datetime as dt
 import json
@@ -18,6 +18,28 @@ def require(condition, code):
         raise ExportError(code)
 
 
+def require_legacy_only_source(db):
+    # This tool moves legacy financial rows, not a distributed checkpoint. Known C
+    # state may point at effects held ONLY in Payments or a broker. Never discard it
+    # or infer that a terminal saga means all owning databases are represented here.
+    tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    for table in ('booking_sagas', 'booking_saga_transitions', 'booking_saga_activations', 'processed_events'):
+        if table in tables:
+            require(db.execute('SELECT 1 FROM '+table+' LIMIT 1').fetchone() is None,
+                    'SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')
+    if 'consistency_attention' in tables:
+        require(db.execute('SELECT 1 FROM consistency_attention WHERE resolved_at IS NULL LIMIT 1').fetchone() is None,
+                'SOURCE_UNRESOLVED_ATTENTION')
+    columns = {row[1] for row in db.execute('PRAGMA table_info(events)')}
+    conditions = [column+' IS NOT NULL' for column in
+                  ('published_at', 'publish_locked_by', 'publish_locked_until', 'publish_last_error') if column in columns]
+    if 'publish_attempts' in columns:
+        conditions.append('publish_attempts > 0')
+    if conditions:
+        require(db.execute('SELECT 1 FROM events WHERE '+' OR '.join(conditions)+' LIMIT 1').fetchone() is None,
+                'SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')
+
+
 def export_snapshot(source, destination, *, writers_stopped=False):
     require(writers_stopped, 'WRITERS_MUST_BE_STOPPED')
     source, destination = Path(source).resolve(strict=True), Path(destination)
@@ -29,6 +51,7 @@ def export_snapshot(source, destination, *, writers_stopped=False):
         db.execute('BEGIN')
         require(db.execute('PRAGMA quick_check').fetchone()[0] == 'ok', 'SOURCE_INTEGRITY')
         require(not db.execute('PRAGMA foreign_key_check').fetchall(), 'SOURCE_FOREIGN_KEYS')
+        require_legacy_only_source(db)
         require(db.execute('SELECT count(*) FROM events WHERE processed_at IS NULL').fetchone()[0] == 0,
                 'PENDING_LEGACY_EVENTS')
         def rows(table):

@@ -1,5 +1,11 @@
 # Offline data migration and caller cutover preparation — A → B/C/D/E
 
+> 9 November step 5D update: [legacy-only rehearsal and source guard](legacy-cutover-rehearsal-handoff.md) documents the new distributed-source/attention rejection, eight legacy cohorts, actual C eligibility boundaries, WAL backup example and CI. A SQLite-only export is not a mixed-ownership checkpoint. Do not clear C state to make it pass.
+
+> 9 November step 5C update: [financial runtime preparation](financial-finalization-runtime-handoff.md) supersedes older statements below that financial HTTP/client/callers are absent. A transport is prepared; actual C durable financial work, B auth and production cutover are still pending.
+
+> Current step-5 audit: [caller/writer audit, 8 November](a-step5-caller-audit.md) distinguishes implemented C events, prepared remote readers and remaining local writers. Older pending statements below are historical.
+
 > 8 November caller update: [Payment setup and caller handoff](payment-setup-callers-handoff.md) supersedes the historical unchanged-caller/unmounted-simulation statements below. Explicit remote intent/simulate/wallet/history paths and pending UI are prepared; default production composition and the remaining writers/cutover are still gated.
 
 Status: prepared tooling and integration plan, NOT an executed migration or live cutover. Existing monolith source, schemas, boot behavior and application Compose files remain unchanged. [Caller inventory](extraction-inventory.md), [Payments handoff](payments-business-handoff.md), [notification mappings](notification-mappings-handoff.md), [nginx handoff](nginx-handoff.md) and [validation](validation/data-migration-2026-11-06.md) apply together.

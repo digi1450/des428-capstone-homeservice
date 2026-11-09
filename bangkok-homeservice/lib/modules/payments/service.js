@@ -2,6 +2,8 @@
 // event id is the dedupe key, and webhook_events.gateway_event_id UNIQUE means a replayed callback
 // does nothing (no double-credit). Everything runs inside one .immediate() transaction.
 import { getDb } from "../../db/index.js";
+import {financialModeEnabled,usesRemotePayments} from "./ownership.js";
+import {AppError} from "../../errors.js";
 import * as repository from "./repository.js";
 import * as bookingRepository from "../booking/repository.js";
 import { insertEvent } from "../../db/events.js";
@@ -23,6 +25,9 @@ function publicTransaction(row) {
 // Idempotent webhook. `{ gateway_event_id, type, gateway_ref }`. Returns {replayed:true} for a
 // duplicate event id (still a 200 to the caller — the gateway sees success and stops retrying).
 export function handleWebhook(payload) {
+  if(financialModeEnabled())throw new AppError(503,"legacy settlement disabled for remote ownership");
+  const candidate=repository.findIntentByGatewayRef(payload.gateway_ref);
+  if(candidate&&usesRemotePayments(candidate.order_id))throw new AppError(503,"legacy settlement disabled for saga ownership");
   const run = getDb().transaction(() => {
     const fresh = repository.recordWebhookEvent(
       payload.gateway_event_id,

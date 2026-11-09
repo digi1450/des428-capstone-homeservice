@@ -11,6 +11,22 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For step 5D legacy-only rehearsal, source distributed-state guards, eight historical cohorts and remaining eligibility/checkpoint gates, read `docs/legacy-cutover-rehearsal-handoff.md`. Do not clear source/target C state or invent legacy command identities to force export/import; mixed ownership needs a separate reviewed procedure.
+
+- For step 5C HTTP/client/Booking completion-cancellation-webhook callers, read `docs/financial-finalization-runtime-handoff.md`. A transport is prepared; C durable work, synchronous local guards/recovery and B real verifiers remain required. Do not enable it with fixture callbacks or introduce a duplicate A command store.
+
+- For exact step 5C financial request/result/status/callable/auth fixtures, read `docs/financial-finalization-contract-handoff.md` and `contracts/financial-finalization.openapi.json` v1.0.0. The reference validator is dev-only; contract tests do not implement or prove the financial runtime.
+
+- Before step 5C completion/refund/webhook work, read `docs/financial-finalization-decisions.md`: the lead has selected the policies and technical direction as the implementation baseline. A publishes exact versioned contracts; C/B implement against them and report blockers. Do not wait for separate direction approval or treat adoption as completed integration.
+
+- For legacy notification relay retirement and monolith-owned ratings, read `docs/notification-event-delivery-handoff.md`; disabling the local timer does not validate broker/data readiness or mark historical events delivered.
+
+- For provider signup-wallet and approval-notification event-only writer preparation, read `docs/provider-event-writes-handoff.md`; it reuses C events and must not be enabled while remaining financial/inbox writers still own SQLite.
+
+- For Notifications API/page readers and the explicit credential/client seam, read `docs/notifications-callers-handoff.md`; remote reader preparation does not retire SQLite writers or activate cutover.
+
+- For A step 5 remaining SQLite callers/writers, existing C producers, implementation order and data/routing gates, read `docs/a-step5-caller-audit.md`; its source snapshot is explicit and it does not activate cutover.
+
 - For A step 4 runtime assembly, real C participant/readiness/recovery and the B auth activation gate, read `docs/payment-runtime-composition-handoff.md` before changing bootstrap/composition.
 - For E messaging tracing, C lifecycle preservation, durable parent-context propagation and the tested/remaining integration boundaries, read `docs/e-cross-service-tracing-handoff.md`.
 - Start with `docs/project-status.md` for merged work, active limitations, per-area dependencies and links to PRs/validation. It is a dated snapshot: check current code and newer merged PRs before relying on its pending statuses.
