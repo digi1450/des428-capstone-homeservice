@@ -9,7 +9,7 @@ const validIssuer = value => typeof value === "string" && /^https:\/\/[^\s]+\/re
 const validSubject = value => typeof value === "string" && value.length >= 1 && value.length <= 255 && !/[\x00-\x1f]/.test(value);
 
 export function createIdentityMappingStore({ path } = {}) {
-  if (!path || path === ":memory:" && process.env.NODE_ENV !== "test") throw new Error("IDENTITY_MAPPING_DB_PATH required");
+  if (!path || (path === ":memory:" && process.env.NODE_ENV !== "test")) throw new Error("IDENTITY_MAPPING_DB_PATH required");
   const db = new Database(path);
   db.pragma("journal_mode = WAL");
   db.exec(`CREATE TABLE IF NOT EXISTS keycloak_identity_bindings (
