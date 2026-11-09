@@ -1,3 +1,4 @@
+import { HttpError } from "../errors.js";
 import { createPublicKey, verify as verifySignature } from "node:crypto";
 
 const allowedOperations = new Set(["create", "query", "cancel", "activate", "complete_financial", "cancel_financial", "query_financial"]);
@@ -6,9 +7,9 @@ const base64url = value => {
   return Buffer.from(value, "base64url");
 };
 const decode = value => JSON.parse(base64url(value).toString("utf8"));
-const unauthorized = () => Object.assign(new Error("invalid token"), { statusCode: 401 });
-const forbidden = () => Object.assign(new Error("forbidden"), { statusCode: 403 });
-const unavailable = () => Object.assign(new Error("authentication unavailable"), { statusCode: 503 });
+const unauthorized = () => new HttpError(401, "invalid token");
+const forbidden = () => new HttpError(403, "forbidden");
+const unavailable = () => new HttpError(503, "authentication unavailable");
 
 /**
  * Keycloak RS256 verifier for Booking's machine-to-machine Payments calls.
