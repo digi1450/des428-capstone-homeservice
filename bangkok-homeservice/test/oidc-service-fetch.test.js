@@ -16,6 +16,10 @@ test("service fetch forwards user bearer only to allowlisted API origin",async()
   assert.equal(captured.url.origin,"https://notifications.example.test");
   assert.equal(captured.options.headers.Authorization,"Bearer "+accessToken);
   assert.equal(captured.options.redirect,"error");
+  const wrongAudienceToken="eyJhbGciOiJSUzI1NiJ9."+Buffer.from(JSON.stringify({iss:issuer,sub:"subject-1",azp:"homeservice-web",aud:"payments-wallet-service",exp:1800000100})).toString("base64url")+".signature";
+  const wrongSession=seal({issuer,sub:"subject-1",role:"customer",domainId:42,exp:1800000100,accessToken:wrongAudienceToken},secret);
+  const wrongRequest=new Request("https://app.example.test",{headers:{Cookie:cookie("homeservice_oidc_session",wrongSession)}});
+  await assert.rejects(fetchAsOidcUser(wrongRequest,{service:"notifications",url:"/api/notifications",fetchImpl:async()=>{throw Error("must not forward");},sessionOptions:{secret,issuer,now:()=>now}}));
   await assert.rejects(fetchAsOidcUser(request,{service:"notifications",url:"https://attacker.example.test/api/steal",sessionOptions:{secret,issuer,now:()=>now}}));
   await assert.rejects(fetchAsOidcUser(request,{service:"notifications",url:"/internal/commands",sessionOptions:{secret,issuer,now:()=>now}}));
   for(const attack of ["/api/../internal/commands","/api/%2e%2e/internal/commands","/api/%2f%2fattacker","/api/notifications?redirect=https://attacker.example.test","/api/notifications#fragment"])await assert.rejects(fetchAsOidcUser(request,{service:"notifications",url:attack,sessionOptions:{secret,issuer,now:()=>now}}));
