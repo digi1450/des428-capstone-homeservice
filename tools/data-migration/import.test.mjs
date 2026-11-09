@@ -81,6 +81,7 @@ for (const [service,createDatabase,migrate,env] of [
           ['payment_commands', "INSERT INTO payment_commands (caller_id,command_id,kind,create_command_id,request_digest,result) VALUES ('migration-review','probe-command','create','probe-create','probe-digest','{}')"],
           ['payment_provisioning', "INSERT INTO payment_provisioning (caller_id,create_command_id,saga_id,state,cancel_command_id) VALUES ('migration-review','probe-create','probe-saga','fenced','probe-cancel')"],
           ['processed_events', "INSERT INTO processed_events (consumer_name,event_id,event_type,producer) VALUES ('migration-review','bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee','provider.registered','monolith')"],
+          ['financial_commands', "INSERT INTO financial_commands (caller_id,command_id,kind,operation_id,order_id,request_digest,request,state,result) VALUES ('migration-review','cancel:cccccccc-cccc-4ccc-8ccc-cccccccccccc','cancellation','cccccccc-cccc-4ccc-8ccc-cccccccccccc',1,'probe-digest','{}','pending','{}')"],
         ];
         for (const [table,sql] of probes) {
           await t.test(`${table}: existing participant state blocks fresh dry-run/apply without modifications`, async () => {
@@ -168,6 +169,7 @@ for (const [service,createDatabase,migrate,env] of [
           ['payment_commands', "INSERT INTO payment_commands (caller_id,command_id,kind,create_command_id,request_digest,result) VALUES ('migration-review','probe-command','create','probe-create','probe-digest','{}')"],
           ['payment_provisioning', "INSERT INTO payment_provisioning (caller_id,create_command_id,saga_id,state,cancel_command_id) VALUES ('migration-review','probe-create','probe-saga','fenced','probe-cancel')"],
           ['processed_events', "INSERT INTO processed_events (consumer_name,event_id,event_type,producer) VALUES ('migration-review','bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee','provider.registered','monolith')"],
+          ['financial_commands', "INSERT INTO financial_commands (caller_id,command_id,kind,operation_id,order_id,request_digest,request,state,result) VALUES ('migration-review','cancel:cccccccc-cccc-4ccc-8ccc-cccccccccccc','cancellation','cccccccc-cccc-4ccc-8ccc-cccccccccccc',1,'probe-digest','{}','pending','{}')"],
         ]) {
           await t.test(`${table}: participant state blocks exact business replay without modifications`, async () => {
             await db.query(sql);
