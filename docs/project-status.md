@@ -1,5 +1,17 @@
 # Shared project status and handoff
 
+## C Booking financial finalization and A review fix — 9 November 2026
+
+PR #49 supplies durable completion/cancellation callbacks, local guards and recovery
+through A's prepared seam, plus the additive startup upgrade/exporter guard.
+The review fix accepts cancellation during unfinished gateway setup, retains holds
+until safe Payments acknowledgement and suppresses stale provisioning/activation
+results. [C handoff](c-financial-operations-handoff.md) records exact behavior and
+remaining gates. Local monolith241, existing HTTP/PG boundaries15 and Booking
+finalization boundary7 passed with no skips. Real authentication, runtime/timer
+composition, legacy eligibility and full D/E fault/cutover evidence remain open;
+this does not enable production financial ownership or close all of Area C/A.
+
 ## C Payments financial operations and A review fixes — 9 November 2026
 
 [C financial handoff](c-financial-operations-handoff.md) implements durable completion/cancellation/query plus migration005 and importer empty-state guards. The reviewed follow-up serializes distinct-key acceptance under the order lock and binds absent-create financial cancellation context; regression cases fail before and pass after. Payments115, financial subset15, actual HTTP/PG boundaries15 and importer36 passed locally with explicit auth fixtures. Default startup remains unwired; Booking financial work/recovery, B auth/delegation, legacy binding and final integration remain open. D #47 is integrated; full area completion is not claimed.
