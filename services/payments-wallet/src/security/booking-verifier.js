@@ -32,7 +32,7 @@ export function createServiceVerifier({ issuer, audience = "payments-wallet-serv
       if (!Array.isArray(body.keys)) throw unavailable();
       const next = new Map();
       for (const jwk of body.keys) {
-        if (jwk && jwk.kty === "RSA" && jwk.use !== "enc" && (!jwk.alg || jwk.alg === "RS256") && typeof jwk.kid === "string" && jwk.kid && typeof jwk.n === "string" && typeof jwk.e === "string") next.set(jwk.kid, createPublicKey({ key: jwk, format: "jwk" }));
+        if (jwk && jwk.kty === "RSA" && jwk.use !== "enc" && (!jwk.alg || jwk.alg === "RS256") && typeof jwk.kid === "string" && jwk.kid && typeof jwk.n === "string" && typeof jwk.e === "string") { try { next.set(jwk.kid, createPublicKey({ key: jwk, format: "jwk" })); } catch { /* ignore invalid trusted-key entries */ } }
       }
       if (!next.size) throw unavailable();
       keys = next;
@@ -50,7 +50,7 @@ export function createServiceVerifier({ issuer, audience = "payments-wallet-serv
     if (parts.length !== 3 || parts.some(x => !x)) throw unauthorized();
     let header, claims, signature;
     try { header = decode(parts[0]); claims = decode(parts[1]); signature = base64url(parts[2]); } catch { throw unauthorized(); }
-    if (header.alg !== "RS256" || typeof header.kid !== "string" || header.jku || header.jwk || header.x5u || header.crit) throw unauthorized();
+    if (!header || typeof header !== "object" || !claims || typeof claims !== "object" || header.alg !== "RS256" || typeof header.kid !== "string" || header.jku || header.jwk || header.x5u || header.crit) throw unauthorized();
     let key = (await getKeys()).get(header.kid);
     if (!key) key = (await getKeys(true)).get(header.kid);
     if (!key || !verifySignature("RSA-SHA256", Buffer.from(parts[0] + "." + parts[1]), key, signature)) throw unauthorized();
