@@ -32,4 +32,7 @@ test("encrypted browser session rejects modifications and expiry",()=>{
  assert.equal(getServerOidcSession(request,{secret,issuer,now:()=>now}).domainId,42);
  assert.equal(getServerOidcSession(request,{secret,issuer,now:()=>1800000200000}),null);
  assert.equal(readCookie(request,"homeservice_oidc_session"),sealed);
+ const expiredAccess=seal({...session,accessToken:token({iss:issuer,sub:"subject-1",azp:"homeservice-web",exp:1799999900})},secret);
+ const expiredRequest=new Request("https://app.example.test",{headers:{Cookie:cookie("homeservice_oidc_session",expiredAccess)}});
+ assert.equal(getServerOidcSession(expiredRequest,{secret,issuer,now:()=>now}),null);
 });
