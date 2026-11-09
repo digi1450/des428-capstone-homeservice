@@ -28,11 +28,22 @@ The developer ran Keycloak 26.4.0 on Docker Desktop behind an Nginx HTTPS proxy,
 - Booking had all seven expected operation roles and no gateway webhook role. Gateway had its webhook role and no Booking roles.
 - The script finished with `PASS: ALL JWT VERIFICATION TESTS`.
 
-This is **developer-supplied terminal evidence**, not a run of the repository's Node verifier against the live realm. It must not be described as final-stack or HTTP endpoint acceptance. No credentials or token values are recorded here.
+This Python/PyJWT evidence is developer-supplied terminal evidence and is distinct from the repository's Node verifier test below. Neither establishes final-stack or HTTP endpoint acceptance. No credentials or token values are recorded here.
+
+## Developer-reported local repository Node verifier integration — 2026-11-10
+
+The developer ran `python3 run_keycloak_test.py` from the repository root in VS Code on macOS. The local helper checked HTTPS OIDC discovery using `~/homeservice-https/localhost.crt`, retrieved Booking and Gateway client secrets through the local Keycloak container's `kcadm.sh` without printing them, and launched `node infra/keycloak/smoke-real-service-tokens.mjs` with the local CA and live issuer. Their terminal returned to the shell prompt after printing:
+
+```
+Running real Keycloak integration test...
+PASS: real Keycloak Booking/Gateway issuance, role grants, audience, signature and client isolation
+```
+
+The helper propagated the Node process exit status; the prompt returned without a visible error. This is **developer-reported live Keycloak Node integration evidence**, not independently executed by GitHub Actions. The output did not include the separately anticipated `PASS: Area B real Keycloak Node.js integration test` line; do not claim that exact line appeared. The developer also reported local `npm test` for `services/payments-wallet`: **68 total, 57 passed, 0 failed, 11 skipped** (opt-in infrastructure-dependent tests were skipped).
 
 ## Remaining acceptance gates
 
-1. Run `node infra/keycloak/smoke-real-service-tokens.mjs` with a Node runtime that trusts the local HTTPS CA, using securely supplied client secrets, to verify the **repository's** verifier against live Keycloak.
+1. **Local live Node verifier smoke test completed (developer-reported).** Repeat in coordinated deployment as needed, with service-container trust and routing.
 2. Run opt-in service HTTP ownership/BOLA tests against a coordinated deployment with real identity bindings and data. Fixture CI tests alone are not enough.
 3. Validate browser authorization-code PKCE login, refresh, session and replay behavior against the live realm; avoid claiming replay resistance without evidence.
 4. Coordinate final HTTPS hostname/certificate trust **inside service containers** and secret provisioning with Area E. `localhost` inside another container does not point to the Mac-host Keycloak proxy.
