@@ -22,7 +22,15 @@ This is an **importable starting realm**, not an activated production IdP or a c
 
 - The realm export has only a localhost development redirect URI; replace it with reviewed actual browser callback origins before deploying.
 - The client-role assignments, browser login/session implementation, confidential server-side credential callback, and monolith-owned `(issuer,sub)->(role,domainId)` mapping are **not provisioned** by this export.
-- Both default service entrypoints intentionally remain unwired. Do not enable the cutover or claim Keycloak integration success without testing real signed tokens, ownership/BOLA, refresh, webhook rejection and final Compose.
+- Both service entrypoints now have opt-in verifier wiring via AREA_B_AUTH_ENABLED=true; they remain disabled by default. Do not enable the cutover or claim Keycloak integration success without testing real signed tokens, ownership/BOLA, refresh, webhook rejection and final Compose.
 - E owns final Compose/secret management; A owns browser/Next.js API and Server Component wiring; C owns financial transactions/recovery. B provides verifiers and role contracts.
 
 See `docs/b-authentication-handoff.md`.
+
+## Repeatable service-account role assignments
+
+After authenticating `kcadm.sh` as a realm administrator, run `bash infra/keycloak/assign-service-roles.sh` (set `KCADM` if not on PATH). It grants Booking's seven operation roles and Gateway's one webhook role to their respective service accounts. Audit the resulting effective roles and client scopes before activating; the script does not grant human user roles, configure secrets, or prove tokens have the expected `resource_access`.
+
+## OIDC login status
+
+`bangkok-homeservice/lib/security/oidc-pkce.js` implements cryptographically random state, nonce, S256 PKCE challenge and authorization-code exchange as **server-side primitives only**. A complete browser session flow must verify the ID token signature, issuer, audience, nonce and state; bind tokens to an HttpOnly server session; implement refresh and logout; and preserve the legacy login until migration. These primitives are intentionally **not exposed as live login routes** before those checks exist.
