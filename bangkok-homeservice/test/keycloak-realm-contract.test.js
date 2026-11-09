@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-const realm=JSON.parse(readFileSync(new URL("../infra/keycloak/homeservice-realm.json",import.meta.url),"utf8"));
+const realm=JSON.parse(readFileSync(new URL("../../infra/keycloak/homeservice-realm.json",import.meta.url),"utf8"));
 const clients=Object.fromEntries(realm.clients.map(c=>[c.clientId,c]));
 const scopes=Object.fromEntries(realm.clientScopes.map(s=>[s.name,s]));
 test("realm has isolated human, Booking and gateway clients",()=>{
