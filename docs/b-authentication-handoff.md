@@ -123,3 +123,10 @@ The Next routes `GET /api/provider/wallet` and `GET /api/customer/transactions` 
 ## CI coverage correction and destination audience
 
 The Area B workflow now watches Keycloak configuration, browser login/callback/refresh/logout routes, notifications and Payments proxy routes, and OIDC tests, in addition to verifier modules. Previous runs did not necessarily trigger for route-only edits. The server-to-service bearer forwarding helper now checks the exact destination audience (`notifications-service` versus `payments-wallet-service`) rather than accepting a token intended only for the other service. A regression test rejects a wrong-audience token before any upstream request. This is a preflight check only; the receiving service must still validate the signed JWT.
+
+## Area B verification update — 2026-11-09
+
+- HTTP-level synthetic signed JWT tests now exist at `services/notifications/test/area-b-http-ownership.test.js` and `services/payments-wallet/test/area-b-http-ownership.test.js`. They exercise missing/expired/wrong-audience tokens and cross-account object access with trusted subject-to-domain mapping. These tests use mocked JWKS/identity and in-memory database doubles, **not live Keycloak or PostgreSQL**.
+- Inherited service boundary: `bangkok-homeservice/lib/modules/payments/service.js#getIntentForOrder` previously delegated to an unscoped repository lookup with no actor parameter. It now requires an authenticated customer/provider participant. Regression: `bangkok-homeservice/test/area-b-inherited-intent-bola.test.js`. The old unscoped call is source-level before evidence; no publicly exploitable HTTP endpoint has been demonstrated.
+- CI evidence: Area B security verification run 42642898032 passed all three jobs. This does not certify live Keycloak, service-account token issuance, final-stack readiness, browser refresh or replay defenses.
+- Pending: live realm import, end-to-end issuance and audience/role checks for browser, Booking and mock gateway clients; HTTPS/secret configuration and coordinated A/C/E cutover. Keep security feature flags off until these pass.
