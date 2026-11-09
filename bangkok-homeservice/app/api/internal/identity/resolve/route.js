@@ -20,7 +20,9 @@ export async function POST(request) {
  let input;
  try {
    if (Number(request.headers.get("content-length") || 0)>4096) return Response.json({error:"invalid request"},{status:400});
-   input=await request.json();
+   const raw=await request.text();
+   if(Buffer.byteLength(raw,"utf8")>4096)return Response.json({error:"invalid request"},{status:413});
+   input=JSON.parse(raw);
    if (!input || typeof input!=="object" || Array.isArray(input) ||
        Object.keys(input).sort().join(",")!=="issuer,sub") throw Error("invalid body");
  } catch { return Response.json({error:"invalid request"},{status:400}); }
