@@ -6,6 +6,12 @@ on:
       - 'services/payments-wallet/**'
       - 'bangkok-homeservice/lib/security/**'
       - 'bangkok-homeservice/app/api/internal/identity/**'
+      - 'bangkok-homeservice/app/api/auth/keycloak/**'
+      - 'bangkok-homeservice/app/api/notifications/**'
+      - 'bangkok-homeservice/app/api/provider/wallet/**'
+      - 'bangkok-homeservice/app/api/customer/transactions/**'
+      - 'bangkok-homeservice/test/oidc-*.test.js'
+      - 'infra/keycloak/**'
       - '.github/workflows/area-b-security.yml'
   workflow_dispatch:
 jobs:
