@@ -95,3 +95,9 @@ GitHub Actions **Area B security verification** run 42634091148 completed succes
 - Configuration: `OIDC_LOGIN_ENABLED=true`, `KEYCLOAK_ISSUER`, `OIDC_REDIRECT_URI` (exact public callback URL), `OIDC_SESSION_SECRET` (at least 32 random characters), `IDENTITY_MAPPING_DB_PATH`. Deploy over HTTPS; the callback URI must be allowlisted in Keycloak.
 - Browser session is intentionally capped to ten minutes and **does not implement refresh-token rotation**. Existing legacy login is not replaced. Application pages/API handlers must explicitly adopt the new session; legacy JWT and Keycloak sessions are not interchangeable.
 - Test source: `bangkok-homeservice/test/oidc-session.test.js`. The CI workflow now runs the new tests. Real TLS/Keycloak and full E stack remain external acceptance gates.
+
+## Additional session hardening
+
+The browser callback now caps the encrypted session expiry to the Keycloak access-token expiry and requires the access token to have the expected issuer, subject and browser client ID. The server-side forwarding helper rejects expired or mismatched access tokens. Local OIDC logout requires a same-origin POST. The browser session is deliberately short-lived; refresh and global Keycloak logout remain unimplemented and should not be described as supported.
+
+GitHub Actions run 42635680512 passed all three Area B security jobs after the initial OIDC browser flow was added. Subsequent session hardening commits require their own CI confirmation.
