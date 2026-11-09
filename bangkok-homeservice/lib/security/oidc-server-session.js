@@ -12,10 +12,11 @@ export function getServerOidcSession(request,{secret=process.env.OIDC_SESSION_SE
  // The encrypted cookie's expiry must not outlive the signed access token.
  // Validate the token's expiry before forwarding; downstream services still verify its signature.
  const parts=session.accessToken.split(".");
- if(parts.length!==3)return null;
+ if(parts.length!==3||parts.some(part=>!part||part.length>8192||!/^[A-Za-z0-9_-]+$/.test(part)))return null;
  try{
   const claims=JSON.parse(Buffer.from(parts[1],"base64url").toString("utf8"));
-  if(!Number.isSafeInteger(claims.exp)||claims.exp<=Math.floor(now()/1000)||claims.iss!==issuer||claims.sub!==session.sub||claims.azp!=="homeservice-web")return null;
+  if(!Number.isSafeInteger(claims.exp)||claims.exp<=Math.floor(now()/1000)||claims.iss!==issuer||claims.sub!==session.sub||claims.azp!=="homeservice-web"||
+    !(claims.aud==="notifications-service"||claims.aud==="payments-wallet-service"||(Array.isArray(claims.aud)&&claims.aud.some(x=>["notifications-service","payments-wallet-service"].includes(x)))))return null;
  }catch{return null;}
  return session;
 }
