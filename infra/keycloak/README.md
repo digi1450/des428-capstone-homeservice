@@ -53,3 +53,7 @@ node infra/keycloak/smoke-real-service-tokens.mjs
 ```
 
 Supply secrets via a secure environment/CI secret store, never commit them or run this command with secrets in a shared shell history. The script requests **real** client-credentials access tokens and verifies Booking/Gateway operation roles, audience, issuer, forged-signature rejection, cross-client role isolation and stable Booking caller identity across separately issued tokens. It prints no tokens. A successful run is necessary but not sufficient for full Area B acceptance: user authorization-code login, ownership, expired/wrong-audience real-token HTTP tests, TLS deployment and token refresh still need integration evidence. This script has not been executed against a live Keycloak instance in this branch.
+
+## Browser client security contract
+
+The `homeservice-web` public client requires Authorization Code Flow with **PKCE S256** and has implicit and direct-access grant flows disabled. Only the exact development callback is allowlisted in the realm export. For deployment, replace it with the exact reviewed HTTPS callback, and verify the imported Keycloak client actually enforces S256 before enabling `OIDC_LOGIN_ENABLED`. The realm contract CI checks these settings statically; it does not establish that a live Keycloak instance has imported them.
