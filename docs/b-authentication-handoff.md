@@ -41,3 +41,27 @@ E must provide a trusted HTTPS issuer reachable from the service containers, rea
 - Production runtime injection: **not yet implemented**.
 
 Suggested unit command (with dependencies installed): `node --test services/payments-wallet/test/booking-verifier.test.js`. Run in an isolated environment before reviewing for merge. Follow with actual Keycloak integration, ownership/BOLA tests, token refresh/replay, and A/C/E cutover review.
+
+## Opt-in service wiring added
+
+Both `services/notifications/src/server.js` and `services/payments-wallet/src/server.js` now support explicit `AREA_B_AUTH_ENABLED=true`. With this unset/false the original protected boundaries remain 503. If enabled without required configuration, startup fails rather than silently trusting request headers.
+
+Required **server-only** environment variables:
+```dotenv
+AREA_B_AUTH_ENABLED=false
+KEYCLOAK_ISSUER=https://id.example.test/realms/homeservice
+IDENTITY_RESOLVER_URL=https://identity.internal.example.test/internal/resolve
+IDENTITY_RESOLVER_TOKEN=replace-with-deployment-managed-secret
+```
+These are placeholders, **not live values**. Never set the opt-in flag true until the identity owner exposes an authenticated resolver and all service clients/roles are provisioned. The resolver endpoint must accept POST JSON `{issuer,sub}`, return exactly `{role,domainId}` on unique mapping, 404 on missing, 409 on conflict and 5xx on outage; it must reject unauthorized callers and ensure the caller cannot forge a mapping. The resolver must be maintained by the monolith identity owner; it is not implemented by this branch.
+
+The Booking monolith already has `lib/security/service-token.js` for client credentials, but its token provider must be configured for the actual Keycloak client and exercised end-to-end. The legacy `edemand_token` cookie is **not** a Keycloak token and must never be forwarded to these services.
+
+## Added test source (not executed)
+
+- `services/notifications/test/user-verifier.test.js`
+- `services/notifications/test/identity-resolver.test.js`
+- `services/payments-wallet/test/identity-resolver.test.js`
+- `services/payments-wallet/test/gateway-verifier.test.js`
+
+No local runtime or actual Keycloak test results are claimed.
