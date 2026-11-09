@@ -23,6 +23,7 @@ import { insertEvent } from "../../db/events.js";
 import { logger } from "../../logger.js";
 import { ConflictError, NotFoundError, ForbiddenError } from "../../errors.js";
 import * as repository from "./repository.js";
+import { retryDelay } from "./backoff.js";
 import { toPublicOrder } from "./service.js";
 
 export const WORK = Object.freeze({ PENDING: "pending", READY: "ready", ATTENTION: "attention" });
@@ -40,10 +41,10 @@ let runtime = null;
 // credentials() = B's service-credential callback ({ token, requestId?, traceparent? }).
 // Retry numbers are placeholders for D's policy, matching the saga defaults.
 export function createBookingFinalization({ financial, credentials, baseBackoffMs = 1000, maxBackoffMs = 30000,
-  leaseMs = 15000, escalateAfter = 5, owner = `finalization-${process.pid}-${randomUUID().slice(0, 8)}` } = {}) {
+  leaseMs = 15000, escalateAfter = 5, random = Math.random, owner = `finalization-${process.pid}-${randomUUID().slice(0, 8)}` } = {}) {
   if (typeof financial?.complete !== "function" || typeof financial?.cancel !== "function") throw new TypeError("finalization requires A's financial client");
   if (typeof credentials !== "function") throw new TypeError("finalization requires a service credential callback");
-  runtime = { financial, credentials, baseBackoffMs, maxBackoffMs, leaseMs, escalateAfter, owner };
+  runtime = { financial, credentials, baseBackoffMs, maxBackoffMs, leaseMs, escalateAfter, random, owner };
   return { complete, cancel, status, assertTransitionAllowed };
 }
 export function resetBookingFinalization() { runtime = null; } // tests / drained shutdown only
@@ -225,7 +226,7 @@ async function deliver(operationId) {
       const current = db().prepare("SELECT attempts FROM booking_financial_work WHERE operation_id = ? AND state = 'pending' AND locked_by = ?").get(operationId, token);
       if (!current) return false;
       const attempts = current.attempts + 1;
-      const backoff = Math.min(rt.maxBackoffMs, rt.baseBackoffMs * 2 ** (attempts - 1));
+      const backoff = retryDelay(attempts, { baseMs: rt.baseBackoffMs, maxMs: rt.maxBackoffMs, random: rt.random });
       const lastError = outcome.kind === WORK.PENDING ? outcome.result.reason : String(outcome.error?.reason ?? outcome.error?.statusCode ?? outcome.error?.name ?? "error").slice(0, 120);
       db().prepare("UPDATE booking_financial_work SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE operation_id = ? AND locked_by = ?")
         .run(attempts, iso(backoff), lastError, iso(), operationId, token);
