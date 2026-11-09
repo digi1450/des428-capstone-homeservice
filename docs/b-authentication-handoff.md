@@ -101,3 +101,7 @@ GitHub Actions **Area B security verification** run 42634091148 completed succes
 The browser callback now caps the encrypted session expiry to the Keycloak access-token expiry and requires the access token to have the expected issuer, subject and browser client ID. The server-side forwarding helper rejects expired or mismatched access tokens. Local OIDC logout requires a same-origin POST. The browser session is deliberately short-lived; refresh and global Keycloak logout remain unimplemented and should not be described as supported.
 
 GitHub Actions run 42635680512 passed all three Area B security jobs after the initial OIDC browser flow was added. Subsequent session hardening commits require their own CI confirmation.
+
+## Opt-in refresh endpoint added
+
+`POST /api/auth/keycloak/refresh` accepts only a same-origin request with the encrypted OIDC cookie. It exchanges the stored refresh token server-to-server, requires rotated refresh and ID tokens, verifies the ID token signature and original nonce, confirms the subject and current legacy binding, and replaces the encrypted session cookie. Refresh must occur **before the current session cookie expires**. The endpoint deliberately fails closed if a Keycloak realm omits the ID token/nonce on refresh; verify this behavior against the deployed realm before enabling. There is no automatic refresh scheduler in the frontend. Existing user API handlers and Server Components still need to adopt the server-only session helper. Keycloak single logout and revocation are not implemented.
