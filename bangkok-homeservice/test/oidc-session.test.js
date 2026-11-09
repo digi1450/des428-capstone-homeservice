@@ -18,6 +18,11 @@ const fetchImpl=async()=>({ok:true,json:async()=>({keys:[jwk]})});
 test("valid signed ID token verifies issuer, audience and nonce",async()=>{
  assert.deepEqual(await verifyOidcIdToken({token:token(claims),issuer,nonce:"nonce-123",fetchImpl,now:()=>now}),{issuer,sub:"subject-1",exp:1800000100});
 });
+test("ID token accepts multi-audience only with matching authorized party",async()=>{
+ const multi={...claims,aud:["homeservice-web","account"],azp:"homeservice-web"};
+ assert.equal((await verifyOidcIdToken({token:token(multi),issuer,nonce:"nonce-123",fetchImpl,now:()=>now})).sub,"subject-1");
+ await assert.rejects(verifyOidcIdToken({token:token({...multi,azp:"other-client"}),issuer,nonce:"nonce-123",fetchImpl,now:()=>now}));
+});
 test("ID token rejects nonce mismatch, wrong audience, expiry and tampering",async()=>{
  for(const override of [{nonce:"wrong"},{aud:"other"},{exp:1799999900},{iss:"https://other.test/realms/homeservice"}])
   await assert.rejects(verifyOidcIdToken({token:token({...claims,...override}),issuer,nonce:"nonce-123",fetchImpl,now:()=>now}));
