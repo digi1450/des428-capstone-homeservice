@@ -105,3 +105,9 @@ GitHub Actions run 42635680512 passed all three Area B security jobs after the i
 ## Opt-in refresh endpoint added
 
 `POST /api/auth/keycloak/refresh` accepts only a same-origin request with the encrypted OIDC cookie. It exchanges the stored refresh token server-to-server, requires rotated refresh and ID tokens, verifies the ID token signature and original nonce, confirms the subject and current legacy binding, and replaces the encrypted session cookie. Refresh must occur **before the current session cookie expires**. The endpoint deliberately fails closed if a Keycloak realm omits the ID token/nonce on refresh; verify this behavior against the deployed realm before enabling. There is no automatic refresh scheduler in the frontend. Existing user API handlers and Server Components still need to adopt the server-only session helper. Keycloak single logout and revocation are not implemented.
+
+## Server-side end-user bearer integration helper
+
+`bangkok-homeservice/lib/security/oidc-service-fetch.js` exports `fetchAsOidcUser(request,{service,url,method,body})`. It reads the encrypted server-side session, checks the Keycloak access-token expiry and audience, and forwards the bearer only to configured `NOTIFICATIONS_SERVICE_URL` or `PAYMENTS_WALLET_SERVICE_URL` `/api/` endpoints. It rejects cross-origin redirects, absolute attacker URLs, `/internal/` commands and non-TLS remote targets. This is a helper for A-owned API routes and Server Components, **not** a browser-exposed token endpoint. The A-owned application routes must explicitly use it for the corresponding service calls; existing legacy routes remain untouched until the integration is accepted.
+
+The OIDC session refresh endpoint is available before cookie expiry, and no background automatic refresh is wired. Full Keycloak browser acceptance and token replay behavior remain deployment gates.
