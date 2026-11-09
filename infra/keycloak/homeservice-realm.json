@@ -15,7 +15,8 @@
       "serviceAccountsEnabled": false,
       "protocolMappers": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": []
+      "optionalClientScopes": [],
+      "authorizationServicesEnabled": false
     },
     {
       "clientId": "payments-wallet-service",
@@ -26,7 +27,8 @@
       "serviceAccountsEnabled": false,
       "protocolMappers": [],
       "defaultClientScopes": [],
-      "optionalClientScopes": []
+      "optionalClientScopes": [],
+      "authorizationServicesEnabled": false
     },
     {
       "clientId": "homeservice-web",
@@ -127,5 +129,43 @@
         }
       ]
     }
-  ]
+  ],
+  "roles": {
+    "client": {
+      "notifications-service": [
+        {
+          "name": "user:read"
+        }
+      ],
+      "payments-wallet-service": [
+        {
+          "name": "user:read"
+        },
+        {
+          "name": "booking:create"
+        },
+        {
+          "name": "booking:query"
+        },
+        {
+          "name": "booking:cancel"
+        },
+        {
+          "name": "booking:activate"
+        },
+        {
+          "name": "booking:complete_financial"
+        },
+        {
+          "name": "booking:cancel_financial"
+        },
+        {
+          "name": "booking:query_financial"
+        },
+        {
+          "name": "mock-gateway:settle_webhook"
+        }
+      ]
+    }
+  }
 }
