@@ -79,3 +79,9 @@ No local runtime or actual Keycloak test results are claimed.
   This will refuse provisioning unless customer 42 already exists. Back up and protect the sidecar SQLite file; do not publish it or the resolver token.
 - Services must use `IDENTITY_RESOLVER_URL=https://<trusted-monolith-host>/api/internal/identity/resolve` (not the placeholder `/internal/resolve` in the earlier example).
 - The sidecar is a staged mapping, not an automatic account migration or browser login replacement. Coordinate provisioned accounts with Keycloak `sub` values; legacy login tokens remain distinct.
+
+## CI evidence (2026-11-09)
+
+GitHub Actions **Area B security verification** run 42634091148 completed successfully for both Notifications and Payments Wallet tests. These are Node test suites with synthetic JWT/JWKS fixtures and mock identity responses; this does **not** constitute real-Keycloak or final-stack verification. The new monolith SQLite mapping test was added afterward and has a separate CI run pending. Financial operations from Area C are now composed at Payments startup; cross-team acceptance and database migration still require verification.
+
+**Cutover blockers:** real Keycloak issuer and client credentials, Keycloak service-account/client-role grants, browser authorization-code login and credential forwarding, deployed identity owner endpoint and secret provisioning, full ownership/BOLA matrix, and final E stack integration. Keep `AREA_B_AUTH_ENABLED=false` until these are verified.
