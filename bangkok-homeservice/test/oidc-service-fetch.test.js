@@ -18,5 +18,6 @@ test("service fetch forwards user bearer only to allowlisted API origin",async()
   assert.equal(captured.options.redirect,"error");
   await assert.rejects(fetchAsOidcUser(request,{service:"notifications",url:"https://attacker.example.test/api/steal",sessionOptions:{secret,issuer,now:()=>now}}));
   await assert.rejects(fetchAsOidcUser(request,{service:"notifications",url:"/internal/commands",sessionOptions:{secret,issuer,now:()=>now}}));
+  for(const attack of ["/api/../internal/commands","/api/%2e%2e/internal/commands","/api/%2f%2fattacker","/api/notifications?redirect=https://attacker.example.test","/api/notifications#fragment"])await assert.rejects(fetchAsOidcUser(request,{service:"notifications",url:attack,sessionOptions:{secret,issuer,now:()=>now}}));
  }finally{if(old===undefined)delete process.env.NOTIFICATIONS_SERVICE_URL;else process.env.NOTIFICATIONS_SERVICE_URL=old;}
 });
