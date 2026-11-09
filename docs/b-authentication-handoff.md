@@ -65,3 +65,17 @@ The Booking monolith already has `lib/security/service-token.js` for client cred
 - `services/payments-wallet/test/gateway-verifier.test.js`
 
 No local runtime or actual Keycloak test results are claimed.
+
+## Monolith identity owner implementation added
+
+- `bangkok-homeservice/lib/security/identity-mapping.js`: a separate, monolith-owned SQLite sidecar binding store. A unique `(issuer,subject)` and unique `(role,domain_id)` prevent rebinds; provisioning checks that the legacy user exists. Existing legacy IDs and the fingerprinted legacy schema are unchanged.
+- `bangkok-homeservice/app/api/internal/identity/resolve/route.js`: server-to-server POST with a deployment-managed `IDENTITY_RESOLVER_TOKEN`; only `{issuer,sub}` accepted; 404 on missing, 503 on storage/config failure.
+- `bangkok-homeservice/scripts/provision-keycloak-identity.js`: offline administrative provisioning. Example:
+  ```sh
+  cd bangkok-homeservice
+  IDENTITY_MAPPING_DB_PATH=/secure/identity-bindings.sqlite node scripts/provision-keycloak-identity.js \
+    https://id.example.test/realms/homeservice keycloak-subject-uuid customer 42
+  ```
+  This will refuse provisioning unless customer 42 already exists. Back up and protect the sidecar SQLite file; do not publish it or the resolver token.
+- Services must use `IDENTITY_RESOLVER_URL=https://<trusted-monolith-host>/api/internal/identity/resolve` (not the placeholder `/internal/resolve` in the earlier example).
+- The sidecar is a staged mapping, not an automatic account migration or browser login replacement. Coordinate provisioned accounts with Keycloak `sub` values; legacy login tokens remain distinct.
