@@ -27,3 +27,17 @@ jobs:
           cache-dependency-path: services/${{ matrix.service }}/package-lock.json
       - run: npm ci
       - run: npm test
+  monolith-identity-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bangkok-homeservice
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bangkok-homeservice/package-lock.json
+      - run: npm ci
+      - run: NODE_ENV=test node --test test/identity-mapping.test.js
