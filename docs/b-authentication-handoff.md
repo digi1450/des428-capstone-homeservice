@@ -119,3 +119,7 @@ The existing Next routes `GET /api/notifications` and `POST /api/notifications/[
 ## Live Payments read route opt-in
 
 The Next routes `GET /api/provider/wallet` and `GET /api/customer/transactions` now have opt-in `AREA_B_PAYMENTS_PROXY=true` forwarding to the Payments Wallet service via verified OIDC session bearer. Provider/customer roles are enforced before forwarding; missing sessions return 401 and role mismatch returns 403. Remote errors fail closed without falling back to the monolith. Set `PAYMENTS_WALLET_SERVICE_URL`, `AREA_B_AUTH_ENABLED=true` in Payments, and Keycloak user bindings before activation. Payment writes, booking commands and financial finalization remain C/A integration-owned.
+
+## CI coverage correction and destination audience
+
+The Area B workflow now watches Keycloak configuration, browser login/callback/refresh/logout routes, notifications and Payments proxy routes, and OIDC tests, in addition to verifier modules. Previous runs did not necessarily trigger for route-only edits. The server-to-service bearer forwarding helper now checks the exact destination audience (`notifications-service` versus `payments-wallet-service`) rather than accepting a token intended only for the other service. A regression test rejects a wrong-audience token before any upstream request. This is a preflight check only; the receiving service must still validate the signed JWT.
