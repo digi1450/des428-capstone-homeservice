@@ -115,3 +115,7 @@ The OIDC session refresh endpoint is available before cookie expiry, and no back
 ## Live notifications route opt-in
 
 The existing Next routes `GET /api/notifications` and `POST /api/notifications/[id]/read` now use the server-only OIDC forwarding helper when `AREA_B_NOTIFICATIONS_PROXY=true`. This is a per-route opt-in to avoid silently changing A's legacy session semantics; if enabled, these routes do not fall back to legacy SQLite on upstream or authentication failure. Set `NOTIFICATIONS_SERVICE_URL` to the trusted Notifications origin, `AREA_B_AUTH_ENABLED=true` in the Notifications service, and provision the exact Keycloak user-to-legacy mapping before testing. Do not set the proxy flag in a partial deployment. Other Payments and booking routes remain A/C integration-owned.
+
+## Live Payments read route opt-in
+
+The Next routes `GET /api/provider/wallet` and `GET /api/customer/transactions` now have opt-in `AREA_B_PAYMENTS_PROXY=true` forwarding to the Payments Wallet service via verified OIDC session bearer. Provider/customer roles are enforced before forwarding; missing sessions return 401 and role mismatch returns 403. Remote errors fail closed without falling back to the monolith. Set `PAYMENTS_WALLET_SERVICE_URL`, `AREA_B_AUTH_ENABLED=true` in Payments, and Keycloak user bindings before activation. Payment writes, booking commands and financial finalization remain C/A integration-owned.
