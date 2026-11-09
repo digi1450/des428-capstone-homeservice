@@ -8,7 +8,7 @@ export function seal(value,secret){
  return Buffer.concat([iv,cipher.getAuthTag(),encrypted]).toString("base64url");
 }
 export function unseal(value,secret){
- if(typeof value!=="string"||value.length>4096)throw Error("invalid session");
+ if(typeof value!=="string"||value.length>4096||!/^[A-Za-z0-9_-]+$/.test(value))throw Error("invalid session");
  const data=Buffer.from(value,"base64url");
  if(data.length<29)throw Error("invalid session");
  const decipher=createDecipheriv("aes-256-gcm",key(secret),data.subarray(0,12));
