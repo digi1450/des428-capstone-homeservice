@@ -36,5 +36,10 @@ jobs:
           npm ci --prefix services/payments-wallet
       - name: Monolith callers and client tests
         run: npm test --prefix bangkok-homeservice
-      - name: Financial client to HTTP and PostgreSQL boundary
-        run: node --test tests/integration/financial-finalization-boundary.test.mjs
+      - name: Provisioning, financial and payment-view HTTP/PostgreSQL boundaries
+        # Fixed synthetic Booking IDs require these independent test files to run serially.
+        run: >-
+          node --test --test-concurrency=1
+          tests/integration/a-payment-runtime-boundary.test.mjs
+          tests/integration/financial-finalization-boundary.test.mjs
+          tests/integration/payment-views-boundary.test.mjs

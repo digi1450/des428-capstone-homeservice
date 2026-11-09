@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For C Payments financial operations/migration005, read `docs/c-financial-operations-handoff.md`, including the A review follow-up on lock ordering, distinct-key conflicts and absent-create context binding. The factory is explicit; Booking financial callbacks/recovery, B real verifiers and legacy cutover remain gated.
+
 - For D retry jitter, HTTP fault fixture limits and the deterministic two-connection bid regression, read `docs/d-survive-failure-handoff.md`. Do not equate in-process Promise.all or a Map-backed HTTP fixture with full real-service failure evidence, and do not add nested retry loops around C recovery.
 
 - For step 5D legacy-only rehearsal, source distributed-state guards, eight historical cohorts and remaining eligibility/checkpoint gates, read `docs/legacy-cutover-rehearsal-handoff.md`. Do not clear source/target C state or invent legacy command identities to force export/import; mixed ownership needs a separate reviewed procedure.

@@ -62,3 +62,37 @@ The order fence is also checked by the participant: the settlement gate (`assert
 - A legacy intent is a durable attention result (`legacy_reconciliation_required`), not the coded `FINANCIAL_LEGACY_RECONCILIATION_REQUIRED`. A also allows that code; say if you prefer the coded form.
 - Cancellation never returns `pending` here: every case is decided inside one transaction. Completion uses `pending` only for `awaiting_settlement`.
 - The new schema must be reviewed against the importer before activation; the pin and guards are already updated in this PR.
+
+## A integration review follow-up — 9 November
+
+The original C commits are preserved and main (including D #47) is merged normally.
+Two reviewed defects are corrected without a schema or wire-contract change:
+
+- After the command lock/replay check, acquire the gateway-cancellation provisioning
+  lock when applicable, then the order lock **before** looking for another accepted
+  command. Evaluation and INSERT retain that lock. Different keys racing on one
+  completion now yield one ready result and one FINANCIAL_COMMAND_CONFLICT, not
+  a raw unique-constraint failure/HTTP500. Terminal replay remains immutable.
+- In the absent-create path, an existing key bound to another order cannot be
+  mistaken for absence just because its saga matches. It yields durable
+  context_mismatch with no target fence or mutation of the referenced provisioning.
+  Financial absent-create fences retain the request's order/owner/amount/currency
+  binding even before an intent exists. A genuine old order-less setup-compensation
+  fence can be bound once while preserving its key/state, then cannot be reused to
+  fence another order. Migration004 already supports these fields on fenced rows;
+  no new schema/keys or legacy adoption is introduced.
+
+Regression tests use two real PostgreSQL transactions queued behind an externally
+held order lock, plus cross-order references in created/activated/fenced and absent
+states. Both new cases fail on the original PR implementation and pass after the
+fix. Final local Payments suite115 (PG16/Rabbit4.1), financial subset15 and actual
+A HTTP/PG boundary15 pass with fixture auth. Importer36 also passes with isolated
+owning databases; legacy eligibility remains closed.
+
+The old payment-view test assumed saga activation was not automatic. It failed in
+exactly the same two child cases on main. Its fixture now explicitly holds the
+activation boundary until the test's activation stage, with an asserted created
+provisioning state. Production activation behavior is unchanged. CI now runs this
+boundary together with runtime/financial boundaries serially to avoid collisions
+between their fixed fixture Booking IDs. Booking financial callbacks/recovery,
+real B verifiers, legacy eligibility and live cutover remain separate work.
