@@ -9,6 +9,14 @@ export function getServerOidcSession(request,{secret=process.env.OIDC_SESSION_SE
  !Number.isSafeInteger(session.exp)||session.exp<=Math.floor(now()/1000)||
  !["customer","provider","admin"].includes(session.role)||!Number.isInteger(session.domainId)||session.domainId<1||session.domainId>2147483647||
  typeof session.accessToken!=="string"||!session.accessToken)return null;
+ // The encrypted cookie's expiry must not outlive the signed access token.
+ // Validate the token's expiry before forwarding; downstream services still verify its signature.
+ const parts=session.accessToken.split(".");
+ if(parts.length!==3)return null;
+ try{
+  const claims=JSON.parse(Buffer.from(parts[1],"base64url").toString("utf8"));
+  if(!Number.isSafeInteger(claims.exp)||claims.exp<=Math.floor(now()/1000)||claims.iss!==issuer||claims.sub!==session.sub||claims.azp!=="homeservice-web")return null;
+ }catch{return null;}
  return session;
 }
 export function getServiceUserAuthorization(request,options){
