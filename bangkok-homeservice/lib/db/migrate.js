@@ -36,6 +36,12 @@ export const UPGRADES = Object.freeze([
       SELECT saga_id, 'activate:' || saga_id, 'pending' FROM booking_sagas
       WHERE state = 'COMPLETED' AND intent_json IS NOT NULL`,
   },
+  {
+    // Step 5C durable financial work. Starts empty: legacy completions/cancellations already did
+    // their SQLite money effects and are never replayed as new financial commands.
+    id: "c-booking-financial-work",
+    objects: ["booking_financial_work", "idx_booking_financial_work_due"],
+  },
 ]);
 // previous[k] = the schema as it was before UPGRADES[k..] existed.
 const previous = UPGRADES.map((_, k) => {

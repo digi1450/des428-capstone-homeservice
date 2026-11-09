@@ -10,20 +10,27 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { migrate, PREVIOUS_FINGERPRINTS } from "../lib/db/migrate.js";
 
-// Fingerprint of the schema on main at b4d0b46 (before this upgrade), computed by A's migrate().
+// Fingerprints computed by A's migrate() on real main commits:
+//   b4d0b46 (before activation) and a23b98e (activation merged, before booking_financial_work).
 const MAIN_B4D0B46 = "6c9ccb3f5661b3222617abf0e77f409d918ea6f2c7de2ca54fcdc7188ad1788d";
+const MAIN_A23B98E = "7bce7dfae0448df028f3f4f642d78adc0e9257c529a3c193c81ed7360e7d82cf";
+const STEP_OBJECTS = [
+  "DROP INDEX idx_booking_financial_work_due; DROP TABLE booking_financial_work",   // step 2
+  "DROP INDEX idx_booking_saga_activations_due; DROP TABLE booking_saga_activations", // step 1
+];
 
-const rows = (db) => db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('app_schema_version','booking_saga_activations') ORDER BY name").all()
+const rows = (db) => db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('app_schema_version','booking_saga_activations','booking_financial_work') ORDER BY name").all()
   .map(({ name }) => [name, db.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()]);
 
-function withOldDatabase(run, { marker = true } = {}) {
+// from = 0: the b4d0b46 schema (both steps missing); from = 1: the a23b98e schema (step 2 missing).
+function withOldDatabase(run, { marker = true, from = 0 } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "homeservice-upgrade-"));
   const db = new Database(join(directory, "old.sqlite"));
   try {
     migrate(db);
     // Turn it into exactly the previous schema/marker, then add data the old app could have written.
-    db.exec("DROP INDEX idx_booking_saga_activations_due; DROP TABLE booking_saga_activations");
-    db.prepare("UPDATE app_schema_version SET fingerprint = ?").run(PREVIOUS_FINGERPRINTS[0]);
+    for (const sql of STEP_OBJECTS.slice(0, STEP_OBJECTS.length - from)) db.exec(sql);
+    db.prepare("UPDATE app_schema_version SET fingerprint = ?").run(PREVIOUS_FINGERPRINTS[from]);
     if (!marker) db.exec("DROP TABLE app_schema_version");
     db.exec(`
       INSERT INTO customers (id, name, email, password_hash) VALUES (1, 'c', 'c@example.com', 'x');
@@ -45,8 +52,19 @@ function withOldDatabase(run, { marker = true } = {}) {
 }
 
 test("the previous fingerprint is exactly main's, so real old files are recognised", () => {
-  assert.deepEqual(PREVIOUS_FINGERPRINTS, [MAIN_B4D0B46]);
+  assert.deepEqual(PREVIOUS_FINGERPRINTS, [MAIN_B4D0B46, MAIN_A23B98E]);
 });
+
+test("current-main database (activation present) gets only booking_financial_work, empty, rows preserved", () => withOldDatabase((db) => {
+  db.exec("INSERT INTO booking_saga_activations (saga_id, activate_command_id, state) VALUES ('saga-done', 'activate:saga-done', 'activated')");
+  const before = rows(db);
+  const activations = db.prepare("SELECT * FROM booking_saga_activations").all();
+  assert.equal(migrate(db), "upgraded");
+  assert.deepEqual(rows(db), before);
+  assert.deepEqual(db.prepare("SELECT * FROM booking_saga_activations").all(), activations, "step 1 data untouched");
+  assert.equal(db.prepare("SELECT count(*) AS n FROM booking_financial_work").get().n, 0, "legacy history is never replayed as new financial work");
+  assert.equal(migrate(db), "preserved");
+}, { from: 1 }));
 
 test("old versioned database is upgraded atomically, rows preserved, activation backfilled", () => withOldDatabase((db) => {
   const before = rows(db);

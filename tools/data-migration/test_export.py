@@ -108,6 +108,11 @@ class ExportTests(unittest.TestCase):
                 self.change("INSERT INTO booking_sagas (saga_id,order_id,customer_id,request_key,request_digest,state,create_command_id,cancel_command_id,snapshot_json) VALUES ('fixture-saga',13,5,'fixture-key','fixture-digest','"+state+"','fixture-create','fixture-cancel','{}')")
                 self.assert_source_rejected_without_changes('SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')
 
+    def test_financial_work_history_requires_distributed_source_review(self):
+        # Step 5C: completion/cancellation work may describe effects held only in Payments.
+        self.change("INSERT INTO booking_financial_work (operation_id,kind,order_id,command_id,request_json,state) VALUES ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','completion',13,'complete:dddddddd-dddd-4ddd-8ddd-dddddddddddd','{}','ready')")
+        self.assert_source_rejected_without_changes('SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')
+
     def test_broker_delivery_history_cannot_be_treated_as_legacy_only(self):
         self.change("UPDATE events SET published_at='2026-11-06T00:00:00.000Z'")
         self.assert_source_rejected_without_changes('SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')
@@ -130,7 +135,7 @@ class ExportTests(unittest.TestCase):
 
     def test_pre_broker_source_with_no_c_tables_or_published_column_still_exports(self):
         with closing(sqlite3.connect(self.source)) as db:
-            for table in ['booking_saga_activations','booking_saga_transitions','booking_sagas','processed_events','consistency_attention']:
+            for table in ['booking_financial_work','booking_saga_activations','booking_saga_transitions','booking_sagas','processed_events','consistency_attention']:
                 db.execute('DROP TABLE '+table)
             db.execute('DROP INDEX idx_events_unpublished')
             db.execute('ALTER TABLE events DROP COLUMN published_at')

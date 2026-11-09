@@ -23,7 +23,7 @@ def require_legacy_only_source(db):
     # state may point at effects held ONLY in Payments or a broker. Never discard it
     # or infer that a terminal saga means all owning databases are represented here.
     tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    for table in ('booking_sagas', 'booking_saga_transitions', 'booking_saga_activations', 'processed_events'):
+    for table in ('booking_sagas', 'booking_saga_transitions', 'booking_saga_activations', 'booking_financial_work', 'processed_events'):
         if table in tables:
             require(db.execute('SELECT 1 FROM '+table+' LIMIT 1').fetchone() is None,
                     'SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')

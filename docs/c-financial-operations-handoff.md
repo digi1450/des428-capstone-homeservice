@@ -62,3 +62,28 @@ The order fence is also checked by the participant: the settlement gate (`assert
 - A legacy intent is a durable attention result (`legacy_reconciliation_required`), not the coded `FINANCIAL_LEGACY_RECONCILIATION_REQUIRED`. A also allows that code; say if you prefer the coded form.
 - Cancellation never returns `pending` here: every case is decided inside one transaction. Completion uses `pending` only for `awaiting_settlement`.
 - The new schema must be reviewed against the importer before activation; the pin and guards are already updated in this PR.
+
+## Monolith side — Booking finalization (C slice 2)
+
+`lib/modules/booking/finalization.js`:
+
+```js
+import { createBookingFinalization, recoverFinalizationOnce } from "./finalization.js";
+const bookingFinalization = createBookingFinalization({ financial: createFinancialClient({ baseUrl }), credentials: serviceCredentials });
+configureBookingFinancialAccess({ bookingFinalization }); // A's seam; then call recoverFinalizationOnce() on a timer
+```
+
+- **Work table** `booking_financial_work` (SQLite) holds one row per accepted logical completion or cancellation: `UNIQUE(order_id, kind)`, the operation UUID, `command_id`, the frozen v1 snapshot and its state. It has its own lease and backoff. Existing files gain it through `migrate.js` `UPGRADES` step 2, starting empty: legacy money is never replayed.
+- **complete:** in ONE transaction it rechecks provider, OTP and `started`, runs `completeAtomic`, emits the same `booking.completed` and `status_changed` events, and saves the work, with no SQLite wallet or ledger write. It then makes one best-effort delivery and returns the completed order with `accounting_status`.
+  - A gateway order takes its provisioning refs from its COMPLETED saga.
+  - A legacy gateway order without a saga gets 409, and everything rolls back.
+- **cancel:** in ONE transaction it rechecks the customer and `awaiting`/`confirmed`, then saves the work. The order and its holds are **kept**.
+  - Only a ready Payments result finalizes, in one transaction: `cancelAtomic`, release holds, `markRefunded` only when the outcome is `refunded`, and one status event.
+  - If the booking is paid but the result is not a refund, it goes to attention.
+- **status** reads accounting/cancellation status from the work. **assertTransitionAllowed** is synchronous and refuses `confirm`/`start`/`reschedule` while a cancellation is pending or in attention. A pending cancellation also blocks completion, and a completed booking cannot be cancelled.
+- **Delivery and recovery:** every attempt uses the same saved key and snapshot under a per-claim lease token, so stale results are discarded.
+  - pending or unknown: retry with backoff, and one `consistency_attention` row after `escalateAfter` attempts (401/403 is recorded right away).
+  - validated attention or any `FinancialReconciliationError` (coded or uncoded): work goes to attention plus a `consistency_attention` row, and is never retried.
+- A's exporter guard now also rejects sources with `booking_financial_work` history.
+
+Still needed: B's service credentials, A/E composition (timer + selector), D's retry values, the legacy gateway gate.

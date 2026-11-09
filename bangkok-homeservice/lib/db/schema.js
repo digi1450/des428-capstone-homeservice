@@ -9,6 +9,7 @@ export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS booking_saga_transitions;
+DROP TABLE IF EXISTS booking_financial_work;
 DROP TABLE IF EXISTS booking_saga_activations;
 DROP TABLE IF EXISTS booking_sagas;
 DROP TABLE IF EXISTS consistency_attention;
@@ -360,4 +361,31 @@ CREATE TABLE booking_saga_activations (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX idx_booking_saga_activations_due ON booking_saga_activations(next_attempt_at) WHERE state = 'pending';
+
+-- Area C, step 5C: durable Booking financial work (completion / cancellation). One row per accepted
+-- logical operation, created in the SAME transaction as the local transition (completion) or the
+-- pending-cancellation guard (cancellation). Delivered to Payments with the saved key and snapshot.
+--   pending    deliver/retry the same command; for cancellation the order and slot holds are kept
+--              and confirm/start/reschedule are refused (assertTransitionAllowed)
+--   ready      Payments confirmed a terminal safe result (cancellation finalized locally with it)
+--   attention  needs recorded reconciliation; never retried into success
+CREATE TABLE booking_financial_work (
+  operation_id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('completion','cancellation')),
+  order_id INTEGER NOT NULL REFERENCES orders(id),
+  command_id TEXT NOT NULL UNIQUE,
+  request_json TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('pending','ready','attention')),
+  result_json TEXT,
+  reason TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  locked_by TEXT,
+  locked_until TEXT,
+  last_error TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE (order_id, kind)
+);
+CREATE INDEX idx_booking_financial_work_due ON booking_financial_work(next_attempt_at) WHERE state = 'pending';
 `;
