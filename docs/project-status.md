@@ -1,5 +1,13 @@
 # Shared project status and handoff
 
+## C shared retry policy — 9 November 2026
+
+PR #50 extracts the existing capped equal-jitter policy and uses it for saga,
+activation and financial finalization. It includes deterministic retry-bound tests
+and current C evidence links in OWNERS. The integrated monolith after the PR49
+cancellation fix passed243 tests with no skips. D still owns production retry/fault
+acceptance; this helper does not establish full-stack resilience or enable timers.
+
 ## C Booking financial finalization and A review fix — 9 November 2026
 
 PR #49 supplies durable completion/cancellation callbacks, local guards and recovery
