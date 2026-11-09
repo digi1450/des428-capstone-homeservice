@@ -27,10 +27,15 @@ test('Next callers read remote intents, gate payments and show pending wallets w
  const business=createPaymentsService(db,hooks);participant=createPaymentParticipant({database:db,business});
  // This readiness callback represents C's pending worker interface. It is a deliberate test double;
  // actual client/HTTP/participant/SQLite/PG are real, but #29 recovery is not enabled by this test.
- let readiness='pending';
+ let readiness='pending',allowActivation=false;
  try{
   await migrate(db);
-  server=createApp({database:db,paymentCommands:participant,paymentHooks:hooks,
+  server=createApp({database:db,paymentCommands:{...participant,activate:async input=>{
+    // Current saga auto-delivers activation. Hold only that fixture boundary so
+    // the stale-UI case really tests a created (not already activated) intent.
+    if(!allowActivation)throw new HttpError(503,'fixture activation held');
+    return participant.activate(input);
+   }},paymentHooks:hooks,
    authenticateService:async req=>{if(req.get('authorization')!=='Bearer service-fixture')throw new HttpError(401,'invalid test service');return{service:'booking',callerId:caller};},
    authenticate:async req=>{const token=req.get('authorization');if(token==='Bearer customer-fixture')return{role:'customer',domainId:customer.id};if(token==='Bearer provider-fixture')return{role:'provider',domainId:provider.id};throw new HttpError(401,'invalid test user');},
   }).listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
@@ -47,11 +52,13 @@ test('Next callers read remote intents, gate payments and show pending wallets w
    assert.ok(sqlite.prepare('SELECT count(*) AS n FROM slot_holds WHERE order_id=?').get(orderId).n>0);
   });
   await t.test('stale UI readiness cannot bypass the Payments settlement eligibility guard',async()=>{
+   const state=(await db.query('SELECT state FROM payment_provisioning WHERE order_id=$1',[orderId])).rows[0];assert.equal(state.state,'created');
    readiness='ready';assert.equal((await call(simulate.POST,{token:customer.token,body:{order_id:orderId}})).status,503);
    // The transport sanitizes an unhandled read-mutation conflict to unavailable, not success.
    assert.equal((await db.query("SELECT 1 FROM transactions WHERE order_id=$1 AND kind='charge'",[orderId])).rowCount,0);
   });
   await t.test('after actual activation, simulate settles once and detail sees succeeded before paid-event delivery',async()=>{
+   allowActivation=true;
    const saga=sqlite.prepare('SELECT * FROM booking_sagas WHERE order_id=?').get(orderId);
    await adapter.activate({createCommandId:saga.create_command_id,sagaId:saga.saga_id,activateCommandId:`activate:${saga.saga_id}`},{token:'service-fixture'});
    const paid=await call(simulate.POST,{token:customer.token,body:{order_id:orderId}});assert.equal(paid.status,200);assert.equal(paid.body.settled,true);

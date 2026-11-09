@@ -28,3 +28,28 @@ Every result in these cases was also checked with A's own `financialResult` vali
 11. Through A's real router: COD completion 200, changed request 409 with code, pending 202, blocked cancellation 409 with code, voided cancellation 200, late completion 409 `cancellation_fenced`, GET 200, unknown GET 404.
 
 Not done here: the monolith Booking callbacks and recovery (next C slice), B verifiers, server wiring, and the legacy eligibility gate.
+
+## A review corrections and current candidate evidence — 9 November
+
+This supersedes the earlier failures above for the checks actually rerun, while
+preserving C's original observations and distinguishing fixture drift from code defects. Current candidate includes main
+through D #47 and the two reviewed financial corrections; production remains unwired.
+
+- New regressions on original C code: both child cases fail (different-key HTTP
+  completion receives500; cross-order cancellation incorrectly returns ready).
+- Corrected financial subset:15 pass. Full Payments suite:115 pass,0 fail/skip,
+  Node22 with disposable PG16 and RabbitMQ4.1. Same-key replay, settlement/cancel
+  and payout/refund races remain covered. No useful data or real auth is used.
+- Actual runtime/financial/payment-view HTTP+PG boundaries:15 pass,0 fail/skip,
+  Node20 native SQLite with Linux locked service dependencies. Payment-view
+  baseline reproduced2 child failures on main; the fixture now controls automatic
+  activation explicitly and production code is unchanged for that issue.
+- Two-owner offline migration/importer:36 pass,0 fail/skip, PG16/Node22 including
+  both CLI dry-runs. The earlier CLI failures were not reproduced in this isolated environment;
+  no importer CLI, dependencies or useful databases were modified for those passes.
+- D's integrated monolith218 pass and its actual stale-read regression red/green
+  were observed before #47 merge; CI checks the whole final #48 candidate again.
+
+Only the dedicated temporary projects/fixtures are removed. No real Keycloak,
+Booking financial work/recovery, whole-stack restart/fault acceptance, resource
+budget or legacy/cutover completion is claimed by these runs.

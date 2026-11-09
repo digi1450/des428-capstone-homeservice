@@ -42,14 +42,42 @@ export function bookJobAtomic(jobId) {
 }
 
 // ---- bids ----
+
 export function insertBid(b) {
   try {
-    return getDb()
+    const result = getDb()
       .prepare(
-        `INSERT INTO bids (job_request_id, provider_id, counter_price_cents, note, duration_min)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO bids (
+          job_request_id, provider_id, counter_price_cents, note, duration_min
+        )
+        SELECT ?, ?, ?, ?, ?
+        WHERE EXISTS (
+          SELECT 1 FROM job_requests
+          WHERE id = ? AND status = 'open'
+        )`
       )
-      .run(b.jobRequestId, b.providerId, b.counterPriceCents, b.note ?? null, b.durationMin).lastInsertRowid;
+      .run(
+        b.jobRequestId,
+        b.providerId,
+        b.counterPriceCents,
+        b.note ?? null,
+        b.durationMin,
+        b.jobRequestId
+      );
+
+    if (result.changes === 0) {
+      const job = getDb()
+        .prepare("SELECT id FROM job_requests WHERE id = ?")
+        .get(b.jobRequestId);
+
+      if (!job) {
+        throw new ConflictError("job is no longer available");
+      }
+
+      throw new ConflictError("job is not open for bids");
+    }
+
+    return result.lastInsertRowid;
   } catch (err) {
     if (err && err.code === "SQLITE_CONSTRAINT_UNIQUE") {
       throw new ConflictError("you have already bid on this job");
@@ -57,6 +85,7 @@ export function insertBid(b) {
     throw err;
   }
 }
+
 export function findBidById(id) {
   return getDb().prepare("SELECT * FROM bids WHERE id = ?").get(id);
 }

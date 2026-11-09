@@ -203,6 +203,71 @@ test("financial operations on PostgreSQL", { skip: !process.env.TEST_DATABASE_UR
     assert.equal(out.result.outcome, "refunded");
   });
 
+  await t.test("different completion keys queued on the same order yield ready plus coded409, never500", async () => {
+    const orderId=newOrder(),p={base:ctx(orderId)};
+    const inputs=[completion(p),completion(p)];
+    const http=createPaymentsRuntime({database:db,createFinancialOperations,
+      authenticate:async()=>{throw new HttpError(403,"not a user flow");},
+      authenticateService:async()=>({service:"booking",callerId}),
+    });
+    const server=http.app.listen(0,"127.0.0.1");await new Promise(resolve=>server.once("listening",resolve));
+    let release,held;
+    const heldPromise=new Promise(resolve=>held=resolve),releasePromise=new Promise(resolve=>release=resolve);
+    const holder=db.withTransaction(async tx=>{
+      await tx.query("SELECT pg_advisory_xact_lock(42801,$1::integer)",[orderId]);
+      held();await releasePromise;
+    });
+    try {
+      await heldPromise;
+      const calls=Promise.all(inputs.map(input=>fetch(`http://127.0.0.1:${server.address().port}/internal/booking-completions`,{
+        method:"POST",headers:{Authorization:"Bearer booking-fixture","Content-Type":"application/json","Idempotency-Key":input.commandId},body:JSON.stringify(input.request),
+      })));
+      try {
+        const deadline=Date.now()+1500;let queued=0;
+        do {
+          queued=(await db.query("SELECT count(*)::int AS n FROM pg_locks WHERE locktype='advisory' AND classid=42801::oid AND objid=$1::oid AND NOT granted",[orderId])).rows[0].n;
+          if(queued<2)await new Promise(resolve=>setTimeout(resolve,10));
+        } while(queued<2&&Date.now()<deadline);
+        assert.equal(queued,2,"both transactions must wait on the real order lock before release");
+      } finally {release();await holder;}
+      const responses=await calls,body=await Promise.all(responses.map(response=>response.json()));
+      assert.deepEqual(responses.map(response=>response.status).sort(),[200,409]);
+      const good=responses.findIndex(response=>response.status===200),conflict=responses.findIndex(response=>response.status===409);
+      valid("completion",inputs[good],body[good]);
+      assert.equal(body[conflict].code,CODES.COMMAND_CONFLICT);
+      assert.equal((await db.query("SELECT count(*)::int AS n FROM financial_commands WHERE order_id=$1",[orderId])).rows[0].n,1);
+      assert.equal((await ledger(orderId)).length,1);
+      assert.equal((await wallet(p.base.provider_id)).commission_owed_cents,1070);
+    } finally {release();await holder;server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+  });
+
+  await t.test("absent-create cancellation rejects a create key already bound to another order", async () => {
+    for(const state of ["created","activated","fenced"]){
+      const orderA=newOrder(),orderB=newOrder(),p=await provision(orderA,{activate:state==="activated"});
+      if(state==="fenced")await fin.cancel(cancellation(p));
+      const before=(await db.query("SELECT * FROM payment_provisioning WHERE order_id=$1",[orderA])).rows;
+      const input=cancellation({...p,base:{...p.base,order_id:orderB}}),out=await fin.cancel(input);
+      valid("cancellation",input,out.result);
+      assert.deepEqual([out.result.state,out.result.reason],["attention","context_mismatch"]);
+      assert.equal((await db.query("SELECT 1 FROM financial_fences WHERE order_id=$1",[orderB])).rowCount,0);
+      assert.deepEqual((await db.query("SELECT * FROM payment_provisioning WHERE order_id=$1",[orderA])).rows,before);
+    }
+    // A genuine order-less compensation fence for the same saga remains compatible.
+    const p={base:ctx(newOrder()),create:`create:${randomUUID()}`,saga:`saga:${randomUUID()}`};
+    await participant.cancel({callerId,commandId:`cancel-setup:${randomUUID()}`,request:{create_command_id:p.create,saga_id:p.saga,reason:"booking_setup_failed"}});
+    const input=cancellation(p),out=await fin.cancel(input);valid("cancellation",input,out.result);
+    assert.equal(out.result.outcome,"no_payment");
+    const bound=(await db.query("SELECT order_id FROM payment_provisioning WHERE caller_id=$1 AND create_command_id=$2",[callerId,p.create])).rows[0];
+    assert.equal(bound.order_id,p.base.order_id,"the old order-less setup fence now retains the financial order binding");
+    const other=cancellation({...p,base:{...p.base,order_id:newOrder()}}),reused=await fin.cancel(other);
+    assert.deepEqual([reused.result.state,reused.result.reason],["attention","context_mismatch"]);
+    assert.equal((await db.query("SELECT 1 FROM financial_fences WHERE order_id=$1",[other.request.order_id])).rowCount,0);
+    const fresh={base:ctx(newOrder()),create:`create:${randomUUID()}`,saga:`saga:${randomUUID()}`};
+    await fin.cancel(cancellation(fresh));
+    const wrong=cancellation({...fresh,base:{...fresh.base,order_id:newOrder()}});
+    assert.equal((await fin.cancel(wrong)).result.reason,"context_mismatch","a fresh absent-create financial fence cannot be reused on another order either");
+  });
+
   await t.test("race: settlement vs cancellation never ends with an unrefunded charge after a fence", async () => {
     const seen = {};
     for (let round = 0; round < 20; round += 1) {

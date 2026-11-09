@@ -97,7 +97,6 @@ export function createFinancialOperations({ database, business }) {
   async function evaluateCompletion(tx, callerId, commandId, request) {
     const attention = (reason) => ({ ...base("completion", commandId, request), state: "attention", reason });
     const pending = (reason) => ({ ...base("completion", commandId, request), state: "pending", reason });
-    await lockOrder(tx, request.order_id);
     if (await fenceFor(tx, request.order_id)) return attention("cancellation_fenced");
     const intent = await intentFor(tx, request.order_id);
     const entries = await ledger(tx, request.order_id);
@@ -137,8 +136,6 @@ export function createFinancialOperations({ database, business }) {
   async function evaluateCancellation(tx, callerId, commandId, request) {
     const attention = (reason) => ({ ...base("cancellation", commandId, request), state: "attention", reason });
     const ready = (outcome, extra = {}) => ({ ...base("cancellation", commandId, request), state: "ready", settlement_fenced: true, outcome, ...extra });
-    if (request.payment_method === "gateway") await lockProvisioning(tx, callerId, request.provisioning.create_command_id);
-    await lockOrder(tx, request.order_id);
     const fence = await fenceFor(tx, request.order_id);
     if (fence) throw coded(CODES.COMMAND_CONFLICT, "order is already fenced by another financial cancellation");
     const completion = await one(tx, "SELECT state FROM financial_commands WHERE kind='completion' AND order_id=$1", [request.order_id]);
@@ -158,14 +155,29 @@ export function createFinancialOperations({ database, business }) {
         if (intent) return attention("legacy_reconciliation_required");
         const sameKey = await one(tx, "SELECT * FROM payment_provisioning WHERE caller_id=$1 AND create_command_id=$2",
           [callerId, request.provisioning.create_command_id]);
-        if (sameKey && sameKey.saga_id !== request.provisioning.saga_id) return attention("context_mismatch");
+        // Only a genuine order-less absent-create fence belongs in this branch.
+        // A matching saga string does not permit reusing another order's bound key.
+        if (sameKey && (sameKey.saga_id !== request.provisioning.saga_id || sameKey.state !== "fenced"
+          || ["order_id", "intent_id", "customer_id", "provider_id", "amount_cents", "currency"].some((field) => sameKey[field] !== null))) {
+          return attention("context_mismatch");
+        }
         if (!sameKey) {
           // Absent-create fence (same protocol as the provisioning participant): a late create for
           // this saga can never commit afterwards.
           await tx.query(
-            `INSERT INTO payment_provisioning (caller_id, create_command_id, saga_id, state, cancel_command_id, cancel_reason)
-             VALUES ($1,$2,$3,'fenced',$4,'financial_cancellation')`,
-            [callerId, request.provisioning.create_command_id, request.provisioning.saga_id, commandId]);
+            `INSERT INTO payment_provisioning (caller_id, create_command_id, saga_id, state, cancel_command_id, cancel_reason,
+              order_id, customer_id, provider_id, amount_cents, currency)
+             VALUES ($1,$2,$3,'fenced',$4,'financial_cancellation',$5,$6,$7,$8,$9)`,
+            [callerId, request.provisioning.create_command_id, request.provisioning.saga_id, commandId,
+              request.order_id, request.customer_id, request.provider_id, request.amount_cents, request.currency]);
+        } else {
+          // Preserve an existing setup-compensation fence/key, but bind its previously
+          // unknown context once. The same create reference cannot later fence another order.
+          await tx.query(
+            `UPDATE payment_provisioning SET order_id=$3, customer_id=$4, provider_id=$5, amount_cents=$6, currency=$7, updated_at=now()
+             WHERE caller_id=$1 AND create_command_id=$2`,
+            [callerId, request.provisioning.create_command_id, request.order_id, request.customer_id,
+              request.provider_id, request.amount_cents, request.currency]);
         }
         result = ready("no_payment");
       } else {
@@ -207,6 +219,13 @@ export function createFinancialOperations({ database, business }) {
       await lockCommand(tx, callerId, commandId);
       const existing = await prior(tx, callerId, commandId, kind, requestDigest);
       if (existing && existing.state !== "pending") return { replayed: true, result: existing.result };
+      // Serialize the one-command-per-order decision with evaluation and INSERT.
+      // Different command keys hold different command locks; checking before the
+      // order lock would let both see "absent" and leak UNIQUE violations as 500.
+      if (kind === "cancellation" && request.payment_method === "gateway") {
+        await lockProvisioning(tx, callerId, request.provisioning.create_command_id);
+      }
+      await lockOrder(tx, request.order_id);
       const elsewhere = await other(tx, kind, request.order_id, callerId, commandId);
       if (elsewhere) throw coded(CODES.COMMAND_CONFLICT, `order already has a different ${kind} command`);
       const result = kind === "completion"
