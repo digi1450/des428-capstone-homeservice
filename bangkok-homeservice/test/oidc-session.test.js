@@ -24,7 +24,7 @@ test("ID token rejects nonce mismatch, wrong audience, expiry and tampering",asy
  const raw=token(claims);await assert.rejects(verifyOidcIdToken({token:raw.slice(0,-2)+"xx",issuer,nonce:"nonce-123",fetchImpl,now:()=>now}));
 });
 test("encrypted browser session rejects modifications and expiry",()=>{
- const session={issuer,sub:"subject-1",role:"customer",domainId:42,exp:1800000100,accessToken:"signed-access"};
+ const session={issuer,sub:"subject-1",role:"customer",domainId:42,exp:1800000100,accessToken:token({iss:issuer,sub:"subject-1",azp:"homeservice-web",exp:1800000100})};
  const sealed=seal(session,secret);
  assert.deepEqual(unseal(sealed,secret),session);
  assert.throws(()=>unseal(sealed.slice(0,-2)+"xx",secret));
