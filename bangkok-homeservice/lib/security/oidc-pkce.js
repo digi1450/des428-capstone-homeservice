@@ -15,7 +15,8 @@ export function createAuthorizationRequest({issuer,clientId="homeservice-web",re
  return {url:url.toString(),state,verifier,nonce};
 }
 export async function exchangeAuthorizationCode({issuer,clientId="homeservice-web",redirectUri,code,verifier,fetchImpl=fetch}) {
- if(!/^https:\/\//.test(issuer) || !code || !verifier) throw Error("invalid code exchange");
+ const base = new URL(issuer);
+ if (base.protocol !== "https:" || base.username || base.password || base.search || base.hash || !/^\/realms\/[^/]+$/.test(base.pathname) || base.href !== issuer || !code || !verifier) throw Error("invalid code exchange");
  const url=new URL(issuer+"/protocol/openid-connect/token");
  const response=await fetchImpl(url,{method:"POST",redirect:"error",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"authorization_code",client_id:clientId,code,redirect_uri:redirectUri,code_verifier:verifier}),signal:AbortSignal.timeout(5000)});
  if(!response.ok) throw Error("OIDC code exchange failed");
