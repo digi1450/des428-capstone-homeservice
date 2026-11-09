@@ -75,6 +75,12 @@ const find = (sagaId) => getDb().prepare("SELECT * FROM booking_sagas WHERE saga
 const findByKey = (customerId, key) => getDb().prepare("SELECT * FROM booking_sagas WHERE customer_id = ? AND request_key = ?").get(customerId, key);
 export const transitions = (sagaId) => getDb().prepare("SELECT from_state, to_state, reason FROM booking_saga_transitions WHERE saga_id = ? ORDER BY id").all(sagaId);
 
+// A saved customer cancellation supersedes setup, including an in-flight prepare/cancel
+// reply. Only financial finalization may release its holds after Payments confirms safety.
+const financialCancellation = (orderId) => getDb().prepare(
+  "SELECT 1 FROM booking_financial_work WHERE order_id = ? AND kind = 'cancellation'",
+).get(orderId);
+
 function move(saga, to, reason, fields = {}) {
   const db = getDb();
   const sets = ["state = ?", "attempts = 0", "next_attempt_at = ?", "last_error = NULL", "updated_at = ?"];
@@ -111,6 +117,7 @@ function recordFailure(saga, error, limit, exhaustedTo, exhaustedReason) {
 
 // One step for one saga. Never holds a SQLite transaction across a network call.
 async function step(saga) {
+  if (financialCancellation(saga.order_id)) return;
   const snapshot = JSON.parse(saga.snapshot_json);
   const workflow = { createCommandId: saga.create_command_id, sagaId: saga.saga_id };
   if (saga.state === STATES.CREATE_PENDING) {
@@ -118,9 +125,11 @@ async function step(saga) {
     try {
       operation = await runtime.payments.prepare(snapshot, workflow, await runtime.credentials());
     } catch (error) {
+      if (financialCancellation(saga.order_id)) return;
       recordFailure(saga, error, runtime.maxCreateAttempts, STATES.COMPENSATION_PENDING, "setup abandoned");
       return;
     }
+    if (financialCancellation(saga.order_id)) return;
     try {
       getDb().transaction(() => {
         move(saga, STATES.COMPLETED, "payment intent created", { intent_json: JSON.stringify(operation.payment_intent) });
@@ -142,9 +151,11 @@ async function step(saga) {
     try {
       await runtime.payments.cancel({ ...workflow, cancelCommandId: saga.cancel_command_id, reason: saga.cancel_reason }, await runtime.credentials());
     } catch (error) {
+      if (financialCancellation(saga.order_id)) return;
       recordFailure(saga, error, runtime.maxCancelAttempts, STATES.RECOVERY_PENDING, "compensation unconfirmed");
       return;
     }
+    if (financialCancellation(saga.order_id)) return;
     // Fence confirmed: the create can no longer commit. Now undo T1 — keep the rows as history.
     getDb().transaction(() => {
       repository.cancelAtomic(saga.order_id, saga.customer_id);
@@ -213,6 +224,7 @@ async function deliverActivation(activation, token, rt) {
     outcome = { kind: classify(error), error };
   }
   const applied = getDb().transaction(() => {
+    if (financialCancellation(saga.order_id)) return false;
     if (outcome.kind === "activated") return settleActivation(saga.saga_id, token, ACTIVATION.ACTIVATED);
     if (outcome.kind === "fenced") {
       if (!settleActivation(saga.saga_id, token, ACTIVATION.BLOCKED, SETUP_CANCELLED)) return false;
@@ -242,6 +254,7 @@ async function deliverActivation(activation, token, rt) {
 // never share a claim). The runtime is captured at claim time for the whole attempt.
 export async function activate(sagaId) {
   const rt = runtime;
+  if (financialCancellation(find(sagaId).order_id)) return findActivation(sagaId);
   if (typeof rt.payments?.activate !== "function") return findActivation(sagaId); // A's adapter method not wired yet
   const token = `${rt.owner}:${randomUUID()}`;
   const claimed = getDb().prepare(
@@ -311,7 +324,7 @@ export async function placeGatewayBooking(customerId, input, idempotencyKey) {
 // Recovery: drive every due saga one step (after restarts, outages or a 503 the client never retried).
 export async function recoverOnce({ batchSize = 20 } = {}) {
   const due = getDb().prepare(
-    `SELECT saga_id FROM booking_sagas WHERE state IN (?, ?) AND next_attempt_at <= ? AND (locked_until IS NULL OR locked_until < ?)
+    `SELECT saga_id FROM booking_sagas WHERE NOT EXISTS (SELECT 1 FROM booking_financial_work w WHERE w.order_id = booking_sagas.order_id AND w.kind = 'cancellation') AND state IN (?, ?) AND next_attempt_at <= ? AND (locked_until IS NULL OR locked_until < ?)
       ORDER BY next_attempt_at LIMIT ?`,
   ).all(...ACTIVE, iso(), iso(), batchSize);
   for (const { saga_id: sagaId } of due) {
@@ -319,7 +332,7 @@ export async function recoverOnce({ batchSize = 20 } = {}) {
   }
   // COMPLETED sagas whose activation is still pending (after restarts, timeouts, lost replies).
   const activations = typeof runtime.payments?.activate === "function" ? getDb().prepare(
-    `SELECT saga_id FROM booking_saga_activations WHERE state = 'pending' AND next_attempt_at <= ? AND (locked_until IS NULL OR locked_until < ?)
+    `SELECT saga_id FROM booking_saga_activations WHERE NOT EXISTS (SELECT 1 FROM booking_financial_work w JOIN booking_sagas s ON s.order_id = w.order_id WHERE s.saga_id = booking_saga_activations.saga_id AND w.kind = 'cancellation') AND state = 'pending' AND next_attempt_at <= ? AND (locked_until IS NULL OR locked_until < ?)
       ORDER BY next_attempt_at LIMIT ?`,
   ).all(iso(), iso(), batchSize) : [];
   for (const { saga_id: sagaId } of activations) {

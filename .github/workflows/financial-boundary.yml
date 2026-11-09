@@ -21,6 +21,7 @@ jobs:
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgres://test_user:test_password@localhost:5432/financial_test
+      TEST_PAYMENTS_DATABASE_URL: postgres://test_user:test_password@localhost:5432/financial_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,3 +44,6 @@ jobs:
           tests/integration/a-payment-runtime-boundary.test.mjs
           tests/integration/financial-finalization-boundary.test.mjs
           tests/integration/payment-views-boundary.test.mjs
+      - name: Booking durable finalization and cancellation recovery against Payments
+        # Run after the earlier boundaries; this suite also creates wallet/financial state.
+        run: node --test tests/integration/c-booking-finalization-e2e.test.mjs
