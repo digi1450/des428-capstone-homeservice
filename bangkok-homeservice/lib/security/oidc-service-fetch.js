@@ -13,6 +13,12 @@ export async function fetchAsOidcUser(request,{service,url,method="GET",body,fet
  if(target.origin!==origin.origin||!target.pathname.startsWith("/api/"))throw Error("invalid service target");
  if(!methods.has(method))throw Error("invalid method");
  const auth=getServiceUserAuthorization(request,sessionOptions);
+ // Match the JWT audience to the specific service receiving the bearer.
+ const jwt=auth.Authorization.slice(7).split(".");
+ let claims;
+ try{claims=JSON.parse(Buffer.from(jwt[1],"base64url").toString("utf8"));}catch{throw Error("invalid access token");}
+ const audience=service==="notifications"?"notifications-service":"payments-wallet-service";
+ if(!(claims.aud===audience||(Array.isArray(claims.aud)&&claims.aud.includes(audience))))throw Error("token not intended for service");
  const headers={...auth,Accept:"application/json"};
  if(body!==undefined)headers["Content-Type"]="application/json";
  return fetchImpl(target,{method,headers,body:body===undefined?undefined:JSON.stringify(body),redirect:"error",signal:AbortSignal.timeout(5000),cache:"no-store"});
