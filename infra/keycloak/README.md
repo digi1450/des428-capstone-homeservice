@@ -20,7 +20,7 @@ This is an **importable starting realm**, not an activated production IdP or a c
 
 ## Outstanding integration
 
-- The realm export has only a localhost development redirect URI; replace it with reviewed actual browser callback origins before deploying.
+- The realm export allows only the exact local callback `http://localhost:3000/api/auth/keycloak/callback`; replace it with the reviewed exact HTTPS callback URI before deploying. Wildcard redirects must not be introduced.
 - The client-role assignments, browser login/session implementation, confidential server-side credential callback, and monolith-owned `(issuer,sub)->(role,domainId)` mapping are **not provisioned** by this export.
 - Both service entrypoints now have opt-in verifier wiring via AREA_B_AUTH_ENABLED=true; they remain disabled by default. Do not enable the cutover or claim Keycloak integration success without testing real signed tokens, ownership/BOLA, refresh, webhook rejection and final Compose.
 - E owns final Compose/secret management; A owns browser/Next.js API and Server Component wiring; C owns financial transactions/recovery. B provides verifiers and role contracts.
@@ -52,4 +52,4 @@ KEYCLOAK_GATEWAY_CLIENT_SECRET=... \\
 node infra/keycloak/smoke-real-service-tokens.mjs
 ```
 
-Supply secrets via a secure environment/CI secret store, never commit them or run this command with secrets in a shared shell history. The script requests **real** client-credentials access tokens and verifies Booking/Gateway operation roles, audience, issuer, forged-signature rejection and cross-client isolation. It prints no tokens. A successful run is necessary but not sufficient for full Area B acceptance: user authorization-code login, ownership, expired/wrong-audience real-token HTTP tests, TLS deployment and token refresh still need integration evidence. This script has not been executed against a live Keycloak instance in this branch.
+Supply secrets via a secure environment/CI secret store, never commit them or run this command with secrets in a shared shell history. The script requests **real** client-credentials access tokens and verifies Booking/Gateway operation roles, audience, issuer, forged-signature rejection, cross-client role isolation and stable Booking caller identity across separately issued tokens. It prints no tokens. A successful run is necessary but not sufficient for full Area B acceptance: user authorization-code login, ownership, expired/wrong-audience real-token HTTP tests, TLS deployment and token refresh still need integration evidence. This script has not been executed against a live Keycloak instance in this branch.
