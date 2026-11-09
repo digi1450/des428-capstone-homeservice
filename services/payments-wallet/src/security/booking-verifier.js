@@ -17,8 +17,8 @@ const unavailable = () => new HttpError(503, "authentication unavailable");
  * Permissions use explicit Keycloak client roles, not arbitrary caller headers.
  * Does not enable production startup until wired and tested with the actual realm.
  */
-export function createBookingServiceVerifier({ issuer, audience = "payments-wallet-service", clientId = "booking-service", fetchImpl = fetch, now = () => Date.now(), cacheMs = 60_000 } = {}) {
-  if (typeof issuer !== "string" || !/^https:\/\//.test(issuer) || issuer.endsWith("/") || !audience || !clientId) throw new TypeError("trusted HTTPS Keycloak issuer, audience and client ID required");
+export function createServiceVerifier({ issuer, audience = "payments-wallet-service", clientId, service, operations, fetchImpl = fetch, now = () => Date.now(), cacheMs = 60_000 } = {}) {
+  if (typeof issuer !== "string" || !/^https:\/\//.test(issuer) || issuer.endsWith("/") || !audience || !clientId || !service || !Array.isArray(operations) || !operations.length) throw new TypeError("trusted HTTPS Keycloak issuer, audience and client ID required");
   const jwksUrl = new URL(issuer + "/protocol/openid-connect/certs");
   let keys = null;
   let updatedAt = 0;
@@ -42,7 +42,7 @@ export function createBookingServiceVerifier({ issuer, audience = "payments-wall
     return pending;
   }
   return async function authenticateService(req, { operation } = {}) {
-    if (!allowedOperations.has(operation)) throw forbidden();
+    if (!operations.includes(operation)) throw forbidden();
     const authorization = req.get("authorization") ?? "";
     if (!/^Bearer [A-Za-z0-9._-]+$/.test(authorization)) throw unauthorized();
     const token = authorization.slice(7);
@@ -61,9 +61,17 @@ export function createBookingServiceVerifier({ issuer, audience = "payments-wall
         (claims.iat !== undefined && (!Number.isSafeInteger(claims.iat) || claims.iat > seconds)) ||
         typeof claims.sub !== "string" || !claims.sub || claims.azp !== clientId) throw unauthorized();
     const roles = claims.resource_access?.[audience]?.roles;
-    if (!Array.isArray(roles) || !roles.includes("booking:" + operation)) throw forbidden();
+    if (!Array.isArray(roles) || !roles.includes(service + ":" + operation)) throw forbidden();
     const callerId = issuer + "|" + claims.sub;
     if (!/^[\x21-\x7e]{1,256}$/.test(callerId)) throw unauthorized();
-    return { service: "booking", callerId };
+    return { service, callerId };
   };
+}
+
+export function createBookingServiceVerifier(options = {}) {
+  return createServiceVerifier({ ...options, clientId: options.clientId ?? "booking-service", service: "booking", operations: [...allowedOperations] });
+}
+
+export function createGatewayWebhookVerifier(options = {}) {
+  return createServiceVerifier({ ...options, clientId: options.clientId ?? "mock-gateway-service", service: "mock-gateway", operations: ["settle_webhook"] });
 }
