@@ -49,7 +49,11 @@
         "roles",
         "homeservice-api-audiences"
       ],
-      "optionalClientScopes": []
+      "optionalClientScopes": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "implicitFlowEnabled": false
     },
     {
       "clientId": "booking-service",
