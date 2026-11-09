@@ -40,4 +40,4 @@ jobs:
           cache: npm
           cache-dependency-path: bangkok-homeservice/package-lock.json
       - run: npm ci
-      - run: NODE_ENV=test node --test test/identity-mapping.test.js test/oidc-pkce.test.js
+      - run: NODE_ENV=test node --test test/identity-mapping.test.js test/oidc-pkce.test.js test/oidc-session.test.js
