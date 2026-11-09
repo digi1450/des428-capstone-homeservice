@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For D retry jitter, HTTP fault fixture limits and the deterministic two-connection bid regression, read `docs/d-survive-failure-handoff.md`. Do not equate in-process Promise.all or a Map-backed HTTP fixture with full real-service failure evidence, and do not add nested retry loops around C recovery.
+
 - For step 5D legacy-only rehearsal, source distributed-state guards, eight historical cohorts and remaining eligibility/checkpoint gates, read `docs/legacy-cutover-rehearsal-handoff.md`. Do not clear source/target C state or invent legacy command identities to force export/import; mixed ownership needs a separate reviewed procedure.
 
 - For step 5C HTTP/client/Booking completion-cancellation-webhook callers, read `docs/financial-finalization-runtime-handoff.md`. A transport is prepared; C durable work, synchronous local guards/recovery and B real verifiers remain required. Do not enable it with fixture callbacks or introduce a duplicate A command store.

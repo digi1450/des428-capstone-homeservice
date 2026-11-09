@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## D retry and bid race preparation — 9 November 2026
+
+[D handoff](d-survive-failure-handoff.md) records saga backoff jitter, three explicitly simulated HTTP faults and the conditional bid insert. A deterministic file-backed two-connection regression fails with the old insert and passes with the guarded statement; the integrated monolith suite passed218. Real financial fault/restart/auth acceptance with C/B/E remains open; these fixtures do not close Area D.
+
 ## A step 5D legacy-only rehearsal — 9 November 2026
 
 [Legacy rehearsal](legacy-cutover-rehearsal-handoff.md) adds known distributed-source/attention guards to the read-only exporter, eight synthetic historical cohorts, actual C runtime/imported-data boundary checks, a WAL backup fixture and CI. Python16 and Node/PG34 tests passed locally using disposable data. Import preserves history but does not adopt/activate legacy intents; C/B eligibility/work/auth and the shared checkpoint/final cutover remain open. Known mixed SQLite/PG/broker state now requires explicit review rather than a SQLite-only export. No runtime schema, useful data, credentials or routing was changed.
