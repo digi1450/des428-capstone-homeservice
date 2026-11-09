@@ -5,7 +5,10 @@ import { getDb } from "../db/index.js";
 
 const roles = Object.freeze({ customer: "customers", provider: "providers", admin: "admins" });
 const validId = value => Number.isInteger(value) && value > 0 && value <= 2147483647;
-const validIssuer = value => {\n  if (typeof value !== "string") return false;\n  try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash && /^\\/realms\\/[^/]+$/.test(url.pathname) && url.href === value; } catch { return false; }\n};
+const validIssuer = value => {
+  if (typeof value !== "string") return false;
+  try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash && /^\/realms\/[^/]+$/.test(url.pathname) && url.href === value; } catch { return false; }
+};
 const validSubject = value => typeof value === "string" && value.length >= 1 && value.length <= 255 && !/[\x00-\x1f]/.test(value);
 
 export function createIdentityMappingStore({ path } = {}) {
