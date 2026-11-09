@@ -2,6 +2,7 @@ import { createUserVerifier } from "./security/user-verifier.js";
 import { createIdentityResolver } from "./security/identity-resolver.js";
 import { createBookingServiceVerifier, createGatewayWebhookVerifier } from "./security/booking-verifier.js";
 import { createPaymentsRuntime } from "./runtime.js";
+import { createFinancialOperations } from "./financial/index.js";
 import { readConfig, serviceName } from "./config.js";
 import { createDatabase } from "./database.js";
 
@@ -25,7 +26,7 @@ const config = readConfig();
 const database = createDatabase(config.databaseUrl);
 // C participant/eligibility/outbox are composed here. Real B verifier injection is
 // still required: with no verifiers both protected boundaries return 503.
-const {app} = createPaymentsRuntime({database, ...security});
+const {app} = createPaymentsRuntime({database, ...security, createFinancialOperations});
 const server = app.listen(config.port, "0.0.0.0", () => {
   console.log(JSON.stringify({ event: "listening", service: serviceName, port: config.port }));
 });
