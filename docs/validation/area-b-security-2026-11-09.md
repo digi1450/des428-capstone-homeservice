@@ -41,12 +41,30 @@ PASS: real Keycloak Booking/Gateway issuance, role grants, audience, signature a
 
 The helper propagated the Node process exit status; the prompt returned without a visible error. This is **developer-reported live Keycloak Node integration evidence**, not independently executed by GitHub Actions. The output did not include the separately anticipated `PASS: Area B real Keycloak Node.js integration test` line; do not claim that exact line appeared. The developer also reported local `npm test` for `services/payments-wallet`: **68 total, 57 passed, 0 failed, 11 skipped** (opt-in infrastructure-dependent tests were skipped).
 
+## Developer-reported live Payments Wallet HTTP JWT checks — 2026-11-10
+
+The developer launched a **separate local Node process** inside the existing Payments Wallet container on port `3102`, with `AREA_B_AUTH_ENABLED=true`, the HTTPS Keycloak issuer and `NODE_EXTRA_CA_CERTS` pointing to the locally trusted certificate. The existing service on port `3002` was not reconfigured. A temporary TCP forwarder in the container network namespace routed loopback port `8443` to the local HTTPS proxy; this is **test-only** and not a deployment configuration. The identity resolver was a nonfunctional placeholder; human-user authentication and BOLA were not tested.
+
+Developer terminal output:
+- HTTPS discovery from Node: `HTTPS Status: 200`; Node `fetch` JWKS: `JWKS HTTP Status: 200`, `RSA Keys: 2`.
+- Auth-enabled test process started and `GET /health/ready` returned `HTTP 200`, `{"service":"payments-wallet","status":"ready"}`.
+- Real HTTP `GET /internal/financial-operations/:command_id` without JWT: `PASS: Missing JWT -> HTTP 401`; malformed bearer: `PASS: Malformed JWT -> HTTP 401`.
+- After refreshing an expired Keycloak `kcadm.sh` admin session, a local helper obtained **fresh real Booking and Gateway client-credentials JWTs**, without printing secrets or tokens. For a syntactically valid `complete:<UUID>` test command identifier, the observed results were:
+  ```
+  Requesting real Keycloak service tokens...
+  PASS: Booking JWT -> HTTP 404
+  PASS: Gateway JWT blocked -> HTTP 401
+  ```
+- The initial invalid command identifier produced `HTTP 400` for Booking; repository `financialKey()` validation requires `complete:<UUID>` or `cancel:<UUID>`. After correcting the identifier, Booking reached the unknown-command response (404), consistent with authentication/authorization passing, while Gateway remained rejected (401).
+
+These are **developer-reported local live HTTP checks**, not CI results. They demonstrate Booking/Gateway service role isolation at this GET endpoint and fail-closed handling for missing/malformed JWTs. They do **not** establish live user identity resolution, BOLA, successful lookup of an existing financial command, webhook authorization, browser PKCE/refresh, or coordinated multi-service production readiness. No credentials, access tokens or private keys are included.
+
 ## Remaining acceptance gates
 
-1. **Local live Node verifier smoke test completed (developer-reported).** Repeat in coordinated deployment as needed, with service-container trust and routing.
+1. **Local live Node verifier smoke and read-only Payments Wallet HTTP JWT checks completed (developer-reported).** Repeat in coordinated deployment as needed; test a real existing financial command and webhook authorization separately.
 2. Run opt-in service HTTP ownership/BOLA tests against a coordinated deployment with real identity bindings and data. Fixture CI tests alone are not enough.
 3. Validate browser authorization-code PKCE login, refresh, session and replay behavior against the live realm; avoid claiming replay resistance without evidence.
-4. Coordinate final HTTPS hostname/certificate trust **inside service containers** and secret provisioning with Area E. `localhost` inside another container does not point to the Mac-host Keycloak proxy.
+4. Coordinate final HTTPS hostname/certificate trust **inside service containers** and secret provisioning with Area E. Local TLS/JWKS worked with a temporary loopback TCP forwarder and CA injection; this is not a production-grade service-to-service routing solution.
 5. Obtain A/C/E acceptance before enabling opt-in auth or merging. Keep `AREA_B_AUTH_ENABLED=false` until integration gates pass.
 
 No production runtime feature flags or other teams' business logic were changed to produce this evidence.
