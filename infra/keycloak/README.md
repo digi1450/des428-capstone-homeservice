@@ -33,10 +33,23 @@ After authenticating `kcadm.sh` as a realm administrator, run `bash infra/keyclo
 
 ## OIDC login status
 
-`bangkok-homeservice/lib/security/oidc-pkce.js` implements cryptographically random state, nonce, S256 PKCE challenge and authorization-code exchange as **server-side primitives only**. A complete browser session flow must verify the ID token signature, issuer, audience, nonce and state; bind tokens to an HttpOnly server session; implement refresh and logout; and preserve the legacy login until migration. These primitives are intentionally **not exposed as live login routes** before those checks exist.
+`bangkok-homeservice/lib/security/oidc-pkce.js` implements cryptographically random state, nonce, S256 PKCE challenge and authorization-code exchange as **server-side primitives only**. A complete browser session flow must verify the ID token signature, issuer, audience, nonce and state; bind tokens to an HttpOnly server session; implement refresh and logout; and preserve the legacy login until migration. The opt-in login routes now exist under `/api/auth/keycloak/`, but remain disabled by default and have not been validated with a live Keycloak realm. See the handoff for callback, refresh and session limitations.
 
 ## Human role provisioning and contract test
 
 For an already-created human Keycloak account, authenticate `kcadm.sh` and run `KEYCLOAK_USERNAME=<username> bash infra/keycloak/assign-user-roles.sh`. This grants `user:read` for Notifications and Payments Wallet only; it refuses service-account usernames and does not create credentials or map legacy IDs. Separately provision `(issuer,sub)` using the monolith identity-binding CLI.
 
 The CI contract test `bangkok-homeservice/test/keycloak-realm-contract.test.js` checks client isolation, configured audiences and role names. It does not replace a Keycloak import or signed-token integration test. A deployment still needs actual TLS, reviewed callback URIs, service account credentials and verified token claims.
+
+## Real service-token smoke test (requires external Keycloak)
+
+After importing the realm, granting service-account roles and configuring an HTTPS issuer trusted by Node, run:
+
+```sh
+KEYCLOAK_ISSUER=https://your-idp.example/realms/homeservice \\
+KEYCLOAK_BOOKING_CLIENT_SECRET=... \\
+KEYCLOAK_GATEWAY_CLIENT_SECRET=... \\
+node infra/keycloak/smoke-real-service-tokens.mjs
+```
+
+Supply secrets via a secure environment/CI secret store, never commit them or run this command with secrets in a shared shell history. The script requests **real** client-credentials access tokens and verifies Booking/Gateway operation roles, audience, issuer, forged-signature rejection and cross-client isolation. It prints no tokens. A successful run is necessary but not sufficient for full Area B acceptance: user authorization-code login, ownership, expired/wrong-audience real-token HTTP tests, TLS deployment and token refresh still need integration evidence. This script has not been executed against a live Keycloak instance in this branch.
