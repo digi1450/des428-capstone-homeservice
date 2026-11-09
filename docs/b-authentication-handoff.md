@@ -1,5 +1,36 @@
 # Area B — authentication implementation handoff (work in progress)
 
+## Handoff-first status — 2026-11-10 (read this first)
+
+**Decision: Area B is ready for early A/C/E integration review, NOT for final-stack cutover or merge.** Share PR #51 now; do not wait for all live tests. This section supersedes stale historical status statements below, which are retained as implementation history. See [dated verification evidence](validation/area-b-security-2026-11-09.md).
+
+### Available now for integration (implemented; distinguish evidence)
+
+| Consumer | Area B deliverable | What is proven | Next owner/action |
+| --- | --- | --- | --- |
+| A | User verifiers in Notifications/Payments; monolith identity-binding sidecar and authenticated resolver; opt-in OIDC login/callback/refresh; server-only `fetchAsOidcUser` helper; opt-in Notifications and Payments read proxies | Fixture/CI tests, not live browser or user BOLA | A reviews/adopts user-bound credential flow in API handlers and Server Components; A/B agree on signup and existing-user provisioning and test with real accounts |
+| C / A Booking | `createBookingServiceVerifier`, seven `booking:*` roles, stable issuer+subject caller ID; existing service-token provider | Live Keycloak Booking token issuance/role isolation; local auth-enabled Payments GET with valid nonexistent command returned 404 for Booking, 401 for Gateway | C/A connect real financial commands and confirm caller ID, dedupe and operation authorization in their integration stack |
+| A / mock gateway | `createGatewayWebhookVerifier`, `mock-gateway:settle_webhook` role and separate client | Live Keycloak client token issued and isolated from Booking on a financial GET; **webhook endpoint itself not live-tested** | A configures simulator credentials and preserves callback contract; B/A test actual `POST /api/payments/webhook` |
+| E | Importable Keycloak realm, client/audience/role contracts, role-assignment scripts, env placeholders and HTTPS issuer requirements | Local HTTPS/JWKS and live service-token tests; CI contract tests | E owns final Compose, routable trusted TLS hostname, secrets/rotation, resource budget; B verifies against deployed issuer |
+
+### B-owned follow-up (do not block handoff)
+
+1. Review any remaining verifier/security defects found during A/C/E integration; verify live human identity mapping, authorization and cross-user ownership/BOLA with provisioned test users. Fixture ownership tests are **not** live proof.
+2. With A, validate live browser authorization-code PKCE, server-side session, refresh/nonce/replay behavior and actual API/Server Component forwarding. Current browser route implementation is opt-in and unvalidated live.
+3. With A, validate gateway webhook caller isolation and with C validate financial operation permissions, stable caller identity and replay/dedupe against real commands.
+4. Record real-Keycloak-tested versus fixture-tested versus final-stack-tested evidence accurately. The CI workflow does not run Keycloak. Preserve before/after inherited BOLA evidence without claiming a demonstrated exploitable public route.
+5. Confirm Keycloak setup is repeatable on a fresh environment, user-role provisioning, Notifications audience, secrets/rotation and dependency audit with E. **Do not** recreate the developer's existing local Keycloak container: its H2 database was stored inside that container.
+
+### Explicit stop/go boundaries
+
+- **GO now:** request A/C/E integration review of PR #51 and hand over the interfaces and ownership table above.
+- **NO GO yet:** enabling `AREA_B_AUTH_ENABLED`, `OIDC_LOGIN_ENABLED`, proxy flags in shared deployment, merging PR #51, or claiming production/final-stack acceptance.
+- A owns application browser/API/Server Component adoption; C owns financial workflow/transactions/recovery; E owns final Compose/deployment. B supports auth integration, not those teams' full implementations.
+- No need to repeat already recorded live Booking/Gateway smoke or local GET checks unless the deployment/configuration changes or a defect requires it.
+
+---
+
+
 ## Implemented in this branch
 
 - `services/payments-wallet/src/security/booking-verifier.js`: `createBookingServiceVerifier` and `createGatewayWebhookVerifier` validate RS256 signatures from the configured Keycloak issuer's JWKS, exact issuer, service audience, expiry/time claims, authorized client and service-specific operation roles. Booking and mock gateway are distinct clients and principals. Caller identity is issuer + verified subject, never token/jti.
