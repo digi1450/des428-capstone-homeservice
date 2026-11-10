@@ -1,0 +1,215 @@
+{
+  "budgetBytes": 8000000000,
+  "host": {
+    "memoryBytes": 16376291328,
+    "cpus": 16,
+    "cgroupDriver": "cgroupfs",
+    "cgroupVersion": "2"
+  },
+  "probeAllowanceBytes": 67108864,
+  "hostReserveAllowanceBytes": 1073741824,
+  "configuredLimitsBytes": 6710886400,
+  "sampledAggregatePeakBytes": 2430230528,
+  "sumServiceKernelPeaksBytes": 2813542400,
+  "conservativeTotalWithAllowancesBytes": 3954393088,
+  "sampleCount": 152,
+  "observedMs": 349380,
+  "services": {
+    "gateway": {
+      "peakBytes": 8028160,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 120,
+      "limitBytes": 134217728
+    },
+    "edemand": {
+      "peakBytes": 160968704,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 117,
+      "limitBytes": 536870912
+    },
+    "grafana": {
+      "peakBytes": 269475840,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 142,
+      "limitBytes": 268435456
+    },
+    "prometheus": {
+      "peakBytes": 138682368,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 142,
+      "limitBytes": 268435456
+    },
+    "notifications-event-consumer": {
+      "peakBytes": 68485120,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 133,
+      "limitBytes": 268435456
+    },
+    "payments-wallet-consumer": {
+      "peakBytes": 63377408,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 140,
+      "limitBytes": 268435456
+    },
+    "payments-outbox-relay": {
+      "peakBytes": 64880640,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 133,
+      "limitBytes": 268435456
+    },
+    "keycloak": {
+      "peakBytes": 1073762304,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 142,
+      "limitBytes": 1073741824
+    },
+    "notifications": {
+      "peakBytes": 127102976,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 143,
+      "limitBytes": 536870912
+    },
+    "payments-wallet": {
+      "peakBytes": 113762304,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 142,
+      "limitBytes": 536870912
+    },
+    "keycloak-db": {
+      "peakBytes": 145948672,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 149,
+      "limitBytes": 268435456
+    },
+    "tls": {
+      "peakBytes": 31014912,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 148,
+      "limitBytes": 134217728
+    },
+    "jaeger": {
+      "peakBytes": 69238784,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 149,
+      "limitBytes": 536870912
+    },
+    "notifications-db": {
+      "peakBytes": 112398336,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 149,
+      "limitBytes": 536870912
+    },
+    "payments-db": {
+      "peakBytes": 100700160,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 152,
+      "limitBytes": 536870912
+    },
+    "rabbitmq": {
+      "peakBytes": 265715712,
+      "swapBytes": 0,
+      "oom": 0,
+      "oomKills": 0,
+      "restarts": 0,
+      "samples": 150,
+      "limitBytes": 536870912
+    }
+  },
+  "phases": {
+    "startup": {
+      "samples": 26,
+      "peakCurrentBytes": 2277875712
+    },
+    "authenticated-activation": {
+      "samples": 8,
+      "peakCurrentBytes": 2225348608
+    },
+    "faults": {
+      "samples": 11,
+      "peakCurrentBytes": 2166759424
+    },
+    "load-warm": {
+      "samples": 9,
+      "peakCurrentBytes": 2355941376
+    },
+    "load-steady": {
+      "samples": 26,
+      "peakCurrentBytes": 2414039040
+    },
+    "load-peak": {
+      "samples": 26,
+      "peakCurrentBytes": 2429452288
+    },
+    "load-mixed-financial": {
+      "samples": 2,
+      "peakCurrentBytes": 2365644800
+    },
+    "load-cooldown": {
+      "samples": 11,
+      "peakCurrentBytes": 2430230528
+    },
+    "load-drain": {
+      "samples": 1,
+      "peakCurrentBytes": 2314592256
+    },
+    "recovery": {
+      "samples": 18,
+      "peakCurrentBytes": 2294423552
+    },
+    "whole-stack-restart": {
+      "samples": 13,
+      "peakCurrentBytes": 1349554176
+    },
+    "complete": {
+      "samples": 1,
+      "peakCurrentBytes": 1325154304
+    }
+  },
+  "issues": [],
+  "scope": "16-container runtime incl. load child, plus64MiB observer allowance and1GiB explicit host reserve; host/build/whole8GB-machine performance not measured"
+}

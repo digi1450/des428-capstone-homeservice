@@ -50,3 +50,15 @@ the production protocol/storage libraries; this is deterministic checkpoint
 testing rather than a timing-based claim about arbitrary normal-worker PID1 kills.
 Sanitized outputs are `task5-fault-summary.json` and `task5-recovery-trace.json`.
 See [fault/recovery handoff](../../docs/e-task5-fault-recovery-handoff.md).
+
+For Task6 **8GB Resource Budget**, also set `FINAL_STACK_RESOURCES=true`. A separate
+read-only cgroup-v2 observer samples all16 services during startup,5/15/30-client
+read load,20 real financial flows, crash/recovery and restart. Container swap is
+disabled and Jaeger retains the most recent3000 traces. The load child is inside
+Notifications' limit; the observer's full64MiB cap plus an explicit1GiB host reserve
+are charged against the decimal8GB budget. Docker/WSL settings are never changed.
+The report records actual host RAM/CPUs: this is runtime-budget acceptance under
+the declared workload, not proof of an entire8GB physical host or maximum capacity.
+Only three sanitized JSON/JSONL files are copied to `output/task6-<project>/` and
+uploaded by CI; no private logs, env, cookies or credentials are uploaded.
+See [budget/method/thresholds](../../docs/e-task6-resource-budget-handoff.md).

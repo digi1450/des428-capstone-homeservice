@@ -5,6 +5,7 @@ on:
       - 'bangkok-homeservice/**'
       - 'services/**'
       - 'tests/final-stack/**'
+      - 'tests/resource-budget/**'
       - 'infra/grafana/**'
       - 'infra/prometheus/**'
       - 'docker-compose*.yml'
@@ -15,6 +16,7 @@ on:
       - 'bangkok-homeservice/**'
       - 'services/**'
       - 'tests/final-stack/**'
+      - 'tests/resource-budget/**'
       - 'infra/grafana/**'
       - 'infra/prometheus/**'
       - 'docker-compose*.yml'
@@ -29,6 +31,7 @@ jobs:
       FINAL_STACK_PROJECT: homeservice-e-auth-ci-${{ github.run_id }}-${{ github.run_attempt }}
       FINAL_STACK_TELEMETRY: 'true'
       FINAL_STACK_FAULTS: 'true'
+      FINAL_STACK_RESOURCES: 'true'
       COMPOSE_PARALLEL_LIMIT: '2'
     steps:
       - uses: actions/checkout@v4
@@ -37,3 +40,10 @@ jobs:
           node-version: '22'
       - name: Actual authenticated flows, telemetry and scoped recovery
         run: node tests/final-stack/run.mjs
+      - name: Save only sanitized resource evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task6-resource-evidence
+          path: output/task6-*/*.json*
+          if-no-files-found: warn

@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For E Task6's8GB runtime budget, use `docs/e-task6-resource-budget-handoff.md`: all16 services need no-swap caps, raw cgroup-v2 peaks during the declared load/recovery, and explicit observer/host reserve allowances. Do not replace kernel peaks with cache-adjusted stats or call a larger-host run a full8GB-machine test. Upload only the three allowlisted sanitized outputs; do not change Docker/WSL settings or unrelated stacks. E's six-task titles are in `docs/e-task-checklist.md`; browser/offline/dossier work is separate from Task6.
+
 - For exact legacy manifest v1/hash/owner-row and financial target v1.1 fixtures, read `docs/legacy-manifest-contract-handoff.md`. Keep the retained runtime v1 spec strict until coordinated receiver/caller implementation. Dev references/static tests do not create bindings, authorize import or prove frozen source/DB eligibility. C/A use the shared vectors before implementing006/importer/Booking CLI.
 
 - For the lead-selected old open gateway booking path, read `docs/c-legacy-binding-proposal.md` (accepted baseline despite its stable filename). A publishes exact manifest/hash and v1.1 reference fixtures first; C/A implement against them. Payments bindings are atomic with its import; both owners/checkpoint must reconcile before traffic opens. Append Booking upgrades after E's existing steps. Acceptance of this plan is not implemented legacy eligibility or cutover approval.

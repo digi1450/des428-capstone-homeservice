@@ -1,12 +1,13 @@
 // Disposable E Task4/A acceptance. No shared .env, realm, volumes or Docker settings.
 import assert from 'node:assert/strict';
-import {execFileSync,spawnSync} from 'node:child_process';
+import {execFileSync,spawnSync,spawn} from 'node:child_process';
 import {readFileSync,writeFileSync,mkdtempSync,mkdirSync,copyFileSync,existsSync} from 'node:fs';
 import {dirname,resolve,join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {randomBytes} from 'node:crypto';
 import {messagingFaults} from './faults.mjs';
+import {startResourceMonitor} from '../resource-budget/monitor.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 const resume=process.env.FINAL_STACK_DIRECTORY;
 const directory=resume?resolve(resume):mkdtempSync(join(tmpdir(),'homeservice-final-stack-'));
@@ -24,7 +25,7 @@ else{
 }
 const args=['compose','--env-file','.env.authenticated','-p',project,'-f','docker-compose.yml','-f','docker-compose.resources.yml','-f','docker-compose.authenticated.yml','-f','docker-compose.authenticated-resources.yml'];
 function docker(extra,input){const r=spawnSync('docker',[...args,...extra],{cwd:directory,input,encoding:'utf8',maxBuffer:16*1024**2});if(r.status!==0){writeFileSync(join(directory,'last-command-error.log'),r.stderr,{mode:0o600});throw Error('Compose command failed: '+extra.slice(0,2).join(' ')+' (inspect task-only logs in '+directory+')');}return r.stdout;}
-function logged(extra,name){const r=spawnSync('docker',[...args,...extra],{cwd:directory,encoding:'utf8',maxBuffer:32*1024**2});writeFileSync(join(directory,name),r.stdout+'\n'+r.stderr,{mode:0o600});assert.equal(r.status,0,'Compose '+extra[0]+' failed; see '+name);}
+function logged(extra,name){const r=spawnSync('docker',[...args,...extra],{cwd:directory,encoding:'utf8',maxBuffer:32*1024**2});writeFileSync(join(directory,name),r.stdout+'\n'+r.stderr,{mode:0o600});if(r.status!==0){try{const rows=docker(['ps','-a','--format','json']).split('\n').filter(Boolean).map(l=>{const x=JSON.parse(l);return{service:x.Service,state:x.State,health:x.Health,exitCode:x.ExitCode};});console.error(JSON.stringify({taskOnlyFailure:name,services:rows}));}catch{}}assert.equal(r.status,0,'Compose '+extra[0]+' failed; see '+name);}
 const js=(service,code)=>docker(['exec','-T',service,'node','--input-type=module'],code).trim();
 const crash=(service,name,code)=>{
  const env=Object.fromEntries(readFileSync(join(directory,'.env.authenticated'),'utf8').trim().split('\n').map(l=>{const i=l.indexOf('=');return[l.slice(0,i),l.slice(i+1)];}));
@@ -35,11 +36,18 @@ const crash=(service,name,code)=>{
  const checkpoint=(result.stdout??'').split('\n').find(l=>l.startsWith('{"checkpoint":'));assert.ok(checkpoint,'crash checkpoint required');return JSON.parse(checkpoint);
 };
 const pass=name=>console.log('PASS '+name);
+function copyTask6Evidence(){
+ if(process.env.FINAL_STACK_RESOURCES!=='true')return;
+ const destination=join(root,'output','task6-'+project);mkdirSync(destination,{recursive:true,mode:0o700});
+ for(const name of ['task6-memory-summary.json','task6-memory-samples.jsonl','task6-load-summary.json'])if(existsSync(join(directory,name)))copyFileSync(join(directory,name),join(destination,name));
+}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function ready(workers,expected=200){for(let n=0;n<60;n++){if(workers.every(name=>Number(js(name,"try{console.log((await fetch('http://127.0.0.1:3000/health/ready',{signal:AbortSignal.timeout(2000)})).status)}catch{console.log(0)}"))===expected))return;await sleep(1000);}throw Error('Worker readiness deadline '+expected);}
-let active=false;
+let active=false,resource;
 try{
- if(!resume){logged(['build'],'build.log');logged(['up','-d','--no-build','--wait','--wait-timeout','240'],'startup.log');}
+ if(!resume){logged(['build'],'build.log');}
+ if(process.env.FINAL_STACK_RESOURCES==='true'){resource=await startResourceMonitor({project,directory});resource.phase('startup');}
+ if(!resume){logged(['up','-d','--no-build','--wait','--wait-timeout','240'],'startup.log');}
  const initial=JSON.parse(docker(['config','--format','json']));assert.equal(Object.keys(initial.services).length,16);assert.equal(initial.services.edemand.environment.AUTHENTICATED_SERVICES_ENABLED,'false');
  execFileSync(process.execPath,['scripts/verify-authenticated-compose.mjs','--full-stack'],{cwd:directory,env:{...process.env,COMPOSE_PROJECT_NAME:project},stdio:'inherit'});
  const envPath=join(directory,'.env.authenticated');const env=Object.fromEntries(readFileSync(envPath,'utf8').trim().split('\n').map(line=>{const i=line.indexOf('=');return [line.slice(0,i),line.slice(i+1)];}));
@@ -47,6 +55,7 @@ try{
  env.AUTHENTICATED_AMQP_URL='amqp://homeservice:'+env.RABBITMQ_PASSWORD+'@rabbitmq:5672?frameMax=131072';
  writeFileSync(envPath,Object.entries(env).map(([k,v])=>k+'='+v).join('\n')+'\n',{mode:0o600});
  // Only disposable env is activated; tracked defaults remain false.
+ await resource?.checkpoint();resource?.phase('authenticated-activation');
  logged(['up','-d','--no-build','--no-deps','--wait','--wait-timeout','150','notifications','payments-wallet','edemand'],'activation.log');active=true;
  const configured=JSON.parse(docker(['config','--format','json']));for(const key of ['AUTHENTICATED_SERVICES_ENABLED','AUTHENTICATED_CUTOVER_APPROVED','OIDC_LOGIN_ENABLED','OIDC_SELF_REGISTRATION_ENABLED'])assert.equal(configured.services.edemand.environment[key],'true');
  const fixture=JSON.parse(js('edemand',`import Database from 'better-sqlite3';const db=new Database(process.env.DB_PATH,{readonly:true});console.log(JSON.stringify({customerId:db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1').get().id,bobId:db.prepare('SELECT id FROM customers ORDER BY id LIMIT 1 OFFSET 1').get().id,providerId:db.prepare("SELECT id FROM providers WHERE email='sparkle@example.com'").get().id,addressId:db.prepare('SELECT id FROM addresses ORDER BY id LIMIT 1').get().id}));db.close();`));
@@ -81,9 +90,31 @@ try{
   pass('trace-correlated real HTTP/consumer JSON logs; no query, test password or service secret in correlated records');
  }
  const state=()=>JSON.parse(js('notifications',"import {readFileSync} from 'node:fs';console.log(readFileSync('/tmp/final-stack-acceptance.json','utf8'));"));
+ await resource?.checkpoint();
+ resource?.phase('faults');
  if(process.env.FINAL_STACK_FAULTS==='true')await messagingFaults({docker,js,drive,crash,state,directory,pass});
+ if(resource){
+  docker(['cp',join(directory,'tests/resource-budget/load.mjs'),'notifications:/tmp/task6-load.mjs']);
+  const output=await new Promise((resolve,reject)=>{
+   const child=spawn('docker',[...args,'exec','-T','notifications','node','--input-type=module'],{cwd:directory,stdio:['pipe','pipe','pipe'],windowsHide:true});let stdout='',stderr='',pending='';
+   const timer=setTimeout(()=>{child.kill();reject(Error('Task6 load deadline'));},360000);
+   child.stdout.on('data',chunk=>{const text=chunk.toString();stdout+=text;pending+=text;const lines=pending.split('\n');pending=lines.pop();for(const line of lines){try{const x=JSON.parse(line);if(typeof x.task6Phase==='string')resource.phase('load-'+x.task6Phase);if(x.task6Stage)console.log(line);}catch{}if(line.startsWith('PASS '))console.log(line);}});
+   child.stderr.on('data',chunk=>stderr+=chunk.toString());child.on('error',reject);
+   child.on('exit',code=>{clearTimeout(timer);writeFileSync(join(directory,'task6-load-private.log'),stdout+'\n'+stderr,{mode:0o600});code===0?resolve(stdout):reject(Error('Task6 workload failed; inspect private load diagnostic'));});
+   child.stdin.end('const fixture='+JSON.stringify(fixture)+';const phase="load";\n'+driver);
+  });
+  const report=JSON.parse(output.split('\n').find(l=>l.startsWith('{"task6Load":'))).task6Load;
+  const ids=report.orders.map(x=>x.id);const ledger=JSON.parse(js('payments-wallet',`import {createDatabase} from './src/database.js';const db=createDatabase(process.env.DATABASE_URL);console.log(JSON.stringify((await db.query('SELECT order_id,kind,count(*)::int n FROM transactions WHERE order_id=ANY($1::int[]) GROUP BY order_id,kind',[${JSON.stringify(ids)}])).rows));await db.close();`));
+  for(const order of report.orders){const rows=ledger.filter(r=>r.order_id===order.id);assert.equal(rows.length,2);for(const kind of ['charge',order.kind==='completion'?'payout_credit':'refund'])assert.ok(rows.some(r=>r.kind===kind&&r.n===1));}
+  resource.phase('load-drain');let drained=false;
+  for(let n=0;n<60;n++){const result=js('payments-wallet-consumer',`const u=new URL(process.env.AMQP_URL);const r=await fetch('http://rabbitmq:15672/api/queues',{headers:{Authorization:'Basic '+Buffer.from(decodeURIComponent(u.username)+':'+decodeURIComponent(u.password)).toString('base64')}});const rows=await r.json();console.log(['booking.events','notifications.events','payments.events'].every(name=>rows.some(q=>q.name===name&&q.messages_ready===0&&q.messages_unacknowledged===0)));`);if(result==='true'){drained=true;break;}await sleep(500);}assert.ok(drained,'load event backlog must drain');
+  report.owningLedgerVerified=true;report.backlogDrained=true;writeFileSync(join(directory,'task6-load-summary.json'),JSON.stringify(report,null,2),{mode:0o600});
+  await resource.checkpoint();pass('Task6 owning PG proves exactly-one financial effects for20 flows and broker backlog drains');
+ }
+ resource?.phase('recovery');
  const holds=id=>Number(js('edemand',`import Database from 'better-sqlite3';const db=new Database(process.env.DB_PATH,{readonly:true});console.log(db.prepare('SELECT count(*) n FROM slot_holds WHERE order_id=?').get(${id}).n);db.close();`));
  const data=state(),held=holds(data.recoveryId);assert.ok(held>0);
+ await resource?.checkpoint();
  docker(['stop','payments-wallet']);console.log(drive('outage'));assert.equal(holds(data.recoveryId),held);
  if(process.env.FINAL_STACK_FAULTS==='true'){
   const traceId=state().recoveryTraceId;let observed=false;
@@ -92,6 +123,7 @@ try{
    if(found==='true'){observed=true;break;}await sleep(500);
   }
   assert.ok(observed,'failed delivery span must export before killing Next');
+  await resource?.checkpoint();
   docker(['kill','-s','SIGKILL','edemand']);docker(['start','edemand']);pass('actual standalone Next SIGKILL while cancellation work is pending');
  }
  else logged(['restart','edemand'],'restart-pending.log');
@@ -106,18 +138,21 @@ try{
  const counts=JSON.parse(js('payments-wallet',`import {createDatabase} from './src/database.js';const db=createDatabase(process.env.DATABASE_URL);console.log(JSON.stringify((await db.query('SELECT order_id,kind,count(*)::int n FROM transactions WHERE order_id=ANY($1::int[]) GROUP BY order_id,kind ORDER BY order_id,kind',[[${data.completedId},${data.refundId}]])).rows));await db.close();`));
  assert.deepEqual(counts,[{order_id:data.completedId,kind:'charge',n:1},{order_id:data.completedId,kind:'payout_credit',n:1},{order_id:data.refundId,kind:'charge',n:1},{order_id:data.refundId,kind:'refund',n:1}]);pass('owning PostgreSQL proves one charge/payout/refund despite HTTP replay');
  const workers=['notifications-event-consumer','payments-wallet-consumer','payments-outbox-relay'];await ready(workers);
+ await resource?.checkpoint();
  try{docker(['stop','rabbitmq']);await ready(workers,503);pass('actual broker outage makes all three independent workers unready');}finally{docker(['start','rabbitmq']);}
  await ready(workers);pass('all three workers reconnect after broker restart');
  const monitoring=js('payments-wallet',`import assert from 'node:assert/strict';for(const url of ['http://prometheus:9090/-/ready','http://grafana:3000/api/health','http://jaeger:16686/'])assert.equal((await fetch(url)).status,200);const targets=await(await fetch('http://prometheus:9090/api/v1/targets')).json();assert.ok(targets.data.activeTargets.some(x=>x.labels.job==='notifications'&&x.health==='up'));assert.ok(targets.data.activeTargets.some(x=>x.labels.job==='payments-wallet'&&x.health==='up'));const traces=await(await fetch('http://jaeger:16686/api/traces?service=notifications-event-consumer&limit=20')).json();assert.ok(traces.data.length>0);console.log('PASS actual Prometheus scrape targets and actual consumer spans exported to Jaeger (not complete root/monolith tracing)');`);console.log(monitoring);
  const stats=execFileSync('docker',['stats','--no-stream','--format','{{json .}}',...docker(['ps','-q']).trim().split('\n')],{encoding:'utf8'});writeFileSync(join(directory,'observed-stats.jsonl'),stats,{mode:0o600});
  // Preserve every project volume and container writable layer for restart verification.
+ await resource?.checkpoint();resource?.phase('whole-stack-restart');
  docker(['stop']);logged(['up','-d','--no-build','--wait','--wait-timeout','240'],'restart-all.log');console.log(drive('persisted'));
  const rows=docker(['ps','--format','json']).trim().split('\n').filter(Boolean).map(x=>JSON.parse(x));assert.equal(rows.length,16);for(const row of rows){assert.equal(row.State,'running',row.Service);if(row.Health)assert.equal(row.Health,'healthy',row.Service);}
  pass('all 16 actual services running; every configured readiness probe healthy in authenticated mode');
+ if(resource){resource.phase('complete');const report=await resource.stop();resource=null;copyTask6Evidence();assert.deepEqual(report.issues,[],'Task6 memory acceptance issues');pass('Task6 all16 raw cgroup memory peaks + observer/host reserve fit8GB; no swap/OOM/automatic restarts');console.log(JSON.stringify({task6Memory:{samples:report.sampleCount,sampledAggregatePeakBytes:report.sampledAggregatePeakBytes,sumServiceKernelPeaksBytes:report.sumServiceKernelPeaksBytes,conservativeTotalWithAllowancesBytes:report.conservativeTotalWithAllowancesBytes,budgetBytes:report.budgetBytes}}));}
  console.log(JSON.stringify({status:'passed',project,services:16,limitsGiB:6.25,scope:process.env.FINAL_STACK_TELEMETRY==='true'?'E Task4 deployment plus Task5 selected full-flow telemetry':'E Task4 actual authenticated fresh deployment',remaining:['historical account/data eligibility and cutover','broader fault/load and 8GB peak acceptance',...(process.env.FINAL_STACK_TELEMETRY==='true'?[]:['full-flow telemetry acceptance']),'graphical browser and offline clean-clone acceptance']}));
 }finally{
  // Ownership marker checked before all destructive cleanup; shared projects never selected.
  assert.equal(JSON.parse(readFileSync(marker)).project,project);
- if(process.env.FINAL_STACK_KEEP!=='true')logged(['down','--volumes','--remove-orphans'],'cleanup.log');
+ try{if(resource){const report=await resource.stop();console.error(JSON.stringify({task6Incomplete:{host:report.host,issues:report.issues,sampledAggregatePeakBytes:report.sampledAggregatePeakBytes}}));}}finally{copyTask6Evidence();if(process.env.FINAL_STACK_KEEP!=='true')logged(['down','--volumes','--remove-orphans'],'cleanup.log');}
  console.log('Task-only evidence directory: '+directory+(active?' (disposable auth enabled during test only)':''));
 }

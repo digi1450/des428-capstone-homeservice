@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## E Task6 measured resource budget — 10 November 2026
+
+[Declared method](e-task6-resource-budget-handoff.md) uses decimal8GB, no-swap RAM ceilings for all16 services, a64MiB read-only observer and explicit1GiB host reserve. [Local evidence](validation/e-task6-resource-budget-2026-11-10.md) records39 full-stack groups:12,132 staged reads at5/15/30 clients with0 failures,20 real financial flows, ledger/backlog/trace checks and Task5 recovery/restart. Sampled aggregate peak2.430GB; sum of service kernel peaks2.814GB; with full observer/reserve3.954GB<8GB. No swap/OOM/automatic restarts. Host was16.376GB/16CPU, not an8GB-machine simulation. Jaeger recent trace retention is bounded3000; tracing stays enabled. CI repeats and uploads only sanitized numeric evidence; local record is not a merge/hosted claim. [Six-task titles](e-task-checklist.md) separate Task6 resource budget from browser/offline/demo/dossier work. Historical eligibility/cutover and broader D races remain separate; shared flags stay false.
+
 ## A manifest v1 and financial target v1.1 artifacts — 10 November2026
 
 [Exact handoff](legacy-manifest-contract-handoff.md) supplies strict manifest/schema, canonical full-SHA256 rules, independent JS/Python golden vectors, deterministic owner binding rows and target financial1.1 requests/results with legacy references. Retained provisioning/COD v1 contracts remain unchanged. [Static conformance evidence](validation/a-legacy-manifest-contract-2026-11-10.md):46 tests passed including all30 previous tests. This completes A interface-artifact step1 only; exporter/importer,006/Booking CLI, runtime validation/client/UI and real eligibility/checkpoint/cutover remain pending.
