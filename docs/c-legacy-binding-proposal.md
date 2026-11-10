@@ -1,143 +1,206 @@
-# C proposal — legacy gateway bookings after cutover (for A review)
+# Lead-selected legacy gateway binding baseline
 
-Status: **C proposal, not agreed or implemented.** It answers item 1 of
-[legacy rehearsal "What remains"](legacy-cutover-rehearsal-handoff.md#what-remains-before-a-real-cutover):
-an auditable legacy binding/eligibility mechanism for old open gateway bookings,
-without generated historical command IDs. The format follows the earlier A/C
-interface exchange (#24/#25): A reviews, then we confirm a revision before code.
+10 November2026. **The team lead selected the legacy-binding approach and the
+four decisions below as the implementation baseline.** This adopts C's PR60
+proposal after A review. It supersedes the earlier proposal/not-agreed status;
+it does not claim C/B acknowledgement or completed code, schema, migration or
+cutover. The filename remains stable for existing links. AI assisted A's review
+and documentation update; C authored the original proposal.
 
-## Problem
+This addresses item1 of [legacy rehearsal](legacy-cutover-rehearsal-handoff.md#what-remains-before-a-real-cutover).
+**Booking remains in the monolith.** This is old-data compatibility with the
+already extracted Payments & Wallet service, not another service extraction.
+No runtime flags, actual contracts, database schemas or useful data change here.
 
-New-mode gateway work needs saved provisioning references (`create_command_id`,
-`saga_id`) from a COMPLETED saga. An imported legacy gateway intent has none.
-Today the result is safe but blocking:
+## Selected decisions
 
-- create/activate return 409, and legacy intents are never adopted;
-- the settlement gate refuses (`assertSettlementAllowed` needs `activated`);
-- Booking `complete`/`cancel` get 409 ("legacy gateway booking requires financial reconciliation");
-- Payments financial commands return attention `legacy_reconciliation_required`.
+| Decision | Implementation baseline |
+|---|---|
+| Binding or drain | Use audited legacy bindings for eligible old open gateway bookings. Drain is a contingency requiring a separate lead decision, not the selected default. |
+| Payments write boundary | Import each binding in the SAME local Payments transaction as its imported intent/business rows. Include bindings in identical-replay comparison. |
+| Gateway reference | Contract v1.1 adds `legacy_binding: { binding_id, manifest_sha256 }` alongside the existing `provisioning: { create_command_id, saga_id }`. Gateway requests require exactly one form; COD forbids both. A publishes exact wire/callable fixtures first. |
+| UI | Keep `pending/ready`. Ready means financial operations are eligible, not that payment succeeded. Preserve the separate `payment_status` and cancellation/accounting states. No new `legacy` lifecycle state. |
 
-So after a cutover an open legacy gateway booking could be neither paid, completed
-nor cancelled. Terminal history is fine as it is.
+Owners may implement within this selected direction without another policy-approval
+round. A's exact versioned manifest/contract fixtures are the shared interface
+prerequisite; do not invent parallel formats. Report an unsafe/incompatible detail
+for coordinated revision rather than silently weakening a guard.
 
-## Proposal: an explicit, audited binding created only by the cutover procedure
+## Problem and permitted scope
 
-A **legacy payment binding** is a reviewed, immutable statement that "order N's
-imported intent M may be finished by the new protocol". It is produced **once**, by
-the same reviewed import step that imports the intent, from the same audited
-snapshot manifest. It is never created by request handling, recovery or a retry.
+Current gateway finalization requires saved provisioning references from a saga.
+An imported legacy intent has none. Existing create/activate refuses adoption,
+settlement requires activated provisioning, and legacy complete/cancel requires
+reconciliation. Importing a row therefore does not authorize future operations.
 
-### Cohorts (fixtures in `test_export.py`)
+A legacy binding is a reviewed, immutable link between one retained Booking order
+and its imported Payments intent. Only the offline cutover procedure may create
+it. Request handling, webhooks, recovery and retry must never INSERT a binding,
+fabricate an old saga/create-command ID or adopt an unmatched intent.
 
-| Cohort | Binding | New-mode behaviour |
+### Initial eligibility cohorts
+
+Numbers identify synthetic fixtures in `tools/data-migration/test_export.py`, not
+hardcoded production order IDs. Classify by verified state/financial invariants.
+
+| Fixture cohort | Binding | Selected future behavior |
 |---|---|---|
-| 10 gateway completed/paid | none | terminal: Booking refuses complete/cancel; webhooks already deduped/refused |
-| 11 gateway cancelled/refunded | none | terminal; late events cannot revive it |
-| 12 COD completed | none | terminal; no new commission |
-| **13 gateway awaiting/unpaid** | **`open_unpaid`** | the customer can pay the existing intent (settlement allowed); completion waits for the charge; cancellation **voids** and fences |
-| **14 gateway confirmed/paid** | **`open_paid`** | completion pays out **once**; cancellation **refunds once** and fences; a repeated webhook stays `already_settled` |
-| 15 COD confirmed/open | none needed | already works with v1 (COD has no provisioning); C adds a regression test |
-| 16 gateway cancelled/unpaid | none | terminal; callbacks refused (as now) |
-| 17 COD cancelled | none | terminal |
+|10 gateway completed/paid | none | Preserve terminal history; no new payout or completion. |
+|11 gateway cancelled/refunded | none | Preserve terminal history and receipt dedupe; no revival/refund twice. |
+|12 COD completed | none | Preserve terminal accounting; no new commission. |
+|13 gateway awaiting/unpaid | `open_unpaid` | Existing intent may settle; completion waits for a real charge; cancellation voids/fences. |
+|14 gateway confirmed/paid | `open_paid` | Completion credits once; eligible cancellation refunds once/fences; webhook replay creates no second charge. |
+|15 COD confirmed/open | none | Retain the v1 COD reference-free path; prove legacy completion/cancellation in regression tests. |
+|16 gateway cancelled/unpaid | none | Preserve terminal/voided state; late callbacks cannot settle. |
+|17 COD cancelled | none | Preserve terminal state; no future commission. |
 
-Eligibility is decided at import time from the snapshot. An order whose state does
-not fit 13/14 exactly (e.g. a payout already exists, a refund exists, or the intent
-has failed) gets **no** binding, and future commands stay in attention.
+Unknown open gateway combinations receive no binding and require attention.
+An already paid-out/refunded order, failed intent, mismatched owners/amount/currency,
+contradictory ledger or existing distributed command/saga state is not made eligible
+by editing metadata. Existing exporter mixed-source/attention guards still apply.
 
-### Payments (C schema, A importer)
+## Versioned manifest and integrity baseline — A owns exact fixtures
 
-Migration `006_legacy_payment_bindings.sql`:
+The current exporter emits two owner bundles with a `snapshot_id` and watermark;
+it does **not** yet emit this reviewed eligibility manifest. Implement that artifact
+before either binding writer. Current contracts remain v1.0.0 until the code PR.
 
-```sql
-CREATE TABLE legacy_payment_bindings (
-  binding_id      TEXT PRIMARY KEY,         -- 'legacy:' || manifest_sha256[0:16] || ':' || order_id
-  manifest_sha256 TEXT NOT NULL,            -- audited export manifest the binding comes from
-  order_id        INTEGER NOT NULL UNIQUE,
-  intent_id       INTEGER NOT NULL UNIQUE REFERENCES payment_intents(id),
-  customer_id INTEGER NOT NULL, provider_id INTEGER NOT NULL,
-  amount_cents INTEGER NOT NULL, currency TEXT NOT NULL,
-  eligibility     TEXT NOT NULL CHECK (eligibility IN ('open_unpaid','open_paid')),
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
+The v1 manifest envelope contains `manifest` (the hashed core) and
+`manifest_sha256` (the full64 lowercase hexadecimal SHA256 of canonical core bytes).
+The core records:
 
-- Written by A's importer **in the same transaction** as the imported intents, and
-  only for rows that the exporter classified as 13/14. It is included in the
-  identical-replay comparison. There is no runtime INSERT path.
-- The binding id is derived deterministically from the manifest and the order,
-  and recorded on both sides. It is an audited reference to a reviewed fact, not a
-  fabricated historical command key.
-- **Settlement gate:** `assertSettlementAllowed` = (provisioning `activated` for
-  this intent) **or** (a binding for this intent) — in both cases only when there is
-  no `financial_fences` row. Fences win, as now.
-- **Participant:** create/activate still refuse legacy intents (unchanged).
+- manifest format version and the shared snapshot ID;
+- the frozen, consistent SQLite BACKUP file SHA256 and its reviewed source schema
+  fingerprint; these describe the immutable backup, not the later upgraded live DB;
+- the legacy event watermark and per-owner bundle filename/service/SHA256 pairs,
+  computed over the exact exported file bytes;
+- eligible binding entries: order/intent/customer/provider IDs, amount in minor
+  units, currency, eligibility and the source order/payment/intent state plus
+  matching charge reference when applicable. No passwords, tokens, OTPs or profiles.
 
-### Contract v1.1 (A): one more gateway reference form
+Canonical core encoding uses UTF8 without BOM or insignificant whitespace, sorted
+object keys, integer numeric values only, bundle entries sorted by service and
+binding entries by numeric order ID. Strings/field names are defined by A's exact
+schema; no floating-point or runtime-dependent values are allowed. Hash the core,
+not the envelope/hash field. Binding IDs are derived AFTER hashing:
+`legacy:<full manifest_sha256>:<order_id>`; binding IDs are not inside the hashed
+core, avoiding a circular hash. Both languages need shared golden-byte/hash fixtures.
 
-A gateway completion/cancellation request carries **exactly one** of:
+A hash proves byte integrity, not operator authorization or business eligibility.
+The operator must verify the approved source/checkpoint, validate hashes and
+recompute classification against the frozen source and imported data. Reuse the
+SAME files/manifest for retry; never generate a new manifest to disguise a partial
+apply. Changed source/file/context or conflicting existing binding fails closed.
+Keep manifests/backups private and outside committed evidence; publish only
+sanitized test fixtures and observations.
 
-- `provisioning: { create_command_id, saga_id }` — unchanged v1 form;
-- `legacy_binding: { binding_id, manifest_sha256 }` — new.
+## Payments implementation — C schema, A importer
 
-Payments checks the binding against the order/customer/provider/amount/currency and
-then runs exactly the same rules:
+C adds reviewed `006_legacy_payment_bindings.sql` (name reserved by this baseline,
+not yet present). The table contains binding/full-manifest IDs; unique order ID;
+unique intent ID referencing the owned `payment_intents`; customer/provider IDs;
+nonnegative amount; THB currency; `open_unpaid/open_paid` eligibility and creation
+time. C supplies constraints and A reviews compatibility before accepting006 in
+the importer allow-list. Do not relax unknown-migration or empty-C-state guards.
 
-- completion is pending until there is a matching succeeded charge, then pays out once;
-- cancellation voids an unpaid intent, refunds a paid one once, and always fences.
+A inserts bindings atomically with imported Payments business rows. Binding rows
+are imported audited state, not invented financial commands/outbox events; exact
+replay checks them along with the business rows. They do not exempt pre-existing
+saga/command/fence/delivery state from the legacy-only source/target restrictions.
 
-A missing or mismatching binding gives attention `context_mismatch` (or
-`legacy_reconciliation_required` when there is none at all), never an adoption. COD
-keeps forbidding both forms. v1 requests stay valid; this is a minor version.
+Settlement/finalization must enforce:
 
-### Booking (C schema + operator CLI, A review)
+- Existing activated provisioning OR an exact legacy binding for this intent.
+  Validate order/intent/owner/amount/currency and full manifest references.
+- All existing cancellation/provisioning fences still win. Preserve the shared
+  per-order locking and reviewed lock order for webhook/complete/cancel races.
+- Create/activate continue refusing legacy intents. A binding is not a new saga.
+- v1.1 completion requires a matching succeeded charge before payout. Cancellation
+  voids unpaid intents or refunds an eligible charge once and always fences;
+  never refund after payout. Unknown outcomes stay pending with the SAME durable
+  command; contradictions go to attention. Stable caller auth is unchanged.
+- Missing/mismatching references remain reconciliation/context errors. A client
+  supplied hash or binding ID alone grants no authority. Exact codes/shapes are
+  supplied by A's v1.1 contract fixtures before code integration.
 
-- `booking_legacy_payment_bindings (order_id PK, binding_id UNIQUE, manifest_sha256)`,
-  added through `migrate.js` `UPGRADES` step 3, starting empty.
-- An **operator CLI** reads the same audited manifest and fills it after the
-  Payments import. The CLI:
-  - verifies the manifest hash and that each order is still open in SQLite with the same customer/provider/amount;
-  - is idempotent for the identical manifest;
-  - refuses a different manifest or any existing financial work/saga on the order;
-  - writes nothing else.
-- `finalization.js` snapshot: a saga's provisioning refs if present, **else** the
-  binding, **else** today's 409. `paymentSetupFor`: a bound open order is `ready`
-  (the intent already exists and settlement is allowed).
-- Booking's own guards are unchanged. Terminal orders still refuse complete/cancel;
-  pending cancellation still keeps holds and blocks transitions.
+## Booking implementation — C with A caller/schema review
 
-### Checker (C)
+Add `booking_legacy_payment_bindings(order_id PK, binding_id UNIQUE,
+manifest_sha256)` through a new additive `UPGRADES` entry appended AFTER all current
+steps. Do not reuse the proposal's old “step3”: E now owns
+`e-event-trace-context` and `e-booking-work-trace-context`. Preserve those entries,
+existing rows/context, exact schema guards and atomic rollback; do not reset DBs.
 
-`tools/consistency/c-check.mjs` gains invariants:
+The trusted offline operator CLI reads the same approved manifest after successful
+Payments import. It verifies hashes/backup identity and current Booking order
+owner/amount/currency/state against the frozen entry; rejects saga/financial-work
+conflicts; writes only Booking binding rows in its own local transaction. Identical
+replay is allowed in the still-frozen, unchanged cutover state; a different manifest,
+changed target or new distributed work requires review, never overwrite.
 
-- a binding without a matching imported intent;
-- a binding whose order also has a saga;
-- a Booking binding without a Payments binding (and the reverse);
-- a binding on a fenced order that still has an unrefunded charge.
+Snapshots use saga provisioning refs when present, otherwise the exact approved
+legacy binding, otherwise today's reconciliation refusal. Both forms cannot
+coexist. Keep terminal/OTP/provider/customer/slot guards unchanged. Bound open
+orders may show setup `ready` only after the coordinated checkpoint below; while
+unverified/half-applied, traffic remains closed and no success is claimed.
 
-## Alternatives considered
+## Coordinated checkpoint, activation and rollback
 
-1. **Generate legacy `create_command_id`s and run create/activate** — rejected. It is
-   exactly the fabricated identity the handoff forbids, and it would make a fake
-   saga history.
-2. **Adopt lazily on the first new command** — rejected. There is no audit point,
-   and adoption would race with webhooks and cancellations at runtime.
-3. **Drain before cutover** (recommended fallback): stop taking new gateway bookings
-   in legacy mode, let open ones finish in legacy, and cancel or refund the rest by
-   admin action, then cut over with only terminal history. Simple, no new schema, but
-   it needs a freeze window and a policy for customers who never pay. If A/lead
-   prefer this for the course timeline, C only adds the "no open gateway booking"
-   check to the checker.
+Payments import, Notifications import and Booking binding writes are independent
+local transactions. **They are not an atomic distributed commit.**
 
-## Questions for A
+1. Review legacy-only eligibility, freeze all writers/relays/recovery, drain and
+   disconnect consumers, establish broker/event/idempotency watermarks and take
+   consistent backups of every participating owner. Mixed-state sources need their
+   separate reviewed procedure; never clear C markers to force this path.
+2. Review/apply compatible schemas, produce/validate the one manifest and dry-run
+   both owner imports plus Booking binding validation while traffic stays closed.
+3. Apply owner imports; insert Payments bindings in its import transaction, then
+   run the Booking binding CLI using the same manifest. Retain sanitized operator
+   completion records identifying the manifest and each owner phase.
+4. Reconcile both directions: every eligible binding must match across owners,
+   every referenced intent/context must match, no order may have binding AND saga,
+   no fenced booking may retain unrefunded money. Extend the PR59 read-only checker
+   for those invariants and its current required006 schema. Verify queues/DLQs and
+   all other freeze/replay/data gates; omitted sources are not certified.
+5. If ANY owner phase/check fails, keep ingress, writers/recovery/consumers closed.
+   Resume an identical verified import or restore the coordinated pre-cutover
+   checkpoint through the reviewed runbook. Do not delete useful binding/command
+   rows or switch nginx alone to stale SQLite to “roll back”.
+6. After all owner phases, auth/business/HTML/fault/restart rehearsals and the
+   readiness/checkpoint records pass, select readers/writers/routing and start
+   consumers together under the runbook. The external ingress stays closed during
+   startup until the whole selection is verified. No runtime cross-service SQL.
+   After new writes, rollback needs a data-aware procedure, not the old snapshot
+   alone. Shared activation flags remain false until that separate cutover gate.
 
-1. Binding (this proposal) or drain (alternative 3) for the course timeline?
-2. Should the binding live in the importer's apply transaction (proposed), or in a separate reviewed step after import?
-3. Is `legacy_binding` as a v1.1 sibling of `provisioning` acceptable, or do you prefer a single tagged `payment_reference`?
-4. UI: for a bound open-unpaid order, is "ready" correct, or should it show a distinct "legacy" label?
+Only an explicitly delegated deployment/cutover operator with host/DB privileges
+may run these tools, never a browser customer/provider or public API. B defines
+and tests the concrete least-privilege credentials/access and secret handling in
+the operator runbook before use. This document creates no new application role.
 
-## Work split if accepted
+## Delivery order and ownership
 
-- **A:** contract v1.1 and fixtures, importer classification and binding insert, replay comparison, client/validation, UI label.
-- **C:** migration 006, settlement gate, financial ops reference check, Booking step 3, operator CLI, finalization snapshot, checker invariants, tests for 13/14/15 (including races with webhook and cancel).
-- **B:** operator CLI authorization (who may run it).
-- **D/E:** rehearsal fault runs.
+1. **A first:** publish versioned manifest/hash and contract v1.1 schemas, canonical
+   fixtures, request/result/error cases and callable interfaces. Preserve v1 new-mode
+   and COD behavior; new gateway binding form cannot be sent to an old provider.
+2. **A/C in parallel against those fixtures:** C implements006, appended Booking
+   upgrade, eligibility/financial reference checks, operator CLI and checker
+   invariants; A implements classification/import/replay comparison, validation/
+   clients/callers and existing UI statuses. B supplies operator auth/access.
+3. **A/C/D/E acceptance:** synthetic13/14/15 plus terminal cohorts; identical versus
+   changed manifests; wrong-owner/amount/hash and dual-reference rejection; schema
+   preservation; partial owner apply/rollback; paid/unpaid/void/fence behavior;
+   repeated commands/receipts; webhook/cancel/complete races and crash/restart.
+   Fresh authenticated stack proof is not a useful-data migration by itself.
+4. Only after those proofs, execute the separately reviewed real checkpoint and
+   coordinated cutover. No additional policy approval is needed to start the
+   selected implementation; unsafe details still require coordinated revision.
+
+## Rejected alternatives / contingency
+
+Fabricated historical create-command IDs and lazy runtime adoption remain rejected.
+Drain-before-cutover is available only as an explicitly selected contingency:
+stop new legacy gateway bookings, finish or safely cancel/refund existing ones
+under a reviewed customer/financial policy, then verify no open gateway orders.
+It is not a silent fallback when binding validation fails.

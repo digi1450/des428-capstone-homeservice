@@ -113,6 +113,11 @@ acceptance. No application runtime code, schema, dependency or route was changed
 
 ## What remains before a real cutover
 
+Lead follow-up10 November: the legacy-binding direction is now selected in
+[PR60 baseline](c-legacy-binding-proposal.md). It resolves the policy choice below,
+not implementation: A must publish exact manifest/hash/v1.1 fixtures, C/A/B must
+build them, and the checkpoint/rehearsal/final-switch gates still apply.
+
 1. **A/C legacy model:** define an auditable legacy binding/eligibility mechanism
    for old open gateway bookings, settled orders and terminal history; version the
    contract/schema if needed. Current v1 gateway requests require saved reviewed
