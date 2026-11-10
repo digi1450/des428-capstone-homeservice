@@ -36,6 +36,7 @@ const workById = (operationId) => db().prepare("SELECT * FROM booking_financial_
 const sagaFor = (orderId) => db().prepare("SELECT saga_id, state, create_command_id FROM booking_sagas WHERE order_id = ?").get(orderId);
 
 let runtime = null;
+export const getBookingFinalizationRuntime = () => runtime;
 
 // financial = A's createFinancialClient(...) (complete/cancel with the saved work).
 // credentials() = B's service-credential callback ({ token, requestId?, traceparent? }).

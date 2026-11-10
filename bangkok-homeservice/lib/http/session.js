@@ -4,10 +4,15 @@
 // dependence on next/headers cookies() is safe.
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import {getIdentityAccess} from "./identity-access.js";
 import { config } from "../config.js";
 
 export function getSession() {
-  const token = cookies().get("edemand_token")?.value;
+  const jar=cookies(),identity=getIdentityAccess();
+  if(identity){
+    try{return identity.read({headers:{get:name=>name.toLowerCase()==="cookie"?jar.toString():null}});}catch{return null;}
+  }
+  const token = jar.get("edemand_token")?.value;
   if (!token) return null;
   try {
     return jwt.verify(token, config.jwtSecret);

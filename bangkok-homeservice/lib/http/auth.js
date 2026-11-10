@@ -3,6 +3,7 @@
 //   - Authorization: Bearer <jwt>   (API clients + the test suite)
 //   - Cookie: edemand_token=<jwt>    (the browser UI, set httpOnly by the login handlers)
 import jwt from "jsonwebtoken";
+import {getIdentityAccess} from "./identity-access.js";
 import { config } from "../config.js";
 import { UnauthorizedError, ForbiddenError } from "../errors.js";
 
@@ -31,14 +32,16 @@ function readToken(req) {
 // Authenticates AND (optionally) authorizes in one step. `roles` may be a single role string or an
 // array; omit it for "any authenticated user". Returns the JWT payload { sub, role, email }.
 export function getAuth(req, roles) {
-  const token = readToken(req);
-  if (!token) throw new UnauthorizedError("missing bearer token");
-
   let payload;
-  try {
-    payload = jwt.verify(token, config.jwtSecret);
-  } catch (err) {
-    throw new UnauthorizedError(`invalid token: ${err.message}`);
+  const identity=getIdentityAccess();
+  if(identity){
+    payload=identity.read(req);
+    if(!payload)throw new UnauthorizedError("OIDC user session required");
+  }else{
+    const token=readToken(req);
+    if(!token)throw new UnauthorizedError("missing bearer token");
+    try{payload=jwt.verify(token,config.jwtSecret);}
+    catch(err){throw new UnauthorizedError(`invalid token: ${err.message}`);}
   }
 
   if (roles) {
