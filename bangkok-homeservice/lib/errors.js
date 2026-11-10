@@ -1,14 +1,16 @@
 // The one typed-error hierarchy. Every service and route throws AppError (or a subclass) instead
 // of writing a response directly, so the JSON error shape is guaranteed consistent across all
 // eight bounded contexts. lib/http/respond.js is the single place that maps these to HTTP.
-export class AppError extends Error {
+// Runtime callbacks cross Next instrumentation/API/RSC bundles; retain one nominal base.
+const ERROR_BASE=Symbol.for("edemand.AppError");
+export const AppError=globalThis[ERROR_BASE] ??= class AppError extends Error {
   constructor(statusCode, message, details) {
     super(message);
     this.name = "AppError";
     this.statusCode = statusCode;
     this.details = details;
   }
-}
+};
 
 export class BadRequestError extends AppError {
   constructor(message = "bad request", details) {

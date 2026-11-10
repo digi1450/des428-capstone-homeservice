@@ -1,3 +1,4 @@
+import {processState} from '../../runtime/process-state.js';
 // Inherited in-process relay for SQLite notifications and rating effects. C's broker relay
 // independently tracks published_at; this relay tracks processed_at. Started once from
 // instrumentation.js as setInterval(runRelayOnce, 1000); also exported so tests can drain it
@@ -13,20 +14,20 @@ import * as catalogRepository from "../catalog/repository.js";
 import * as providersRepository from "../providers/repository.js";
 
 const RELAY = Symbol.for("edemand.relay.interval");
-let eventDelivery = null;
+const selection=processState('modules/notifications/relay.js');
 
 // Explicit, disabled-by-default cutover preparation. C's ratings consumer stays in monolith.
 // Configure only at a coordinated handover; this does not validate readiness or migrate data.
 export function configureNotificationEventDelivery({ mode } = {}) {
   if (mode !== "events") throw new TypeError("Notification delivery mode must explicitly be events");
-  if (eventDelivery) throw new Error("Notification event delivery is already configured");
-  eventDelivery = Object.freeze({ mode });
+  if (selection.value) throw new Error("Notification event delivery is already configured");
+  selection.value = Object.freeze({ mode });
   stopRelay();
-  return eventDelivery;
+  return selection.value;
 }
-export const getNotificationEventDelivery = () => eventDelivery;
+export const getNotificationEventDelivery = () => selection.value;
 // Tests/coordinated shutdown only, never automatic outage fallback. Does not restart a timer.
-export const resetNotificationEventDelivery = () => { eventDelivery = null; };
+export const resetNotificationEventDelivery = () => { selection.value = null; };
 
 function notify(recipientRole, recipientId, type, title, body, orderId = null) {
   notificationsRepository.insert({ recipientRole, recipientId, type, title, body, orderId });
@@ -110,7 +111,7 @@ function dispatch(event) {
 export function runRelayOnce() {
   // Do not claim/stamp, dispatch or touch SQLite notifications/ratings after selecting the broker.
   // In particular, do not mark historical work processed just to satisfy migration checks.
-  if (eventDelivery) return 0;
+  if (selection.value) return 0;
   const rows = listUnprocessed(100);
   let processed = 0;
   for (const event of rows) {
@@ -126,7 +127,7 @@ export function runRelayOnce() {
 }
 
 export function startRelay() {
-  if (eventDelivery || globalThis[RELAY]) return;
+  if (selection.value || globalThis[RELAY]) return;
   const handle = setInterval(() => {
     try {
       runRelayOnce();

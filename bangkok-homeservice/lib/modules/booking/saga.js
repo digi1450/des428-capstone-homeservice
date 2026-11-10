@@ -1,3 +1,4 @@
+import {processState} from '../../runtime/process-state.js';
 // Area C — Booking-orchestrated provisioning saga for gateway bookings (Week 8 slides 20–23,
 // Week 10 orchestration; decisions in docs/migration-handoff.md §5).
 //
@@ -44,7 +45,7 @@ export const STATES = Object.freeze({
 const ACTIVE = [STATES.CREATE_PENDING, STATES.COMPENSATION_PENDING];
 const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
 
-let runtime = null;
+const selection=processState('modules/booking/saga.js');
 
 // payments: A's createBookingPaymentsAdapter({ paymentsClient }) (prepare / cancel).
 // credentials: async () => service-caller credentials from B (token etc.).
@@ -55,12 +56,12 @@ let runtime = null;
 export function configureBookingSaga({ payments, credentials = async () => ({}), maxCreateAttempts = 5,
   maxCancelAttempts = 5, activateEscalateAfter = 5, baseBackoffMs = 1000, maxBackoffMs = 30000, leaseMs = 15000, retryAfterSeconds = 2,
   random = Math.random } = {}) { // `random` only for deterministic tests
-  runtime = { payments, credentials, maxCreateAttempts, maxCancelAttempts, activateEscalateAfter, baseBackoffMs, maxBackoffMs, leaseMs, retryAfterSeconds, random,
+  selection.value = { payments, credentials, maxCreateAttempts, maxCancelAttempts, activateEscalateAfter, baseBackoffMs, maxBackoffMs, leaseMs, retryAfterSeconds, random,
     owner: `booking-saga:${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}` };
-  return runtime;
+  return selection.value;
 }
-export function getBookingSaga() { return runtime; }
-export function resetBookingSaga() { runtime = null; }
+export function getBookingSaga() { return selection.value; }
+export function resetBookingSaga() { selection.value = null; }
 
 function digest(input) {
   const canonical = {
@@ -94,10 +95,10 @@ function move(saga, to, reason, fields = {}) {
 function claimLease(sagaId) {
   return getDb().prepare(
     "UPDATE booking_sagas SET locked_by = ?, locked_until = ? WHERE saga_id = ? AND (locked_until IS NULL OR locked_until < ?)",
-  ).run(runtime.owner, iso(runtime.leaseMs), sagaId, iso()).changes === 1;
+  ).run(selection.value.owner, iso(selection.value.leaseMs), sagaId, iso()).changes === 1;
 }
 function releaseLease(sagaId) {
-  getDb().prepare("UPDATE booking_sagas SET locked_by = NULL, locked_until = NULL WHERE saga_id = ? AND locked_by = ?").run(sagaId, runtime.owner);
+  getDb().prepare("UPDATE booking_sagas SET locked_by = NULL, locked_until = NULL WHERE saga_id = ? AND locked_by = ?").run(sagaId, selection.value.owner);
 }
 
 function recordFailure(saga, error, limit, exhaustedTo, exhaustedReason) {
@@ -108,7 +109,7 @@ function recordFailure(saga, error, limit, exhaustedTo, exhaustedReason) {
       move(saga, exhaustedTo, `${exhaustedReason} after ${attempts} unconfirmed attempts (${kind})`,
         exhaustedTo === STATES.COMPENSATION_PENDING ? { cancel_reason: "booking_setup_failed" } : {});
     } else {
-      const delay = retryDelay(attempts, { baseMs: runtime.baseBackoffMs, maxMs: runtime.maxBackoffMs, random: runtime.random });
+      const delay = retryDelay(attempts, { baseMs: selection.value.baseBackoffMs, maxMs: selection.value.maxBackoffMs, random: selection.value.random });
       getDb().prepare("UPDATE booking_sagas SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ? WHERE saga_id = ?")
         .run(attempts, iso(delay), String(kind).slice(0, 120), iso(), saga.saga_id);
     }
@@ -123,10 +124,10 @@ async function step(saga) {
   if (saga.state === STATES.CREATE_PENDING) {
     let operation;
     try {
-      operation = await runtime.payments.prepare(snapshot, workflow, await runtime.credentials());
+      operation = await selection.value.payments.prepare(snapshot, workflow, await selection.value.credentials());
     } catch (error) {
       if (financialCancellation(saga.order_id)) return;
-      recordFailure(saga, error, runtime.maxCreateAttempts, STATES.COMPENSATION_PENDING, "setup abandoned");
+      recordFailure(saga, error, selection.value.maxCreateAttempts, STATES.COMPENSATION_PENDING, "setup abandoned");
       return;
     }
     if (financialCancellation(saga.order_id)) return;
@@ -149,10 +150,10 @@ async function step(saga) {
   }
   if (saga.state === STATES.COMPENSATION_PENDING) {
     try {
-      await runtime.payments.cancel({ ...workflow, cancelCommandId: saga.cancel_command_id, reason: saga.cancel_reason }, await runtime.credentials());
+      await selection.value.payments.cancel({ ...workflow, cancelCommandId: saga.cancel_command_id, reason: saga.cancel_reason }, await selection.value.credentials());
     } catch (error) {
       if (financialCancellation(saga.order_id)) return;
-      recordFailure(saga, error, runtime.maxCancelAttempts, STATES.RECOVERY_PENDING, "compensation unconfirmed");
+      recordFailure(saga, error, selection.value.maxCancelAttempts, STATES.RECOVERY_PENDING, "compensation unconfirmed");
       return;
     }
     if (financialCancellation(saga.order_id)) return;
@@ -253,7 +254,7 @@ async function deliverActivation(activation, token, rt) {
 // One delivery attempt under a lease with a unique claim token (two attempts, even in one process,
 // never share a claim). The runtime is captured at claim time for the whole attempt.
 export async function activate(sagaId) {
-  const rt = runtime;
+  const rt = selection.value;
   if (financialCancellation(find(sagaId).order_id)) return findActivation(sagaId);
   if (typeof rt.payments?.activate !== "function") return findActivation(sagaId); // A's adapter method not wired yet
   const token = `${rt.owner}:${randomUUID()}`;
@@ -281,11 +282,11 @@ function response(saga) {
   }
   // Safe pending answer: same key later resumes the same saga (never a second reservation).
   return { statusCode: 503, body: { error: "the booking is still being confirmed; retry with the same Idempotency-Key", code: "BOOKING_PENDING", order_id: saga.order_id },
-    headers: { "Retry-After": String(runtime.retryAfterSeconds) } };
+    headers: { "Retry-After": String(selection.value.retryAfterSeconds) } };
 }
 
 export async function placeGatewayBooking(customerId, input, idempotencyKey) {
-  if (!runtime) throw new Error("booking saga is not configured");
+  if (!selection.value) throw new Error("booking saga is not configured");
   const key = idempotencyKey ?? `auto:${randomUUID()}`;
   const requestDigest = digest(input);
   let saga = findByKey(customerId, key);
@@ -331,7 +332,7 @@ export async function recoverOnce({ batchSize = 20 } = {}) {
     try { await advance(sagaId); } catch (error) { logger.error({ saga: sagaId, err: error.message }, "saga recovery step failed"); }
   }
   // COMPLETED sagas whose activation is still pending (after restarts, timeouts, lost replies).
-  const activations = typeof runtime.payments?.activate === "function" ? getDb().prepare(
+  const activations = typeof selection.value.payments?.activate === "function" ? getDb().prepare(
     `SELECT saga_id FROM booking_saga_activations WHERE NOT EXISTS (SELECT 1 FROM booking_financial_work w JOIN booking_sagas s ON s.order_id = w.order_id WHERE s.saga_id = booking_saga_activations.saga_id AND w.kind = 'cancellation') AND state = 'pending' AND next_attempt_at <= ? AND (locked_until IS NULL OR locked_until < ?)
       ORDER BY next_attempt_at LIMIT ?`,
   ).all(iso(), iso(), batchSize) : [];

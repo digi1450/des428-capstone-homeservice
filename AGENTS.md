@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For explicit authenticated startup, cross-Next-bundle runtime/error identity and deployment gates, read `docs/authenticated-startup-handoff.md`. Both startup gates remain false by default. Compiled API/RSC fixture acceptance is not real Keycloak, broker readiness or useful-data cutover.
+
 - For A's integrated B session/identity + C financial/saga recovery composition, read `docs/authenticated-runtime-handoff.md`. Construction is explicit, not default startup activation. Configure before legacy timers, keep one recovery scheduler, and pass through the actual webhook bearer instead of minting gateway authority. Real Keycloak/page/AMQP/data-cutover gates remain.
 
 - For B JWT/user-ID mapping, separate user/Booking/gateway permissions and persistent OIDC session/credential interfaces, read `docs/b-authentication-handoff.md`. PR51 is staged integration preparation, not permission to enable auth or proxy/cutover flags. A/B/E must configure trusted HTTPS, credentials and persistent sidecars and verify real flows first. Existing stateless token-bearing user cookies require a fresh login; do not restore that fallback.

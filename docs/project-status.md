@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A startup and compiled Next wiring — 10 November 2026
+
+[Startup handoff](authenticated-startup-handoff.md) adds an explicitly gated instrumentation path: preserve/bootstrap SQLite, select B/A/C composition, start C broker supervisors/relay, then one recovery scheduler. Shared process cells make instrumentation/API/RSC see the same configuration; a shared nominal error base preserves cross-bundle HTTP statuses. Local monolith282, production build and actual compiled API/RSC HTTPS-fixture smoke passed ([evidence](validation/a-authenticated-startup-2026-11-10.md)). Default gates remain false. Actual Keycloak/browser provisioning/refresh, receiving-service auth, broker paid/notification delivery, persistent deployment, legacy cutover and D/E final acceptance remain open. Supersedes “startup unwired” only for this opt-in implementation.
+
 ## A authenticated A/B/C composition — 10 November 2026
 
 [Authenticated runtime handoff](authenticated-runtime-handoff.md) connects merged B sessions/current identity mapping, A clients/API and page identities, C provisioning/financial recovery and event-only provider/notification ownership in one explicit lifecycle. It adds shared browser OIDC identity selection and original-bearer webhook forwarding without a privileged gateway credential fallback. Default instrumentation/routing/flags remain unchanged. Local monolith273, authenticated HTTP/two-PG boundary7 and production build passed ([evidence](validation/a-authenticated-runtime-2026-11-10.md)). Current staging proves real HTTP/owning PG with signed issuer fixtures; actual Keycloak/browser/page context, broker/paid-event/notification delivery, TLS/volumes, legacy cutover and final D/E acceptance remain open. It is not production activation or completion of A steps4–5.
