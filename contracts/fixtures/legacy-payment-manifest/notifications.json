@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "snapshot_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "exported_at": "2026-11-10T00:00:00.000Z",
+  "legacy_event_watermark": 80,
+  "service": "notifications",
+  "tables": {
+    "notifications": []
+  }
+}
