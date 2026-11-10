@@ -50,6 +50,27 @@ try{
  }
  pass('deployed owner CLI provisions explicit existing identities without email linking');
  console.log(drive('auth'));console.log(drive('business'));
+ if(process.env.FINAL_STACK_TELEMETRY==='true'){
+  docker(['cp',join(directory,'infra/grafana/dashboards/homeservice-monitoring.json'),'notifications:/tmp/task5-dashboard.json']);
+  const verifier=readFileSync(join(root,'tests/final-stack/telemetry.mjs'),'utf8');
+  const result=js('notifications','const fixture='+JSON.stringify({grafanaSecret:env.GRAFANA_ADMIN_PASSWORD})+';\n'+verifier);console.log(result);
+  const summaries=JSON.parse(result.trim().split('\n').at(-1)).telemetry;
+  const flows=summaries.filter(x=>x.flow),records=[];
+  for(const service of ['edemand','payments-wallet','payments-wallet-consumer','notifications-event-consumer']){
+   const lines=docker(['logs','--no-log-prefix',service]).split('\n');
+   for(const line of lines){let row;try{row=JSON.parse(line);}catch{continue;}
+    if(flows.some(f=>f.traceId===row.traceId)&&['http_request','event_processed','event_duplicate_skipped'].includes(row.event)){
+     assert.ok(!line.includes(fixture.password));
+     for(const secret of [env.BOOKING_SERVICE_CLIENT_SECRET,env.KEYCLOAK_GATEWAY_CLIENT_SECRET,env.OIDC_SESSION_SECRET])assert.ok(!secret||!line.includes(secret));
+     assert.ok(!row.path||!row.path.includes('?'));
+     records.push({service,event:row.event,traceId:row.traceId,requestId:row.requestId??null,eventId:row.event_id??null});
+    }
+   }
+  }
+  for(const service of ['edemand','payments-wallet','payments-wallet-consumer','notifications-event-consumer'])assert.ok(records.some(r=>r.service===service),'correlated logs '+service);
+  writeFileSync(join(directory,'task5-telemetry-summary.json'),JSON.stringify({tracesAndPanels:summaries,logs:records},null,2),{mode:0o600});
+  pass('trace-correlated real HTTP/consumer JSON logs; no query, test password or service secret in correlated records');
+ }
  const state=()=>JSON.parse(js('notifications',"import {readFileSync} from 'node:fs';console.log(readFileSync('/tmp/final-stack-acceptance.json','utf8'));"));
  const holds=id=>Number(js('edemand',`import Database from 'better-sqlite3';const db=new Database(process.env.DB_PATH,{readonly:true});console.log(db.prepare('SELECT count(*) n FROM slot_holds WHERE order_id=?').get(${id}).n);db.close();`));
  const data=state(),held=holds(data.recoveryId);assert.ok(held>0);
@@ -70,7 +91,7 @@ try{
  docker(['stop']);logged(['up','-d','--no-build','--wait','--wait-timeout','240'],'restart-all.log');console.log(drive('persisted'));
  const rows=docker(['ps','--format','json']).trim().split('\n').filter(Boolean).map(x=>JSON.parse(x));assert.equal(rows.length,16);for(const row of rows){assert.equal(row.State,'running',row.Service);if(row.Health)assert.equal(row.Health,'healthy',row.Service);}
  pass('all 16 actual services running; every configured readiness probe healthy in authenticated mode');
- console.log(JSON.stringify({status:'passed',project,services:16,limitsGiB:6.25,scope:'E Task4 actual authenticated fresh deployment',remaining:['historical account/data eligibility and cutover','full E tracing/reliability/load and 8GB peak acceptance','graphical browser and offline clean-clone acceptance']}));
+ console.log(JSON.stringify({status:'passed',project,services:16,limitsGiB:6.25,scope:process.env.FINAL_STACK_TELEMETRY==='true'?'E Task4 deployment plus Task5 selected full-flow telemetry':'E Task4 actual authenticated fresh deployment',remaining:['historical account/data eligibility and cutover','broader fault/load and 8GB peak acceptance',...(process.env.FINAL_STACK_TELEMETRY==='true'?[]:['full-flow telemetry acceptance']),'graphical browser and offline clean-clone acceptance']}));
 }finally{
  // Ownership marker checked before all destructive cleanup; shared projects never selected.
  assert.equal(JSON.parse(readFileSync(marker)).project,project);

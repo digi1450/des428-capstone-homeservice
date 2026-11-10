@@ -44,7 +44,8 @@ async function registerProvider(){
  response=await browse(cookies,action,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({username,email:username+'@example.test',firstName:'New',lastName:'Provider',password:fixture.password,'password-confirm':fixture.password})});
  assert.equal(response.status,302,'registration produces real authorization code');
  response=await browse(cookies,response.headers.get('location'));assert.equal(response.status,303);assert.equal(response.headers.get('location'),'/onboarding');
- assert.equal((await api(cookies,'/api/auth/keycloak/profile',{role:'provider',name:'New Provider',company_name:'Live Fixture'},{Origin:base})).status,201);
+ state.providerTraceId=randomUUID().replaceAll('-','');
+ assert.equal((await api(cookies,'/api/auth/keycloak/profile',{role:'provider',name:'New Provider',company_name:'Live Fixture'},{Origin:base,traceparent:'00-'+state.providerTraceId+'-1234567890abcdef-01','X-Request-Id':'task5-provider'})).status,201);
  const me=await api(cookies,'/api/me');assert.equal(me.body.role,'provider');assert.equal(me.body.profile.is_approved,0);
  await until(async()=>{const value=await api(cookies,'/api/provider/wallet');return value.status===200&&value.body.wallet_setup!=='pending'&&value.body.balance_cents===0;},'provider.registered wallet provisioning through broker');
  const wallet=await api(cookies,'/api/provider/wallet');assert.equal(wallet.status,200);assert.equal(wallet.body.balance_cents,0);
@@ -93,14 +94,15 @@ if(phase==='prepare'){
   await until(async()=>((await api(alice,`/api/bookings/${id}`)).body.payment_setup==='ready'),'activation');
   const event={gateway_event_id:'final-'+randomUUID(),gateway_ref:created.body.payment_intent.gateway_ref,type:'payment_intent.succeeded'};
   assert.equal((await api(jar(),'/api/payments/webhook',event)).status,401);
-  state.traceId=randomUUID().replaceAll('-','');const headers={Authorization:'Bearer '+await gateway(),traceparent:'00-'+state.traceId+'-1234567890abcdef-01'};
+  state.traceId=randomUUID().replaceAll('-','');const headers={Authorization:'Bearer '+await gateway(),traceparent:'00-'+state.traceId+'-1234567890abcdef-01','X-Request-Id':'task5-webhook'};
   assert.equal((await api(jar(),'/api/payments/webhook',event,headers)).status,200);
   assert.equal((await api(jar(),'/api/payments/webhook',event,headers)).status,200);
   await until(async()=>((await api(alice,`/api/bookings/${id}`)).body.payment_status==='paid'),'automatic relay and paid consumer');
   assert.equal((await api(bob,`/api/bookings/${id}`)).status,403);
   assert.equal((await api(pro,`/api/bookings/${id}/confirm`,{})).status,200);
   assert.equal((await api(pro,`/api/bookings/${id}/start`,{})).status,200);
-  const completed=await api(pro,`/api/bookings/${id}/complete`,{otp:created.body.otp});assert.equal(completed.status,200);assert.equal(completed.body.accounting_status,'ready');
+  state.completeTraceId=randomUUID().replaceAll('-','');
+  const completed=await api(pro,`/api/bookings/${id}/complete`,{otp:created.body.otp},{traceparent:'00-'+state.completeTraceId+'-1234567890abcdef-01','X-Request-Id':'task5-complete'});assert.equal(completed.status,200);assert.equal(completed.body.accounting_status,'ready');
   assert.equal((await api(pro,`/api/bookings/${id}/complete`,{otp:created.body.otp})).status,200);
   await until(async()=>{const reply=await api(alice,'/api/notifications');return reply.status===200&&reply.body.length>0;},'actual notification delivery');
   pass('real separate-process booking/activation + webhook replay + paid event + BOLA + OTP completion + notification');

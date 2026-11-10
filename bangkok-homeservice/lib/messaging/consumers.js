@@ -5,6 +5,8 @@
 //   requeue   transient failures after a delay; the quorum queue dead-letters after the limit
 // Started from instrumentation.js only when AMQP_URL is set.
 import amqp from "amqplib";
+import {SpanKind} from '@opentelemetry/api';
+import {traced,traceFields} from '../telemetry/context.js';
 import { logger } from "../logger.js";
 import { createInbox, parseEnvelope, PermanentEventError } from "./inbound.js";
 import { EVENTS_EXCHANGE } from "./publisher.js";
@@ -68,11 +70,13 @@ export async function startConsumer(amqpUrl, consumer, { prefetch = 10, delivery
       if (!message) { log({ event: "consumer_cancelled_by_broker", consumer: consumer.name }); end("cancelled_by_broker"); return; }
       const messageId = message.properties.messageId ?? null;
       try {
+        await traced('rabbitmq process',{carrier:message.properties.headers,kind:SpanKind.CONSUMER,attributes:{'messaging.system':'rabbitmq','messaging.operation.name':'process','messaging.destination.name':consumer.queue,'messaging.message.id':messageId??''}},async()=>{
         const envelope = parseEnvelope(message.content, messageId ?? undefined);
         const result = inbox.handle(envelope);
         if (!ended) channel.ack(message);
         log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", consumer: consumer.name,
-          event_id: envelope.event_id, event_type: envelope.event_type, outcome: result.outcome });
+          event_id: envelope.event_id, event_type: envelope.event_type, outcome: result.outcome,...traceFields() });
+        });
       } catch (error) {
         if (ended) return;
         if (error instanceof PermanentEventError) {

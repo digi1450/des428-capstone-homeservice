@@ -1,0 +1,38 @@
+name: E actual full-flow telemetry
+on:
+  pull_request:
+    paths:
+      - 'bangkok-homeservice/**'
+      - 'services/**'
+      - 'tests/final-stack/**'
+      - 'infra/grafana/**'
+      - 'infra/prometheus/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/full-flow-telemetry.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'bangkok-homeservice/**'
+      - 'services/**'
+      - 'tests/final-stack/**'
+      - 'infra/grafana/**'
+      - 'infra/prometheus/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/full-flow-telemetry.yml'
+  workflow_dispatch:
+jobs:
+  full-flow:
+    name: Actual 16-service traces, logs, dashboard and recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FINAL_STACK_PROJECT: homeservice-e-auth-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      FINAL_STACK_TELEMETRY: 'true'
+      COMPOSE_PARALLEL_LIMIT: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Actual authenticated flows, telemetry and scoped recovery
+        run: node tests/final-stack/run.mjs

@@ -5,6 +5,8 @@
 //   wrong producer, bad data)   -> reject without requeue -> payments.events.dlq
 //   transient (DB down, etc.)   -> wait, requeue; the quorum queue dead-letters after the limit
 import amqp from "amqplib";
+import {traceWalletProcessing} from '../messaging-tracing.js';
+import {context,trace} from '@opentelemetry/api';
 import { EXPECTED_PRODUCER, PermanentEventError, parseEnvelope } from "./inbound.js";
 
 export const EVENTS_EXCHANGE = "homeservice.events";
@@ -102,10 +104,12 @@ export async function startWalletConsumer({ amqpUrl, inbox, prefetch = 10, deliv
       }
       const messageId = message.properties.messageId;
       try {
+        await traceWalletProcessing(message,async()=>{
         const envelope = parseEnvelope(message.content, messageId);
         const result = await inbox.handle(envelope);
         if (!ended) channel.ack(message);
-        log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type });
+        log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type,traceId:trace.getSpan(context.active())?.spanContext().traceId??null });
+        });
       } catch (error) {
         if (ended) return; // unacked: the broker redelivers
         if (error instanceof PermanentEventError) {
