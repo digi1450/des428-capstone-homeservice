@@ -10,7 +10,7 @@ const sdk=new NodeSDK({autoDetectResources:false,instrumentations:[],spanProcess
 }]});
 await sdk.start();
 const traceId="1234567890abcdef1234567890abcdef",parentId="1234567890abcdef";
-const {traceMessagePublishing}=await import("../src/messaging-tracing.js");
+const {traceMessagePublishing,traceWalletProcessing}=await import("../src/messaging-tracing.js");
 test("outbox publish tracing preserves durable context",async t=>{
  t.after(()=>sdk.shutdown());
  const row=()=>({event_id:"event-fixture",event_type:"payment.succeeded",headers:{traceparent:`00-${traceId}-${parentId}-01`,tracestate:"vendor=fixture","x-request-id":"request-fixture"}});
@@ -39,5 +39,13 @@ test("outbox publish tracing preserves durable context",async t=>{
   const failure=new Error("fixture publish failed");
   await assert.rejects(traceMessagePublishing(row(),async()=>{throw failure;}),error=>error===failure);
   assert.equal(spans.at(-1).status.code,2);assert.equal(spans.at(-1).events[0].name,"exception");
+ });
+ await t.test('wallet processing continues the publisher and marks errors before retry handling',async()=>{
+  const message={properties:{messageId:'wallet-fixture',headers:{traceparent:`00-${traceId}-${parentId}-01`}}};
+  const failure=new Error('fixture failure');
+  await assert.rejects(traceWalletProcessing(message,async()=>{assert.equal(trace.getSpan(context.active()).spanContext().traceId,traceId);throw failure;}),e=>e===failure);
+  const span=spans.at(-1);assert.equal(span.parentSpanContext.spanId,parentId);
+  assert.equal(span.attributes['messaging.destination.name'],'payments.events');assert.equal(span.status.code,2);
+  assert.equal(span.events.length,0,'no raw exception message in the consumer span');
  });
 });

@@ -28,3 +28,25 @@ The script checks functional deployment, not peak/load8GB, graphical browser UX,
 complete cross-service traces, historical migration or production readiness.
 
 See [dated evidence](../../docs/validation/a-e-final-stack-2026-11-10.md).
+
+For E Task5 selected full-flow trace/log/dashboard acceptance, set
+`FINAL_STACK_TELEMETRY=true` before running the same command. It verifies actual
+Jaeger parent-child edges for provider-to-wallet, webhook-to-Booking via the PG
+outbox/relay, and completion-to-Notifications, plus correlated JSON logs and all
+three provisioned dashboard queries against actual Prometheus data. The only new
+output file is a sanitized `task5-telemetry-summary.json` in the private evidence
+directory. No additional runtime service is added. Jaeger's in-memory traces are
+checked before the full-stack restart; historical retention is not claimed.
+See [E handoff](../../docs/e-task5-full-flow-handoff.md).
+
+Set `FINAL_STACK_FAULTS=true` as well for Task5 crash-window and recovery acceptance.
+It kills real child relay/consumer processes at broker-confirm, pre-commit and
+post-commit/pre-ack boundaries, then restarts the normal workers and checks actual
+queue drainage, trace parents and owning-store effect counts. It also SIGKILLs
+standalone Next with cancellation pending during a Payments outage and verifies
+autonomous recovery with the same command/key/trace after restart. No production
+fault flags or additional persistent service are added. The child processes use
+the production protocol/storage libraries; this is deterministic checkpoint
+testing rather than a timing-based claim about arbitrary normal-worker PID1 kills.
+Sanitized outputs are `task5-fault-summary.json` and `task5-recovery-trace.json`.
+See [fault/recovery handoff](../../docs/e-task5-fault-recovery-handoff.md).

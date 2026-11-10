@@ -9,6 +9,7 @@ import amqp from "amqplib";
 import { parseEnvelope, PermanentEventError } from "./envelope.js";
 import { QUEUE, assertConsumerTopology } from "./topology.js";
 import { traceMessageProcessing } from "../messaging-tracing.js";
+import {context,trace} from '@opentelemetry/api';
 
 export class ConsumerSetupError extends Error {
   constructor(message, cause) { super(message, { cause }); this.name = "ConsumerSetupError"; this.code = cause?.code; }
@@ -54,7 +55,7 @@ export async function startConsumer({ amqpUrl, inbox, prefetch = 10, deliveryLim
           envelope = parseEnvelope(message.content, messageId);
           const result = await inbox.handle(envelope);
           if (!ended) channel.ack(message);
-          log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type, effects: result.effects });
+          log({ event: result.duplicate ? "event_duplicate_skipped" : "event_processed", event_id: envelope.event_id, event_type: envelope.event_type, effects: result.effects,traceId:trace.getSpan(context.active())?.spanContext().traceId??null });
         });
       } catch (error) {
         if (ended) return; // unacked messages are redelivered by the broker

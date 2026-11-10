@@ -1,0 +1,147 @@
+{
+  "tracesAndPanels": [
+    {
+      "flow": "provider-wallet",
+      "traceId": "f9e121018e33410f99ced13cf683a87a",
+      "spanCount": 13,
+      "services": [
+        "edemand",
+        "payments-wallet-consumer"
+      ],
+      "edgesVerified": true
+    },
+    {
+      "flow": "webhook-paid-booking",
+      "traceId": "f7f7a2be69844868bd254a9317d7d2f2",
+      "spanCount": 43,
+      "services": [
+        "edemand",
+        "notifications-event-consumer",
+        "payments-outbox-relay",
+        "payments-wallet"
+      ],
+      "edgesVerified": true
+    },
+    {
+      "flow": "completion-notification",
+      "traceId": "4965d8e6b0974e9fad1d1c3b38cd6bda",
+      "spanCount": 41,
+      "services": [
+        "edemand",
+        "notifications-event-consumer",
+        "payments-wallet"
+      ],
+      "edgesVerified": true
+    },
+    {
+      "panel": "P95 Response Time by Service",
+      "jobs": [
+        "notifications",
+        "payments-wallet"
+      ],
+      "finiteValues": true
+    },
+    {
+      "panel": "Error Rate by Service (%)",
+      "jobs": [
+        "notifications",
+        "payments-wallet"
+      ],
+      "finiteValues": true
+    },
+    {
+      "panel": "Request Rate by Service",
+      "jobs": [
+        "notifications",
+        "payments-wallet"
+      ],
+      "finiteValues": true
+    }
+  ],
+  "logs": [
+    {
+      "service": "edemand",
+      "event": "http_request",
+      "traceId": "f9e121018e33410f99ced13cf683a87a",
+      "requestId": "task5-provider",
+      "eventId": null
+    },
+    {
+      "service": "edemand",
+      "event": "http_request",
+      "traceId": "f7f7a2be69844868bd254a9317d7d2f2",
+      "requestId": "task5-webhook",
+      "eventId": null
+    },
+    {
+      "service": "edemand",
+      "event": "http_request",
+      "traceId": "f7f7a2be69844868bd254a9317d7d2f2",
+      "requestId": "task5-webhook",
+      "eventId": null
+    },
+    {
+      "service": "edemand",
+      "event": "event_processed",
+      "traceId": "f7f7a2be69844868bd254a9317d7d2f2",
+      "requestId": "task5-webhook",
+      "eventId": "559bd2bd-a853-4d06-bcfb-7562a3a90b24"
+    },
+    {
+      "service": "edemand",
+      "event": "http_request",
+      "traceId": "4965d8e6b0974e9fad1d1c3b38cd6bda",
+      "requestId": "task5-complete",
+      "eventId": null
+    },
+    {
+      "service": "payments-wallet",
+      "event": "http_request",
+      "traceId": "f7f7a2be69844868bd254a9317d7d2f2",
+      "requestId": "task5-webhook",
+      "eventId": null
+    },
+    {
+      "service": "payments-wallet",
+      "event": "http_request",
+      "traceId": "f7f7a2be69844868bd254a9317d7d2f2",
+      "requestId": "task5-webhook",
+      "eventId": null
+    },
+    {
+      "service": "payments-wallet",
+      "event": "http_request",
+      "traceId": "4965d8e6b0974e9fad1d1c3b38cd6bda",
+      "requestId": "task5-complete",
+      "eventId": null
+    },
+    {
+      "service": "payments-wallet-consumer",
+      "event": "event_processed",
+      "traceId": "f9e121018e33410f99ced13cf683a87a",
+      "requestId": null,
+      "eventId": "1cc2961f-3f43-49e8-99c5-44f3acce590c"
+    },
+    {
+      "service": "notifications-event-consumer",
+      "event": "event_processed",
+      "traceId": "f7f7a2be69844868bd254a9317d7d2f2",
+      "requestId": null,
+      "eventId": "559bd2bd-a853-4d06-bcfb-7562a3a90b24"
+    },
+    {
+      "service": "notifications-event-consumer",
+      "event": "event_processed",
+      "traceId": "4965d8e6b0974e9fad1d1c3b38cd6bda",
+      "requestId": null,
+      "eventId": "258f174d-e5b2-4752-920e-e60372ee170e"
+    },
+    {
+      "service": "notifications-event-consumer",
+      "event": "event_processed",
+      "traceId": "4965d8e6b0974e9fad1d1c3b38cd6bda",
+      "requestId": null,
+      "eventId": "27769dc3-7554-4ecf-9bc8-127f534e2b6e"
+    }
+  ]
+}

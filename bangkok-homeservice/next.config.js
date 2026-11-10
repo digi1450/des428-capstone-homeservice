@@ -7,7 +7,7 @@ const nextConfig = {
     // Do NOT bundle the native better-sqlite3 addon into the server/RSC bundles — keep it
     // external so `output: "standalone"` traces the real .node binary instead.
     // amqplib (Area C broker relay) uses Node sockets; keep it external as well.
-    serverComponentsExternalPackages: ["better-sqlite3", "amqplib"],
+    serverComponentsExternalPackages: ["better-sqlite3", "amqplib", "@opentelemetry/api", "@opentelemetry/sdk-node", "@opentelemetry/exporter-trace-otlp-http"],
   },
 };
 

@@ -9,12 +9,14 @@ export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS booking_saga_transitions;
+DROP TABLE IF EXISTS booking_work_trace_context;
 DROP TABLE IF EXISTS booking_financial_work;
 DROP TABLE IF EXISTS booking_saga_activations;
 DROP TABLE IF EXISTS booking_sagas;
 DROP TABLE IF EXISTS consistency_attention;
 DROP TABLE IF EXISTS processed_events;
 DROP TABLE IF EXISTS idempotency_keys;
+DROP TABLE IF EXISTS event_trace_context;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS reviews;
@@ -273,6 +275,13 @@ CREATE TABLE events (
 CREATE INDEX idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
 CREATE INDEX idx_events_unpublished ON events(next_publish_at, id) WHERE published_at IS NULL;
 
+-- Allow-listed transport metadata, atomically committed with the owning outbox row.
+-- Separate from domain payloads and never part of a public event's data.
+CREATE TABLE event_trace_context (
+  event_id INTEGER PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
+  headers_json TEXT NOT NULL
+);
+
 CREATE TABLE idempotency_keys (
   key TEXT PRIMARY KEY, endpoint TEXT NOT NULL,
   response_json TEXT NOT NULL, status_code INTEGER NOT NULL,
@@ -388,4 +397,9 @@ CREATE TABLE booking_financial_work (
   UNIQUE (order_id, kind)
 );
 CREATE INDEX idx_booking_financial_work_due ON booking_financial_work(next_attempt_at) WHERE state = 'pending';
+
+CREATE TABLE booking_work_trace_context (
+  operation_id TEXT PRIMARY KEY REFERENCES booking_financial_work(operation_id) ON DELETE CASCADE,
+  headers_json TEXT NOT NULL
+);
 `;

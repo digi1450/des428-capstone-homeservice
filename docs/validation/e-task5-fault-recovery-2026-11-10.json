@@ -1,0 +1,31 @@
+{
+  "messaging": {
+    "traceId": "2a9a0ab5fee64cd5bff028cedf40ae65",
+    "eventId": "0ecb3242-14c6-4091-bc99-5d8ac5407696",
+    "graph": {
+      "firstPublish": "d3fb16f79e2cdabf",
+      "retryPublish": "bb81696f8a2736f2",
+      "parent": "c5bfeeec140fdc49",
+      "consumerSpans": 2
+    },
+    "final": {
+      "outboxAttempts": 2,
+      "notificationEffects": 1,
+      "charges": 1,
+      "bookingDedupe": 1,
+      "queuesDrained": true,
+      "beforeCommitRollback": true,
+      "consumerCrashCheckpoint": "committed-before-ack"
+    }
+  },
+  "financialRecovery": {
+    "traceId": "0dce4f1d23c4464799f5758398f077bf",
+    "operationId": "549c5699-d817-4825-8d78-7d43ac25c10b",
+    "commandId": "cancel:549c5699-d817-4825-8d78-7d43ac25c10b",
+    "failedSpan": "289c1344053030d4",
+    "recoveredSpan": "e5c5a042064eac2f",
+    "originalParent": "cd1f422547ae0157",
+    "attempts": 3,
+    "notificationLinked": true
+  }
+}
