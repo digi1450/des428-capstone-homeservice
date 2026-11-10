@@ -1,5 +1,7 @@
 # Step 5C — exact financial finalization contract v1.0.0
 
+10 November follow-up: [legacy manifest and target1.1 artifacts](legacy-manifest-contract-handoff.md) extend the selected interface with audited legacy bindings. This retained v1 spec still describes the current runtime; target1.1 is separate and not implemented/activated by conformance tests. Earlier runtime-pending statements below are dated history, not a reversal of merged A/B/C acceptance.
+
 8 November 2026, based on main `7cbec6a` and the
 [lead-selected baseline](financial-finalization-decisions.md).
 Initial delivery supplied schemas, fixtures, conformance validation and CI.

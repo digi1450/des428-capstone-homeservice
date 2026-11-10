@@ -1,0 +1,352 @@
+{
+  "operations": {
+    "completeUnpaid": {
+      "kind": "completion",
+      "commandId": "complete:55555555-5555-4555-8555-555555555555",
+      "request": {
+        "operation_id": "55555555-5555-4555-8555-555555555555",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 600
+      }
+    },
+    "completePaid": {
+      "kind": "completion",
+      "commandId": "complete:66666666-6666-4666-8666-666666666666",
+      "request": {
+        "operation_id": "66666666-6666-4666-8666-666666666666",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 750
+      }
+    },
+    "cancelUnpaid": {
+      "kind": "cancellation",
+      "commandId": "cancel:77777777-7777-4777-8777-777777777777",
+      "request": {
+        "operation_id": "77777777-7777-4777-8777-777777777777",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      }
+    },
+    "cancelPaid": {
+      "kind": "cancellation",
+      "commandId": "cancel:88888888-8888-4888-8888-888888888888",
+      "request": {
+        "operation_id": "88888888-8888-4888-8888-888888888888",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      }
+    }
+  },
+  "results": {
+    "completeUnpaidPending": {
+      "command_id": "complete:55555555-5555-4555-8555-555555555555",
+      "kind": "completion",
+      "request": {
+        "operation_id": "55555555-5555-4555-8555-555555555555",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 600
+      },
+      "state": "pending",
+      "reason": "awaiting_settlement"
+    },
+    "completeUnpaidAttention": {
+      "command_id": "complete:55555555-5555-4555-8555-555555555555",
+      "kind": "completion",
+      "request": {
+        "operation_id": "55555555-5555-4555-8555-555555555555",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 600
+      },
+      "state": "attention",
+      "reason": "legacy_reconciliation_required"
+    },
+    "completeUnpaidReady": {
+      "command_id": "complete:55555555-5555-4555-8555-555555555555",
+      "kind": "completion",
+      "request": {
+        "operation_id": "55555555-5555-4555-8555-555555555555",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 600
+      },
+      "state": "ready",
+      "accounting": {
+        "transaction_id": 901,
+        "kind": "payout_credit",
+        "amount_cents": 3400
+      }
+    },
+    "completePaidPending": {
+      "command_id": "complete:66666666-6666-4666-8666-666666666666",
+      "kind": "completion",
+      "request": {
+        "operation_id": "66666666-6666-4666-8666-666666666666",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 750
+      },
+      "state": "pending",
+      "reason": "awaiting_settlement"
+    },
+    "completePaidAttention": {
+      "command_id": "complete:66666666-6666-4666-8666-666666666666",
+      "kind": "completion",
+      "request": {
+        "operation_id": "66666666-6666-4666-8666-666666666666",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 750
+      },
+      "state": "attention",
+      "reason": "legacy_reconciliation_required"
+    },
+    "completePaidReady": {
+      "command_id": "complete:66666666-6666-4666-8666-666666666666",
+      "kind": "completion",
+      "request": {
+        "operation_id": "66666666-6666-4666-8666-666666666666",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "commission_cents": 750
+      },
+      "state": "ready",
+      "accounting": {
+        "transaction_id": 902,
+        "kind": "payout_credit",
+        "amount_cents": 4250
+      }
+    },
+    "cancelUnpaidPending": {
+      "command_id": "cancel:77777777-7777-4777-8777-777777777777",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "77777777-7777-4777-8777-777777777777",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "pending",
+      "reason": "processing"
+    },
+    "cancelUnpaidAttention": {
+      "command_id": "cancel:77777777-7777-4777-8777-777777777777",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "77777777-7777-4777-8777-777777777777",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "attention",
+      "reason": "legacy_reconciliation_required"
+    },
+    "cancelUnpaidReady": {
+      "command_id": "cancel:77777777-7777-4777-8777-777777777777",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "77777777-7777-4777-8777-777777777777",
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "ready",
+      "settlement_fenced": true,
+      "outcome": "voided",
+      "voided_intent_id": 45
+    },
+    "cancelPaidPending": {
+      "command_id": "cancel:88888888-8888-4888-8888-888888888888",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "88888888-8888-4888-8888-888888888888",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "pending",
+      "reason": "processing"
+    },
+    "cancelPaidAttention": {
+      "command_id": "cancel:88888888-8888-4888-8888-888888888888",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "88888888-8888-4888-8888-888888888888",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "attention",
+      "reason": "legacy_reconciliation_required"
+    },
+    "cancelPaidReady": {
+      "command_id": "cancel:88888888-8888-4888-8888-888888888888",
+      "kind": "cancellation",
+      "request": {
+        "operation_id": "88888888-8888-4888-8888-888888888888",
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "payment_method": "gateway",
+        "legacy_binding": {
+          "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+          "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+        },
+        "reason": "customer_cancelled"
+      },
+      "state": "ready",
+      "settlement_fenced": true,
+      "outcome": "refunded",
+      "refund_transaction_id": 903
+    }
+  },
+  "conflicts": [
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_COMMAND_CONFLICT"
+    },
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_CONTEXT_MISMATCH"
+    },
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_OPERATION_BLOCKED"
+    },
+    {
+      "error": "financial operation needs reconciliation",
+      "requestId": "fixture-request-1",
+      "code": "FINANCIAL_LEGACY_RECONCILIATION_REQUIRED"
+    }
+  ]
+}

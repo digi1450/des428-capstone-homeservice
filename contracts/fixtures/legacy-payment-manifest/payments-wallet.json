@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "snapshot_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "exported_at": "2026-11-10T00:00:00.000Z",
+  "legacy_event_watermark": 80,
+  "service": "payments-wallet",
+  "tables": {
+    "payment_intents": [
+      {
+        "id": 45,
+        "order_id": 13,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 4000,
+        "currency": "THB",
+        "gateway_ref": "SIM-13",
+        "status": "requires_payment",
+        "created_at": "2026-11-10T00:00:00.000Z"
+      },
+      {
+        "id": 46,
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "amount_cents": 5000,
+        "currency": "THB",
+        "gateway_ref": "SIM-14",
+        "status": "succeeded",
+        "created_at": "2026-11-10T00:00:00.000Z"
+      }
+    ],
+    "transactions": [
+      {
+        "id": 140,
+        "order_id": 14,
+        "customer_id": 5,
+        "provider_id": 7,
+        "kind": "charge",
+        "amount_cents": 5000,
+        "method": "gateway",
+        "gateway_ref": "SIM-14",
+        "status": "succeeded",
+        "created_at": "2026-11-10T00:00:00.000Z",
+        "context_json": {}
+      }
+    ],
+    "provider_wallets": [
+      {
+        "provider_id": 7,
+        "balance_cents": 0,
+        "commission_owed_cents": 0,
+        "updated_at": "2026-11-10T00:00:00.000Z"
+      }
+    ],
+    "webhook_events": [
+      {
+        "id": 64,
+        "gateway_event_id": "EVENT-14",
+        "type": "payment_intent.succeeded",
+        "payload_json": {
+          "gateway_event_id": "EVENT-14",
+          "type": "payment_intent.succeeded",
+          "gateway_ref": "SIM-14"
+        },
+        "received_at": "2026-11-10T00:00:00.000Z",
+        "processed_at": "2026-11-10T00:00:00.000Z"
+      }
+    ]
+  }
+}
