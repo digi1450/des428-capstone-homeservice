@@ -1,0 +1,255 @@
+{
+  "model": "closed-loop,100ms think time,5s request deadline",
+  "stages": [
+    {
+      "name": "warm",
+      "users": 5,
+      "durationTargetSeconds": 20,
+      "elapsedMs": 20079.137776,
+      "requests": 814,
+      "failures": 0,
+      "rps": 40.53958935293278,
+      "p50Ms": 19.693113999999696,
+      "p95Ms": 47.872965999998996,
+      "p99Ms": 74.74302300000002,
+      "byEndpoint": {
+        "identity": {
+          "requests": 136,
+          "failures": 0
+        },
+        "inbox": {
+          "requests": 136,
+          "failures": 0
+        },
+        "booking": {
+          "requests": 136,
+          "failures": 0
+        },
+        "history": {
+          "requests": 136,
+          "failures": 0
+        },
+        "wallet": {
+          "requests": 135,
+          "failures": 0
+        },
+        "wallet-page": {
+          "requests": 135,
+          "failures": 0
+        }
+      },
+      "errors": []
+    },
+    {
+      "name": "steady",
+      "users": 15,
+      "durationTargetSeconds": 60,
+      "elapsedMs": 60167.393885,
+      "requests": 5104,
+      "failures": 0,
+      "rps": 84.82999961333626,
+      "p50Ms": 56.44012000000657,
+      "p95Ms": 211.63009500000044,
+      "p99Ms": 286.0121500000023,
+      "byEndpoint": {
+        "identity": {
+          "requests": 849,
+          "failures": 0
+        },
+        "inbox": {
+          "requests": 849,
+          "failures": 0
+        },
+        "history": {
+          "requests": 853,
+          "failures": 0
+        },
+        "wallet": {
+          "requests": 851,
+          "failures": 0
+        },
+        "booking": {
+          "requests": 852,
+          "failures": 0
+        },
+        "wallet-page": {
+          "requests": 850,
+          "failures": 0
+        }
+      },
+      "errors": []
+    },
+    {
+      "name": "peak",
+      "users": 30,
+      "durationTargetSeconds": 60,
+      "elapsedMs": 60283.317055999985,
+      "requests": 5398,
+      "failures": 0,
+      "rps": 89.54384502408097,
+      "p50Ms": 220.87829500000225,
+      "p95Ms": 388.7111440000008,
+      "p99Ms": 493.5693140000076,
+      "byEndpoint": {
+        "identity": {
+          "requests": 899,
+          "failures": 0
+        },
+        "inbox": {
+          "requests": 898,
+          "failures": 0
+        },
+        "wallet": {
+          "requests": 900,
+          "failures": 0
+        },
+        "history": {
+          "requests": 901,
+          "failures": 0
+        },
+        "booking": {
+          "requests": 899,
+          "failures": 0
+        },
+        "wallet-page": {
+          "requests": 901,
+          "failures": 0
+        }
+      },
+      "errors": []
+    },
+    {
+      "name": "cooldown",
+      "users": 5,
+      "durationTargetSeconds": 20,
+      "elapsedMs": 20094.696146000002,
+      "requests": 816,
+      "failures": 0,
+      "rps": 40.60773022250605,
+      "p50Ms": 18.170791999989888,
+      "p95Ms": 54.69707200000994,
+      "p99Ms": 75.38694900000701,
+      "byEndpoint": {
+        "identity": {
+          "requests": 137,
+          "failures": 0
+        },
+        "wallet": {
+          "requests": 136,
+          "failures": 0
+        },
+        "history": {
+          "requests": 136,
+          "failures": 0
+        },
+        "booking": {
+          "requests": 136,
+          "failures": 0
+        },
+        "inbox": {
+          "requests": 136,
+          "failures": 0
+        },
+        "wallet-page": {
+          "requests": 135,
+          "failures": 0
+        }
+      },
+      "errors": []
+    }
+  ],
+  "orders": [
+    {
+      "id": 8006,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8005,
+      "kind": "completion"
+    },
+    {
+      "id": 8008,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8007,
+      "kind": "completion"
+    },
+    {
+      "id": 8010,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8009,
+      "kind": "completion"
+    },
+    {
+      "id": 8011,
+      "kind": "completion"
+    },
+    {
+      "id": 8012,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8013,
+      "kind": "completion"
+    },
+    {
+      "id": 8014,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8015,
+      "kind": "completion"
+    },
+    {
+      "id": 8016,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8018,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8017,
+      "kind": "completion"
+    },
+    {
+      "id": 8019,
+      "kind": "completion"
+    },
+    {
+      "id": 8020,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8022,
+      "kind": "cancellation"
+    },
+    {
+      "id": 8021,
+      "kind": "completion"
+    },
+    {
+      "id": 8023,
+      "kind": "completion"
+    },
+    {
+      "id": 8024,
+      "kind": "cancellation"
+    }
+  ],
+  "financial": {
+    "name": "mixed-financial",
+    "users": 2,
+    "flows": 20,
+    "completed": 10,
+    "refunded": 10,
+    "elapsedMs": 5940.706540000014,
+    "p95Ms": 959.4199979999976
+  },
+  "postLoadTraceId": "943af8337eaf444f91e86decae100ecd",
+  "owningLedgerVerified": true,
+  "backlogDrained": true
+}

@@ -115,6 +115,10 @@ if(phase==='prepare'){
   assert.equal((await api(alice,`/api/bookings/${state.refundId}/cancel`,{})).status,200);
   pass('authenticated paid cancellation/refund replay');
   const recovery=await place('16:00');assert.equal(recovery.status,201);state.recoveryId=recovery.body.order.id;
+ }else if(phase==='load'){
+  const {runLoad}=await import('file:///tmp/task6-load.mjs');
+  const result=await runLoad({api,browse,base,alice,pro,state,fixture,gateway,jar,until});
+  keepJar('alice',alice);keepJar('provider',pro);console.log(JSON.stringify({task6Load:result}));
  }else if(phase==='fault-event'){
   date.setUTCDate(date.getUTCDate()+1);while(date.getUTCDay()===0)date.setUTCDate(date.getUTCDate()+1);
   const booked=await place('10:00');assert.equal(booked.status,201);state.faultOrderId=booked.body.order.id;

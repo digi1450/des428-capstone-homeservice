@@ -1,27 +1,40 @@
 services:
   notifications-db:
     mem_limit: 512m
+    memswap_limit: 512m
   payments-db:
     mem_limit: 512m
+    memswap_limit: 512m
   rabbitmq:
     mem_limit: 768m
+    memswap_limit: 768m
   notifications-event-consumer:
     mem_limit: 256m
+    memswap_limit: 256m
   payments-outbox-relay:
     mem_limit: 256m
+    memswap_limit: 256m
   notifications:
     mem_limit: 512m
+    memswap_limit: 512m
   payments-wallet:
     mem_limit: 512m
+    memswap_limit: 512m
   prometheus:
     mem_limit: 512m
+    memswap_limit: 512m
   grafana:
     mem_limit: 512m
+    memswap_limit: 512m
   edemand:
     mem_limit: 512m
+    memswap_limit: 512m
   gateway:
     mem_limit: 128m
+    memswap_limit: 128m
   jaeger:
     mem_limit: 768m
+    memswap_limit: 768m
   payments-wallet-consumer:
     mem_limit: 256m
+    memswap_limit: 256m

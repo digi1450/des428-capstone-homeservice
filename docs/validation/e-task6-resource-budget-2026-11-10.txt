@@ -1,0 +1,40 @@
+PASS: 16 services have memory limits, total 6.250 GiB; default cutover gates stay off
+PASS: real Keycloak Booking/Gateway issuance, role grants, audience, signature and client isolation
+PASS: trusted in-container TLS/DNS, Notifications readiness and private-route filtering
+PASS: full-stack Next via trusted TLS, Prometheus, Grafana and Jaeger HTTP readiness
+PASS deployed owner CLI provisions explicit existing identities without email linking
+PASS actual TLS ingress + real PKCE login/issuer-sub mapping + refresh/replay + unauthenticated denial
+PASS real Keycloak registration + provider profile + RabbitMQ wallet provisioning + both protected services
+PASS private internal routes + real Booking/Gateway token isolation
+PASS real separate-process booking/activation + webhook replay + paid event + BOLA + OTP completion + notification
+PASS authenticated paid cancellation/refund replay
+PASS live Jaeger parent-child continuity: provider -> wallet; webhook -> owning PG outbox/relay -> Booking; completion -> Notifications
+PASS provisioned Grafana dashboard and actual Prometheus request-rate / 5xx-rate / P95 data for both services
+PASS trace-correlated real HTTP/consumer JSON logs; no query, test password or service secret in correlated records
+PASS real authenticated payment commits while owning relay and Notifications consumer are stopped
+PASS published-before-mark crash still delivers paid status to Booking
+PASS SIGKILL after real broker confirm leaves the original PG outbox event unpublished and leased
+PASS SIGKILL before Notifications transaction commit rolls back BOTH dedupe and effect; message stays deliverable
+PASS SIGKILL after real Notifications dedupe/effect commit occurs before RabbitMQ acknowledgement
+PASS actual worker restart redelivers the unacked event with the same trace and exactly one notification
+PASS lease recovery republishes the SAME event/parent with a fresh producer span; owning PG proves one charge and one notification
+PASS Task6 warm: 814 requests,0 failures,p95 48ms
+PASS Task6 steady: 5104 requests,0 failures,p95 212ms
+PASS Task6 peak: 5398 requests,0 failures,p95 389ms
+PASS Task6 real financial load:10 completions and10 paid refunds at concurrency2
+PASS Task6 cooldown: 816 requests,0 failures,p95 55ms
+PASS Task6 post-load trace export remains active
+PASS Task6 owning PG proves exactly-one financial effects for20 flows and broker backlog drains
+PASS actual Payments container outage leaves cancellation pending
+PASS actual standalone Next SIGKILL while cancellation work is pending
+PASS restarted standalone Next preserves session and pending booking
+PASS actual container recovery converges without another cancellation request
+PASS durable cancellation trace spans failed attempt -> actual Next SIGKILL -> autonomous retry -> Notifications with stable operation/key/parent
+PASS owning PostgreSQL proves one charge/payout/refund despite HTTP replay
+PASS actual broker outage makes all three independent workers unready
+PASS all three workers reconnect after broker restart
+PASS actual Prometheus scrape targets and actual consumer spans exported to Jaeger (not complete root/monolith tracing)
+PASS persistent SQLite/sidecars/Keycloak/PG after full-stack restart + logout
+PASS all 16 actual services running; every configured readiness probe healthy in authenticated mode
+PASS Task6 all16 raw cgroup memory peaks + observer/host reserve fit8GB; no swap/OOM/automatic restarts
+{"task6Memory":{"samples":152,"sampledAggregatePeakBytes":2430230528,"sumServiceKernelPeaksBytes":2813542400,"conservativeTotalWithAllowancesBytes":3954393088,"budgetBytes":8000000000}}

@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## E Task6 measured resource budget — 10 November 2026
+
+[Declared method](e-task6-resource-budget-handoff.md) uses decimal8GB, no-swap RAM ceilings for all16 services, a64MiB read-only observer and explicit1GiB host reserve. [Local evidence](validation/e-task6-resource-budget-2026-11-10.md) records39 full-stack groups:12,132 staged reads at5/15/30 clients with0 failures,20 real financial flows, ledger/backlog/trace checks and Task5 recovery/restart. Sampled aggregate peak2.430GB; sum of service kernel peaks2.814GB; with full observer/reserve3.954GB<8GB. No swap/OOM/automatic restarts. Host was16.376GB/16CPU, not an8GB-machine simulation. Jaeger recent trace retention is bounded3000; tracing stays enabled. CI repeats and uploads only sanitized numeric evidence; local record is not a merge/hosted claim. [Six-task titles](e-task-checklist.md) separate Task6 resource budget from browser/offline/demo/dossier work. Historical eligibility/cutover and broader D races remain separate; shared flags stay false.
+
 ## Lead-selected legacy binding direction — 10 November 2026
 
 [PR60 baseline](c-legacy-binding-proposal.md) is selected by the lead: audited bindings for eligible old open gateway bookings; full-hash manifest shared by Booking/Payments; Payments binding written in its import transaction; v1.1 mutually exclusive legacy/provisioning reference; existing pending/ready UI. A exact manifest/contract fixtures come first, followed by A/C implementation and B operator-access work. Both owners must reconcile while ingress remains closed; append schema upgrades after E metadata and preserve existing guards. This is an accepted plan, not implemented006/binding support, another service extraction or historical cutover.

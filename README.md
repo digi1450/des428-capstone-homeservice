@@ -90,3 +90,5 @@ Area E Task 3: [Pact coverage, tracing/reliability CI and act commands](docs/e-t
 Area E Task 5: [selected actual full-flow trace/log/dashboard acceptance](docs/e-task5-full-flow-handoff.md), with [dated local evidence](docs/validation/e-task5-full-flow-2026-11-10.md). Extends the merged Task4 runner; broader fault/load/offline/cutover gates remain.
 
 Task5 follow-up: [process-crash/redelivery and durable financial recovery tracing](docs/e-task5-fault-recovery-handoff.md), with [dated local results](docs/validation/e-task5-fault-recovery-2026-11-10.md). Run the same fresh-stack runner with FINAL_STACK_TELEMETRY=true and FINAL_STACK_FAULTS=true.
+
+Area E [six-task checklist](docs/e-task-checklist.md): Task6 is **8GB Resource Budget**, not the separate browser/offline/dossier deliverables. [Budget/load method](docs/e-task6-resource-budget-handoff.md) and [dated local measurement](docs/validation/e-task6-resource-budget-2026-11-10.md) add no-swap caps, raw kernel peaks and explicit allowances; enable FINAL_STACK_RESOURCES with both Task5 flags.
