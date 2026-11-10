@@ -6,6 +6,7 @@ import {dirname,resolve,join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {randomBytes} from 'node:crypto';
+import {messagingFaults} from './faults.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 const resume=process.env.FINAL_STACK_DIRECTORY;
 const directory=resume?resolve(resume):mkdtempSync(join(tmpdir(),'homeservice-final-stack-'));
@@ -25,6 +26,14 @@ const args=['compose','--env-file','.env.authenticated','-p',project,'-f','docke
 function docker(extra,input){const r=spawnSync('docker',[...args,...extra],{cwd:directory,input,encoding:'utf8',maxBuffer:16*1024**2});if(r.status!==0){writeFileSync(join(directory,'last-command-error.log'),r.stderr,{mode:0o600});throw Error('Compose command failed: '+extra.slice(0,2).join(' ')+' (inspect task-only logs in '+directory+')');}return r.stdout;}
 function logged(extra,name){const r=spawnSync('docker',[...args,...extra],{cwd:directory,encoding:'utf8',maxBuffer:32*1024**2});writeFileSync(join(directory,name),r.stdout+'\n'+r.stderr,{mode:0o600});assert.equal(r.status,0,'Compose '+extra[0]+' failed; see '+name);}
 const js=(service,code)=>docker(['exec','-T',service,'node','--input-type=module'],code).trim();
+const crash=(service,name,code)=>{
+ const env=Object.fromEntries(readFileSync(join(directory,'.env.authenticated'),'utf8').trim().split('\n').map(l=>{const i=l.indexOf('=');return[l.slice(0,i),l.slice(i+1)];}));
+ const input='process.env.AMQP_URL='+JSON.stringify(env.AUTHENTICATED_AMQP_URL)+';\n'+code;
+ const result=spawnSync('docker',[...args,'exec','-T','-e','OTEL_SERVICE_NAME='+name,service,'node','--import','./src/tracing.js','--input-type=module'],{cwd:directory,input,encoding:'utf8',timeout:90000});
+ writeFileSync(join(directory,name+'-private.log'),(result.stdout??'')+'\n'+(result.stderr??''),{mode:0o600});
+ assert.equal(result.status,137,'Expected SIGKILL at '+name+' checkpoint; inspect private diagnostic');
+ const checkpoint=(result.stdout??'').split('\n').find(l=>l.startsWith('{"checkpoint":'));assert.ok(checkpoint,'crash checkpoint required');return JSON.parse(checkpoint);
+};
 const pass=name=>console.log('PASS '+name);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function ready(workers,expected=200){for(let n=0;n<60;n++){if(workers.every(name=>Number(js(name,"try{console.log((await fetch('http://127.0.0.1:3000/health/ready',{signal:AbortSignal.timeout(2000)})).status)}catch{console.log(0)}"))===expected))return;await sleep(1000);}throw Error('Worker readiness deadline '+expected);}
@@ -50,15 +59,50 @@ try{
  }
  pass('deployed owner CLI provisions explicit existing identities without email linking');
  console.log(drive('auth'));console.log(drive('business'));
+ if(process.env.FINAL_STACK_TELEMETRY==='true'){
+  docker(['cp',join(directory,'infra/grafana/dashboards/homeservice-monitoring.json'),'notifications:/tmp/task5-dashboard.json']);
+  const verifier=readFileSync(join(root,'tests/final-stack/telemetry.mjs'),'utf8');
+  const result=js('notifications','const fixture='+JSON.stringify({grafanaSecret:env.GRAFANA_ADMIN_PASSWORD})+';\n'+verifier);console.log(result);
+  const summaries=JSON.parse(result.trim().split('\n').at(-1)).telemetry;
+  const flows=summaries.filter(x=>x.flow),records=[];
+  for(const service of ['edemand','payments-wallet','payments-wallet-consumer','notifications-event-consumer']){
+   const lines=docker(['logs','--no-log-prefix',service]).split('\n');
+   for(const line of lines){let row;try{row=JSON.parse(line);}catch{continue;}
+    if(flows.some(f=>f.traceId===row.traceId)&&['http_request','event_processed','event_duplicate_skipped'].includes(row.event)){
+     assert.ok(!line.includes(fixture.password));
+     for(const secret of [env.BOOKING_SERVICE_CLIENT_SECRET,env.KEYCLOAK_GATEWAY_CLIENT_SECRET,env.OIDC_SESSION_SECRET])assert.ok(!secret||!line.includes(secret));
+     assert.ok(!row.path||!row.path.includes('?'));
+     records.push({service,event:row.event,traceId:row.traceId,requestId:row.requestId??null,eventId:row.event_id??null});
+    }
+   }
+  }
+  for(const service of ['edemand','payments-wallet','payments-wallet-consumer','notifications-event-consumer'])assert.ok(records.some(r=>r.service===service),'correlated logs '+service);
+  writeFileSync(join(directory,'task5-telemetry-summary.json'),JSON.stringify({tracesAndPanels:summaries,logs:records},null,2),{mode:0o600});
+  pass('trace-correlated real HTTP/consumer JSON logs; no query, test password or service secret in correlated records');
+ }
  const state=()=>JSON.parse(js('notifications',"import {readFileSync} from 'node:fs';console.log(readFileSync('/tmp/final-stack-acceptance.json','utf8'));"));
+ if(process.env.FINAL_STACK_FAULTS==='true')await messagingFaults({docker,js,drive,crash,state,directory,pass});
  const holds=id=>Number(js('edemand',`import Database from 'better-sqlite3';const db=new Database(process.env.DB_PATH,{readonly:true});console.log(db.prepare('SELECT count(*) n FROM slot_holds WHERE order_id=?').get(${id}).n);db.close();`));
  const data=state(),held=holds(data.recoveryId);assert.ok(held>0);
  docker(['stop','payments-wallet']);console.log(drive('outage'));assert.equal(holds(data.recoveryId),held);
- logged(['restart','edemand'],'restart-pending.log');
+ if(process.env.FINAL_STACK_FAULTS==='true'){
+  const traceId=state().recoveryTraceId;let observed=false;
+  for(let n=0;n<40;n++){
+   const found=js('notifications',`const t=(await(await fetch('http://jaeger:16686/api/traces/'+${JSON.stringify(traceId)})).json()).data?.[0];console.log(Boolean(t?.spans.some(s=>s.operationName==='booking financial delivery'&&s.tags.some(t=>t.key==='booking.work.state'&&t.value==='pending'))));`);
+   if(found==='true'){observed=true;break;}await sleep(500);
+  }
+  assert.ok(observed,'failed delivery span must export before killing Next');
+  docker(['kill','-s','SIGKILL','edemand']);docker(['start','edemand']);pass('actual standalone Next SIGKILL while cancellation work is pending');
+ }
+ else logged(['restart','edemand'],'restart-pending.log');
  // /api/ready may fail while downstream is intentionally down. Probe actual saved session instead.
  for(let n=0;;n++){try{console.log(drive('restart-pending'));break;}catch(error){if(n===30)throw error;await sleep(1000);}}
  assert.equal(holds(data.recoveryId),held);
  docker(['start','payments-wallet']);console.log(drive('recovered'));assert.equal(holds(data.recoveryId),0);
+ if(process.env.FINAL_STACK_FAULTS==='true'){
+  const verifier=readFileSync(join(root,'tests/final-stack/recovery-trace.mjs'),'utf8');
+  const result=js('notifications',verifier);console.log(result);writeFileSync(join(directory,'task5-recovery-trace.json'),result.trim().split('\n').at(-1),{mode:0o600});
+ }
  const counts=JSON.parse(js('payments-wallet',`import {createDatabase} from './src/database.js';const db=createDatabase(process.env.DATABASE_URL);console.log(JSON.stringify((await db.query('SELECT order_id,kind,count(*)::int n FROM transactions WHERE order_id=ANY($1::int[]) GROUP BY order_id,kind ORDER BY order_id,kind',[[${data.completedId},${data.refundId}]])).rows));await db.close();`));
  assert.deepEqual(counts,[{order_id:data.completedId,kind:'charge',n:1},{order_id:data.completedId,kind:'payout_credit',n:1},{order_id:data.refundId,kind:'charge',n:1},{order_id:data.refundId,kind:'refund',n:1}]);pass('owning PostgreSQL proves one charge/payout/refund despite HTTP replay');
  const workers=['notifications-event-consumer','payments-wallet-consumer','payments-outbox-relay'];await ready(workers);
@@ -70,7 +114,7 @@ try{
  docker(['stop']);logged(['up','-d','--no-build','--wait','--wait-timeout','240'],'restart-all.log');console.log(drive('persisted'));
  const rows=docker(['ps','--format','json']).trim().split('\n').filter(Boolean).map(x=>JSON.parse(x));assert.equal(rows.length,16);for(const row of rows){assert.equal(row.State,'running',row.Service);if(row.Health)assert.equal(row.Health,'healthy',row.Service);}
  pass('all 16 actual services running; every configured readiness probe healthy in authenticated mode');
- console.log(JSON.stringify({status:'passed',project,services:16,limitsGiB:6.25,scope:'E Task4 actual authenticated fresh deployment',remaining:['historical account/data eligibility and cutover','full E tracing/reliability/load and 8GB peak acceptance','graphical browser and offline clean-clone acceptance']}));
+ console.log(JSON.stringify({status:'passed',project,services:16,limitsGiB:6.25,scope:process.env.FINAL_STACK_TELEMETRY==='true'?'E Task4 deployment plus Task5 selected full-flow telemetry':'E Task4 actual authenticated fresh deployment',remaining:['historical account/data eligibility and cutover','broader fault/load and 8GB peak acceptance',...(process.env.FINAL_STACK_TELEMETRY==='true'?[]:['full-flow telemetry acceptance']),'graphical browser and offline clean-clone acceptance']}));
 }finally{
  // Ownership marker checked before all destructive cleanup; shared projects never selected.
  assert.equal(JSON.parse(readFileSync(marker)).project,project);

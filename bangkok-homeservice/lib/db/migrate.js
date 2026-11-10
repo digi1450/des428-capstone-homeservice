@@ -42,6 +42,8 @@ export const UPGRADES = Object.freeze([
     id: "c-booking-financial-work",
     objects: ["booking_financial_work", "idx_booking_financial_work_due"],
   },
+  {id:"e-event-trace-context",objects:["event_trace_context"]},
+  {id:"e-booking-work-trace-context",objects:["booking_work_trace_context"]},
 ]);
 // previous[k] = the schema as it was before UPGRADES[k..] existed.
 const previous = UPGRADES.map((_, k) => {

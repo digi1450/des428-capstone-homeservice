@@ -1,4 +1,5 @@
 import {processState} from '../../runtime/process-state.js';
+import {currentCarrier,traced,traceFields} from '../../telemetry/context.js';
 // Area C — Booking financial finalization (step 5C): durable completion/cancellation work,
 // the synchronous local transition guard and recovery. Implements the four callbacks A's caller
 // seam requires (configureBookingFinancialAccess({ bookingFinalization })).
@@ -73,6 +74,8 @@ function insertWork(kind, order) {
   const commandId = `${kind === "completion" ? "complete" : "cancel"}:${operationId}`;
   db().prepare(`INSERT INTO booking_financial_work (operation_id, kind, order_id, command_id, request_json, state)
     VALUES (?, ?, ?, ?, ?, 'pending')`).run(operationId, kind, order.id, commandId, JSON.stringify(request));
+  const carrier=currentCarrier();
+  if(Object.keys(carrier).length)db().prepare('INSERT INTO booking_work_trace_context (operation_id,headers_json) VALUES (?,?)').run(operationId,JSON.stringify(carrier));
   return workById(operationId);
 }
 
@@ -203,6 +206,17 @@ function finalizeCancellation(work, token, result) {
 }
 
 async function deliver(operationId) {
+ const work=workById(operationId);if(!work)return work;
+ const saved=db().prepare('SELECT headers_json FROM booking_work_trace_context WHERE operation_id=?').get(operationId);
+ return traced('booking financial delivery',{carrier:saved?JSON.parse(saved.headers_json):{},attributes:{'booking.operation.id':operationId,'booking.command.id':work.command_id,'booking.work.kind':work.kind}},async span=>{
+  const result=await deliverAttempt(operationId);
+  span.setAttribute('booking.work.state',result.state);span.setAttribute('booking.work.attempts',result.attempts);
+  if(result.state==='pending'&&result.attempts>work.attempts)span.setStatus({code:2});
+  logger.info({event:'financial_delivery',operationId,commandId:work.command_id,workState:result.state,attempts:result.attempts,...traceFields()},'financial delivery');
+  return result;
+ });
+}
+async function deliverAttempt(operationId) {
   const rt = selection.value;
   if (!rt) return workById(operationId);
   const token = `${rt.owner}:${randomUUID()}`;

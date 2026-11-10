@@ -29,10 +29,11 @@ function claim(owner, batchSize, leaseMs) {
   const db = getDb();
   const marks = PUBLISHED_TYPES.map(() => "?").join(",");
   const select = db.prepare(
-    `SELECT * FROM events
+    `SELECT events.*, event_trace_context.headers_json AS trace_headers_json FROM events
+      LEFT JOIN event_trace_context ON event_trace_context.event_id=events.id
       WHERE published_at IS NULL AND type IN (${marks}) AND next_publish_at <= ?
         AND (publish_locked_until IS NULL OR publish_locked_until < ?)
-      ORDER BY id LIMIT ?`,
+      ORDER BY events.id LIMIT ?`,
   );
   const lock = db.prepare(
     "UPDATE events SET publish_locked_by = ?, publish_locked_until = ?, publish_attempts = publish_attempts + 1 WHERE id = ?",
@@ -68,7 +69,7 @@ export async function relayOnce({ publisher, owner, batchSize = 50, leaseMs = 30
   let failed = 0;
   for (const row of rows) {
     try {
-      await publisher.publish(envelopeFromRow(row));
+      await publisher.publish(envelopeFromRow(row),row.trace_headers_json?JSON.parse(row.trace_headers_json):{});
       published += markPublished(owner, row.id);
     } catch (error) {
       failed += 1;

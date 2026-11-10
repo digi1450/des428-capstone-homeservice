@@ -11,6 +11,12 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- Before using the read-only C consistency checker for cutover/rollback, read `docs/c-consistency-check.md`: validate current owner schemas, stable command/request/result identity and broker ready/unacknowledged coverage. Quiescent checks require frozen writers and drained/disconnected consumers; missing counters or sources are not cutover approval.
+
+- For E Task5 deterministic process-crash/redelivery and financial trace recovery, read `docs/e-task5-fault-recovery-handoff.md`. Test-only child workers use production libraries; do not add runtime fault hooks or alter retry/business state to force recovery. Keep work/context atomic and preserve original command/snapshot/authority. Run both FINAL_STACK_TELEMETRY and FINAL_STACK_FAULTS acceptance in a new disposable project.
+
+- For E's actual selected full-flow telemetry and additive outbox metadata, read `docs/e-task5-full-flow-handoff.md`. Preserve exact-schema upgrades and atomic event/context writes; never put credentials/baggage or transport metadata in public event data. Run the existing final-stack acceptance with `FINAL_STACK_TELEMETRY=true`; three trace paths do not prove all recovery/load/offline gates.
+
 - For A-led E Task4 actual authenticated16-service acceptance, read `tests/final-stack/README.md` and `docs/validation/a-e-final-stack-2026-11-10.md`. Use a new disposable project; never enable its flags against useful data or treat the smoke resource snapshot as load/peak8GB evidence. Historical migration and remaining E tasks stay separate.
 
 - For A-led real Keycloak verification, trusted proxy origin, refresh nonce/JWKS handling and selected customer/provider signup, read `docs/keycloak-onboarding-handoff.md`. `identity.profile_created` is private monolith binding work, never a broker event. Never auto-link by email, accept self-selected admin/domain IDs or copy Keycloak passwords. Self-registration/deployment flags remain false by default.
