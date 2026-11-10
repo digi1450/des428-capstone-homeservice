@@ -1,8 +1,9 @@
 import {timingSafeEqual} from "node:crypto";
 import {exchangeAuthorizationCode} from "#lib/security/oidc-pkce.js";
 import {verifyOidcIdToken} from "#lib/security/oidc-id-token.js";
-import {seal,unseal,cookie,readCookie} from "#lib/security/oidc-session.js";
+import {unseal,cookie,readCookie} from "#lib/security/oidc-session.js";
 import {createIdentityMappingStore} from "#lib/security/identity-mapping.js";
+import {createOidcSessionStore} from "#lib/security/oidc-session-store.js";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const equal=(a,b)=>typeof a==="string"&&typeof b==="string"&&Buffer.byteLength(a)===Buffer.byteLength(b)&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
@@ -33,7 +34,8 @@ export async function GET(request){
   if(accessClaims.iss!==issuer||accessClaims.sub!==verified.sub||accessClaims.azp!=="homeservice-web"||
      !Number.isSafeInteger(accessClaims.exp)||accessClaims.exp<=Math.floor(Date.now()/1000))throw Error("invalid access token claims");
   const expiry=Math.min(verified.exp,accessClaims.exp,Math.floor(Date.now()/1000)+600);
-  const session=seal({issuer,sub:verified.sub,role:identity.role,domainId:identity.domainId,exp:expiry,accessToken:tokens.access_token,nonce:pending.nonce,refreshToken:typeof tokens.refresh_token==="string"?tokens.refresh_token:null},secret);
+  let sessions,session;
+  try{sessions=createOidcSessionStore();session=sessions.create({issuer,sub:verified.sub,role:identity.role,domainId:identity.domainId,exp:expiry,accessToken:tokens.access_token,nonce:pending.nonce,refreshToken:typeof tokens.refresh_token==="string"?tokens.refresh_token:null});}finally{sessions?.close();}
   const headers=new Headers({"Location":"/","Cache-Control":"no-store"});
   headers.append("Set-Cookie",clear);
   headers.append("Set-Cookie",cookie("homeservice_oidc_session",session,{maxAge:Math.max(1,expiry-Math.floor(Date.now()/1000)),secure}));

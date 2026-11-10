@@ -1,4 +1,5 @@
-import {cookie} from "#lib/security/oidc-session.js";
+import {cookie,readCookie} from "#lib/security/oidc-session.js";
+import {createOidcSessionStore,isOidcSessionId} from "#lib/security/oidc-session-store.js";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(request){
@@ -9,5 +10,10 @@ export async function POST(request){
  const headers=new Headers({"Cache-Control":"no-store"});
  headers.append("Set-Cookie",cookie("homeservice_oidc_pending","",{maxAge:0,secure}));
  headers.append("Set-Cookie",cookie("homeservice_oidc_session","",{maxAge:0,secure}));
+ const id=readCookie(request,"homeservice_oidc_session");
+ if(isOidcSessionId(id)){
+  let store;
+  try{store=createOidcSessionStore();store.remove(id);}catch{return Response.json({error:"logout unavailable"},{status:503,headers});}finally{store?.close();}
+ }
  return Response.json({ok:true},{headers});
 }

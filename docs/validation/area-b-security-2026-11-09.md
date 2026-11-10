@@ -68,3 +68,32 @@ These are **developer-reported local live HTTP checks**, not CI results. They de
 5. Obtain A/C/E acceptance before enabling opt-in auth or merging. Keep `AREA_B_AUTH_ENABLED=false` until integration gates pass.
 
 No production runtime feature flags or other teams' business logic were changed to produce this evidence.
+
+## A review follow-up — 2026-11-10, opaque server sessions
+
+The original PR51 callback was independently reproduced with signed-token fixtures,
+real handlers and SQLite bindings: ASCII profile session2729 bytes returned303;
+Unicode profile session2866 bytes returned401 because the encrypted user cookie
+could hold only2800 plaintext bytes. Neither token response was a live realm run.
+After the fix, both exact fixture cases return303. User cookies contain only an
+opaque43-character ID. Tokens persist encrypted in a monolith-owned sidecar;
+refresh consumes the old ID atomically, logout invalidates the server session,
+and stale rotation cannot resurrect a removed ID. Pending PKCE cookies remain
+sealed and bounded as before. No production flags, useful data or routing enabled.
+
+Observed local validation in disposable cached Linux/Node20 containers:
+
+- OIDC tests18 passed, zero failed/skipped.
+- Full monolith266 passed, zero failed/skipped.
+- Production Next build passed with temporary container-only SQLite storage.
+- Original signed callback reproduction now returns303 for both2729/2866-byte sessions.
+- Earlier unchanged service code at PR51 head: Notifications50 and Payments131
+  passed with disposable PG16/RabbitMQ4.1, zero skipped; not rerun just for this
+  monolith-only fix. Updated GitHub Actions will validate the pushed head separately.
+
+The original Area B workflow42671045441 had conclusionfailure even though its two
+visible jobs succeeded. Payments matrix and smoke-check jobs were absent from its
+job list, and failed-job logs did not establish a cause. Do not describe the old
+workflow as wholly green. The updated workflow includes every oidc-*.test.js and
+the OIDC helper path; require a fresh complete four-job run before CI acceptance.
+This does not prove live Keycloak refresh, browser behavior or final-stack readiness.

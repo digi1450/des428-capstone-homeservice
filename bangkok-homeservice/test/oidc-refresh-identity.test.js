@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {generateKeyPairSync,sign} from "node:crypto";
 import {POST as refresh} from "../app/api/auth/keycloak/refresh/route.js";
-import {seal} from "../lib/security/oidc-session.js";
+import {oidcSessionFixture} from "../test-helpers/oidc-sessions.js";
 
 const issuer="https://id.example.test/realms/homeservice";
 const secret="0123456789abcdef0123456789abcdef";
@@ -14,14 +14,15 @@ function signed(claims){
  const payload=Buffer.from(JSON.stringify(claims)).toString("base64url");
  return header+"."+payload+"."+sign("RSA-SHA256",Buffer.from(header+"."+payload),privateKey).toString("base64url");
 }
-test("refresh rejects a signed ID token whose subject differs from the original session",async()=>{
+test("refresh rejects a signed ID token whose subject differs from the original session",async t=>{
+ const sessions=oidcSessionFixture(t,{secret});
  const original={};
- for(const key of ["OIDC_LOGIN_ENABLED","KEYCLOAK_ISSUER","OIDC_SESSION_SECRET","IDENTITY_MAPPING_DB_PATH"])original[key]=process.env[key];
+ for(const key of ["OIDC_LOGIN_ENABLED","KEYCLOAK_ISSUER","OIDC_SESSION_SECRET","IDENTITY_MAPPING_DB_PATH","OIDC_SESSION_DB_PATH"])original[key]=process.env[key];
  const originalFetch=globalThis.fetch;
- Object.assign(process.env,{OIDC_LOGIN_ENABLED:"true",KEYCLOAK_ISSUER:issuer,OIDC_SESSION_SECRET:secret,IDENTITY_MAPPING_DB_PATH:"/nonexistent/identity.db"});
+ Object.assign(process.env,{OIDC_LOGIN_ENABLED:"true",KEYCLOAK_ISSUER:issuer,OIDC_SESSION_SECRET:secret,IDENTITY_MAPPING_DB_PATH:"/nonexistent/identity.db",OIDC_SESSION_DB_PATH:sessions.path});
  const now=Math.floor(Date.now()/1000);
  const idToken=signed({iss:issuer,aud:"homeservice-web",sub:"attacker-subject",nonce:"original-nonce",iat:now-5,exp:now+300});
- const session=seal({issuer,sub:"victim-subject",nonce:"original-nonce",refreshToken:"fixture-refresh-token",exp:now+300},secret);
+ const session=sessions.issue({issuer,sub:"victim-subject",nonce:"original-nonce",refreshToken:"fixture-refresh-token",exp:now+300});
  let calls=0;
  globalThis.fetch=async url=>{
   calls++;

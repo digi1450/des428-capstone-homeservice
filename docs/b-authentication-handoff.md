@@ -4,6 +4,46 @@
 
 **Decision: Area B is ready for early A/C/E integration review, NOT for final-stack cutover or merge.** Share PR #51 now; do not wait for all live tests. This section supersedes stale historical status statements below, which are retained as implementation history. See [dated verification evidence](validation/area-b-security-2026-11-09.md).
 
+### A review follow-up — persistent OIDC sessions (2026-11-10)
+
+This supersedes the historical encrypted token-cookie/stateless-session descriptions
+below. The browser user-session cookie now holds only a random 256-bit opaque ID
+(43 base64url characters). The monolith persists the token-bearing session in
+`oidc_server_sessions` in its own SQLite sidecar, storing only the ID hash and an
+AES-GCM encrypted record. The short-lived pending PKCE cookie remains sealed and
+small. Raising the browser cookie limit is not the capacity fix.
+
+- Set `OIDC_SESSION_DB_PATH` to a persistent, protected monolith-owned sidecar;
+  when omitted, it uses `IDENTITY_MAPPING_DB_PATH` and a separate table in that
+  existing sidecar. Do not point either path at the fingerprinted Booking DB.
+  No business schema/importer fingerprint or service-owned PG schema changes.
+- Preserve the sidecar volume and `OIDC_SESSION_SECRET` across restarts. Back up
+  the sidecar as sensitive data (SQLite backup API/WAL-safe procedure); never
+  commit or log it. Secret replacement invalidates prior encrypted sessions.
+- Callback writes the session before issuing its ID cookie. Server Components,
+  service-fetch and proxies resolve the ID through the same server store; there
+  is no fallback accepting the old token-bearing user-session cookie. Existing
+  staged cookies require a new login after this update.
+- Refresh rechecks signed identity and current mapping, then atomically consumes
+  the old ID and issues a new one. Replaying the old ID fails without another
+  token request. Logout removes the stored session as well as clearing cookies.
+  A refresh returning after logout/another rotation cannot resurrect the old ID.
+  Concurrent stale rotation returns409 without a new cookie.
+- This is application session invalidation, **not** Keycloak global logout,
+  general access-token revocation, or proof of the realm's refresh-reuse policy.
+  Existing HTTPS, exact issuer/audience, same-origin POST and opt-in gates remain.
+- Server records have a separate bounded64KiB plaintext capacity; the browser
+  transaction cookie keeps its existing2800-byte bound. No tokens are returned
+  in JSON. Missing/unavailable storage fails closed.
+
+Regression: signed-token fixtures with a valid Unicode profile produced a
+2866-byte session and HTTP401 in the original callback. Opaque-cookie storage
+allows the same flow without putting tokens in the browser cookie. New tests
+cover large-token callback/forward/refresh/logout, persistence, encrypted storage,
+expiry, consumed IDs and stale replacement after logout. These are real SQLite
+and handler tests with a fixture issuer, not independent live Keycloak/browser
+acceptance. A/E must provision the persistent path before enabling the flags.
+
 ### Available now for integration (implemented; distinguish evidence)
 
 | Consumer | Area B deliverable | What is proven | Next owner/action |

@@ -1,15 +1,16 @@
-import {unseal,readCookie} from "./oidc-session.js";
-export function getServerOidcSession(request,{secret=process.env.OIDC_SESSION_SECRET,issuer=process.env.KEYCLOAK_ISSUER,now=Date.now}={}){
+import {readCookie} from "./oidc-session.js";
+import {createOidcSessionStore,isOidcSessionId,oidcSessionPath} from "./oidc-session-store.js";
+export function getServerOidcSession(request,{secret=process.env.OIDC_SESSION_SECRET,issuer=process.env.KEYCLOAK_ISSUER,path=oidcSessionPath(),now=Date.now}={}){
  if(!secret||!issuer)throw Error("OIDC session unavailable");
  const value=readCookie(request,"homeservice_oidc_session");
- if(!value) return null;
- let session;
- try{session=unseal(value,secret);}catch{return null;}
+ if(!isOidcSessionId(value))return null;
+ let session,store;
+ try{store=createOidcSessionStore({path,secret,now});session=store.get(value);}finally{store?.close();}
  if(!session||session.issuer!==issuer||typeof session.sub!=="string"||!session.sub||
  !Number.isSafeInteger(session.exp)||session.exp<=Math.floor(now()/1000)||
  !["customer","provider","admin"].includes(session.role)||!Number.isInteger(session.domainId)||session.domainId<1||session.domainId>2147483647||
  typeof session.accessToken!=="string"||!session.accessToken)return null;
- // The encrypted cookie's expiry must not outlive the signed access token.
+ // The server session's expiry must not outlive the signed access token.
  // Validate the token's expiry before forwarding; downstream services still verify its signature.
  const parts=session.accessToken.split(".");
  if(parts.length!==3||parts.some(part=>!part||part.length>8192||!/^[A-Za-z0-9_-]+$/.test(part)))return null;
