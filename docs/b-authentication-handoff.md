@@ -1,8 +1,8 @@
-# Area B — authentication implementation handoff (work in progress)
+# Area B — staged authentication implementation handoff
 
 ## Handoff-first status — 2026-11-10 (read this first)
 
-**Decision: Area B is ready for early A/C/E integration review, NOT for final-stack cutover or merge.** Share PR #51 now; do not wait for all live tests. This section supersedes stale historical status statements below, which are retained as implementation history. See [dated verification evidence](validation/area-b-security-2026-11-09.md).
+**Updated lead decision after A review/fix: PR #51 may merge as staged integration preparation once the reviewed head passes CI. This is NOT final-stack cutover or Area B completion.** The cookie-capacity defect is fixed, monolith266 and production build pass, and the fixed head3416378 passed all12 PR checks including all4 B jobs. Real Keycloak/browser/ownership/webhook/full-stack gates remain below. Historical no-merge statements are superseded by this staged-merge decision. This section supersedes stale historical status statements below, which are retained as implementation history. See [dated verification evidence](validation/area-b-security-2026-11-09.md).
 
 ### A review follow-up — persistent OIDC sessions (2026-11-10)
 
@@ -64,7 +64,8 @@ acceptance. A/E must provision the persistent path before enabling the flags.
 ### Explicit stop/go boundaries
 
 - **GO now:** request A/C/E integration review of PR #51 and hand over the interfaces and ownership table above.
-- **NO GO yet:** enabling `AREA_B_AUTH_ENABLED`, `OIDC_LOGIN_ENABLED`, proxy flags in shared deployment, merging PR #51, or claiming production/final-stack acceptance.
+- **GO for reviewed staged merge:** the lead authorized merging the tested preparation.
+- **NO GO yet:** enabling `AREA_B_AUTH_ENABLED`, `OIDC_LOGIN_ENABLED`, proxy flags in shared deployment, or claiming production/final-stack acceptance.
 - A owns application browser/API/Server Component adoption; C owns financial workflow/transactions/recovery; E owns final Compose/deployment. B supports auth integration, not those teams' full implementations.
 - No need to repeat already recorded live Booking/Gateway smoke or local GET checks unless the deployment/configuration changes or a defect requires it.
 

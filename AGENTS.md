@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For B JWT/user-ID mapping, separate user/Booking/gateway permissions and persistent OIDC session/credential interfaces, read `docs/b-authentication-handoff.md`. PR51 is staged integration preparation, not permission to enable auth or proxy/cutover flags. A/B/E must configure trusted HTTPS, credentials and persistent sidecars and verify real flows first. Existing stateless token-bearing user cookies require a fresh login; do not restore that fallback.
+
 - For C Payments financial operations/migration005, read `docs/c-financial-operations-handoff.md`, including the A review follow-up on lock ordering, distinct-key conflicts and absent-create context binding. The factories and Booking financial callbacks/recovery are explicit; B real verifiers, runtime/timer composition and legacy cutover remain gated. Customer cancellation during setup supersedes provisioning: preserve its durable work/guard, discard late setup results and release holds only after safe Payments acknowledgement.
 
 - For D retry jitter, HTTP fault fixture limits and the deterministic two-connection bid regression, read `docs/d-survive-failure-handoff.md`. Do not equate in-process Promise.all or a Map-backed HTTP fixture with full real-service failure evidence, and do not add nested retry loops around C recovery.
