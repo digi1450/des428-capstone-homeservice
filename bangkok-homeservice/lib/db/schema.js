@@ -9,6 +9,7 @@ export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
 DROP TABLE IF EXISTS booking_saga_transitions;
+DROP TABLE IF EXISTS booking_work_trace_context;
 DROP TABLE IF EXISTS booking_financial_work;
 DROP TABLE IF EXISTS booking_saga_activations;
 DROP TABLE IF EXISTS booking_sagas;
@@ -396,4 +397,9 @@ CREATE TABLE booking_financial_work (
   UNIQUE (order_id, kind)
 );
 CREATE INDEX idx_booking_financial_work_due ON booking_financial_work(next_attempt_at) WHERE state = 'pending';
+
+CREATE TABLE booking_work_trace_context (
+  operation_id TEXT PRIMARY KEY REFERENCES booking_financial_work(operation_id) ON DELETE CASCADE,
+  headers_json TEXT NOT NULL
+);
 `;

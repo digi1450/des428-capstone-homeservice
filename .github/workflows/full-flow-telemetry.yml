@@ -28,6 +28,7 @@ jobs:
     env:
       FINAL_STACK_PROJECT: homeservice-e-auth-ci-${{ github.run_id }}-${{ github.run_attempt }}
       FINAL_STACK_TELEMETRY: 'true'
+      FINAL_STACK_FAULTS: 'true'
       COMPOSE_PARALLEL_LIMIT: '2'
     steps:
       - uses: actions/checkout@v4
