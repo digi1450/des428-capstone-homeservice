@@ -65,3 +65,11 @@ test("Monolith can retrieve notifications from Notifications Service", async () 
     assert.ok(notifications[0].created_at);
   });
 });
+// Mark-read is a separate consumer operation, including timestamp shape.
+test('Monolith can mark its notification read',async()=>{
+ const id=100000113;
+ pact.given('customer has an unread notification').uponReceiving('a request to mark customer notification read')
+ .withRequest({method:'POST',path:'/api/notifications/'+id+'/read',headers:{Authorization:'Bearer test-customer'}})
+ .willRespondWith({status:200,headers:{'Content-Type':'application/json'},body:{id:integer(id),type:string('booking_status'),title:string('Booking awaiting'),body:string('Booking #42 is now awaiting.'),order_id:integer(42),read_at:regex('^\\d{4}-\\d{2}-\\d{2}T.*Z$','2026-11-10T10:00:00.000Z'),created_at:regex('^\\d{4}-\\d{2}-\\d{2}T.*Z$','2026-11-10T09:00:00.000Z')}});
+ await pact.executeTest(async server=>{const result=await createNotificationsClient({baseUrl:server.url}).markRead(id,{token:'test-customer'});assert.ok(result.read_at);assert.equal(result.id,id);});
+});

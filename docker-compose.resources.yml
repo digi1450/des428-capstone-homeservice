@@ -1,4 +1,4 @@
-﻿services:
+services:
   notifications-db:
     mem_limit: 512m
   payments-db:
@@ -23,3 +23,5 @@
     mem_limit: 128m
   jaeger:
     mem_limit: 768m
+  payments-wallet-consumer:
+    mem_limit: 256m

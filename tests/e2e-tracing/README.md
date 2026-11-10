@@ -30,8 +30,8 @@ authentication doubles.
 
 This is not a production Keycloak/JWT test, a separate-process final stack boot,
 a PostgreSQL span assertion, Jaeger export/UI evidence, or a measurement of the
-combined 8 GB resource budget. Existing service/Pact CI jobs do not automatically
-run these new Compose commands. Final integration and delivery evidence remain
+combined 8 GB resource budget. The dedicated E tracing and reliability workflow now runs these suites
+sequentially on PRs and main pushes. Final integration and delivery evidence remain
 Area E work with A/B/C/D; merging this runner does not close those gates.
 
 ## Review validation — 8 November 2026
@@ -42,3 +42,13 @@ passed on isolated PostgreSQL 16 and RabbitMQ 4.1: tracing **1/1**, lifecycle
 also delivered its own event while a previous interrupted run had left pending
 rows; assertions stay scoped to the unique event and trace. No application code,
 real data, runtime authentication or production routing was changed.
+
+## CI entrypoint
+
+Run `bash scripts/run-e-tracing-reliability.sh` from a Docker-enabled shell. It
+creates a new `homeservice-e-ci-*` project, refuses one with existing containers,
+requires nonzero tests and zero failures/skips in each TAP summary, and cleans up
+only its own disposable project on success or failure. The workflow also cleans
+up on cancellation. This does not enable root-stack auth, touch useful data or
+prove a production Jaeger trace. See docs/e-task3-ci-handoff.md for act commands
+and the contract coverage matrix.

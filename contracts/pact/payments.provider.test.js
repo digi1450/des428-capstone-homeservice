@@ -42,6 +42,8 @@ test("Payments Wallet provider satisfies Monolith Pact contract", async () => {
 
     // Authentication test double for the Pact interaction.
     const authenticate = async req => {
+      if(req.get('authorization')==='Bearer test-pending-provider')return {role:'provider',domainId:100000223};
+      if(req.get('authorization')==='Bearer test-customer')return {role:'customer',domainId:100000224};
       if (req.get("authorization") !== "Bearer test-provider") {
         throw new Error("Invalid test token");
       }
@@ -67,7 +69,16 @@ test("Payments Wallet provider satisfies Monolith Pact contract", async () => {
       providerBaseUrl,
       pactUrls: [pactFile],
       stateHandlers: {
+        'provider wallet is not provisioned': async()=>{
+          await db.query('DELETE FROM transactions WHERE provider_id=$1',[100000223]);
+          await db.query('DELETE FROM provider_wallets WHERE provider_id=$1',[100000223]);
+        },
+        'customer has a charge': async()=>{
+          await db.query('DELETE FROM transactions WHERE customer_id=$1',[100000224]);
+          await db.query("INSERT INTO transactions (order_id,customer_id,provider_id,kind,amount_cents,method,gateway_ref,status) VALUES ($1,$2,$3,'charge',1000,'gateway','pact-charge','succeeded')",[100000225,100000224,100000226]);
+        },
         "provider has a wallet": async () => {
+          await db.query('DELETE FROM transactions WHERE provider_id=$1',[providerId]);
           await payments.provisionWallet(providerId);
         },
       },

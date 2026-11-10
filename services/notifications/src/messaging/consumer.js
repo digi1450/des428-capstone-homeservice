@@ -75,6 +75,7 @@ export async function startConsumer({ amqpUrl, inbox, prefetch = 10, deliveryLim
   }
 
   return {
+    get ready() { return !ended; },
     closed: closedPromise,
     async close() {
       end("closed_by_caller");
@@ -110,6 +111,7 @@ export function superviseConsumer({ amqpUrl, inbox, log = () => {}, minDelayMs =
     }
   })();
   return {
+    get ready() { return !stopping && current?.ready === true; },
     done,
     async stop() { stopping = true; wakeSleep(); if (current) await current.close(); await done; },
   };

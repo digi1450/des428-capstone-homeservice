@@ -3,12 +3,17 @@ name: Pact Contract Tests
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   pact-contracts:
     name: Consumer and Provider Verification
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COMPOSE_PROJECT_NAME: homeservice-e-pact-ci-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - name: Checkout repository
@@ -16,6 +21,9 @@ jobs:
 
       - name: Run Pact contract tests
         run: docker compose -f docker-compose.pact.yml run --rm --build pact-tests
+      - name: Clean up disposable Pact infrastructure
+        if: always()
+        run: docker compose -f docker-compose.pact.yml down --volumes --remove-orphans
 
   api-contracts:
     name: API schemas and fixtures
