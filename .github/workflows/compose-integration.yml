@@ -1,0 +1,19 @@
+name: E authenticated Compose configuration
+on:
+  pull_request:
+jobs:
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare disposable local CA, realm and secrets
+        run: node scripts/prepare-authenticated-compose.mjs
+      - name: Validate baseline and authenticated service configuration
+        run: |
+          docker compose --env-file .env.authenticated -f docker-compose.yml -f docker-compose.resources.yml config --quiet
+          node scripts/verify-authenticated-compose.mjs --config-only
+      - name: Worker readiness regression tests
+        run: node --test services/notifications/test/worker-health.test.js services/payments-wallet/test/worker-health.test.js

@@ -34,3 +34,6 @@ service-account*.json
 # Local planning and scratch evidence; reviewed evidence goes under docs/
 /output/
 /tmp/
+
+# Local authenticated integration certificates, generated realm and secrets
+.local/

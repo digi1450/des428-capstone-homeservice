@@ -1,3 +1,4 @@
+import {startWorkerHealth} from './worker-health.js';
 // Area C — outbox relay process for Payments & Wallet.
 //   node src/outbox-relay.js   (DATABASE_URL, AMQP_URL; optional RELAY_POLL_MS, RELAY_BATCH_SIZE, RELAY_LEASE_MS)
 // Runs separately from the HTTP server so it can be stopped/killed on its own:
@@ -24,6 +25,7 @@ const log = fields => console.log(JSON.stringify({ service: "payments-wallet", c
 const database = createDatabase(process.env.DATABASE_URL);
 let publisher = null;
 let stopping = false;
+const health=startWorkerHealth({database,isConnected:()=>!stopping && publisher!==null && !publisher.closed});
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function loop() {
@@ -54,7 +56,7 @@ async function stop() {
   stopping = true;
   const deadline = setTimeout(() => process.exit(1), 10000);
   deadline.unref();
-  try { if (publisher) await publisher.close(); await database.close(); } finally { clearTimeout(deadline); }
+  try { await health.close(); if (publisher) await publisher.close(); await database.close(); } finally { clearTimeout(deadline); }
 }
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);

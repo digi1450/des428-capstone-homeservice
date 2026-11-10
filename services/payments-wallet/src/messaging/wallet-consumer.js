@@ -125,6 +125,7 @@ export async function startWalletConsumer({ amqpUrl, inbox, prefetch = 10, deliv
   }
 
   return {
+    get ready() { return !ended; },
     closed: closedPromise,
     async close() {
       end("closed_by_caller");
@@ -161,6 +162,7 @@ export function superviseWalletConsumer({ amqpUrl, inbox, log = () => {}, minDel
     }
   })();
   return {
+    get ready() { return !stopping && current?.ready === true; },
     done,
     async stop() {
       stopping = true;

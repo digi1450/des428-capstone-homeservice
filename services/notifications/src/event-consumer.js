@@ -1,3 +1,4 @@
+import {startWorkerHealth} from './worker-health.js';
 // Area C — Notifications event consumer process.
 //   node src/event-consumer.js   (DATABASE_URL, AMQP_URL; optional CONSUMER_PREFETCH, CONSUMER_DELIVERY_LIMIT, CONSUMER_RETRY_DELAY_MS)
 // Separate from the HTTP server: while this process (or the database) is down,
@@ -22,6 +23,7 @@ const log = fields => console.log(JSON.stringify({ service: "notifications", com
 const database = createDatabase(process.env.DATABASE_URL);
 const inbox = createInbox(database);
 const supervisor = superviseConsumer({ amqpUrl: process.env.AMQP_URL, inbox, log, ...options });
+const health=startWorkerHealth({database,isConnected:()=>supervisor.ready});
 let stopping = false;
 
 async function stop() {
@@ -29,7 +31,7 @@ async function stop() {
   stopping = true;
   const deadline = setTimeout(() => process.exit(1), 10000);
   deadline.unref();
-  try { await supervisor.stop(); await database.close(); } finally { clearTimeout(deadline); }
+  try { await health.close(); await supervisor.stop(); await database.close(); } finally { clearTimeout(deadline); }
 }
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);

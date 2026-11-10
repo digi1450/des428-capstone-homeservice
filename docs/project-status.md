@@ -1,5 +1,10 @@
 # Shared project status and handoff
 
+## E authenticated Compose preparation — 10 November 2026
+
+[Deployment handoff](e-authenticated-compose-handoff.md) adds a wallet-consumer process, three real worker readiness probes, migration ordering, and an explicit Keycloak/PostgreSQL/TLS overlay with persistent B sidecars and PR53 startup configuration. Default auth/cutover flags remain false. [Validation](validation/e-authenticated-compose-2026-11-10.md) distinguishes observed infrastructure/machine-token tests from pending human/browser/data/final-stack acceptance. No useful-data cutover or shared activation.
+
+
 ## A startup and compiled Next wiring — 10 November 2026
 
 [Startup handoff](authenticated-startup-handoff.md) adds an explicitly gated instrumentation path: preserve/bootstrap SQLite, select B/A/C composition, start C broker supervisors/relay, then one recovery scheduler. Shared process cells make instrumentation/API/RSC see the same configuration; a shared nominal error base preserves cross-bundle HTTP statuses. Local monolith282, production build and actual compiled API/RSC HTTPS-fixture smoke passed ([evidence](validation/a-authenticated-startup-2026-11-10.md)). Default gates remain false. Actual Keycloak/browser provisioning/refresh, receiving-service auth, broker paid/notification delivery, persistent deployment, legacy cutover and D/E final acceptance remain open. Supersedes “startup unwired” only for this opt-in implementation.
