@@ -14,12 +14,13 @@ import { migrate, PREVIOUS_FINGERPRINTS } from "../lib/db/migrate.js";
 //   b4d0b46 (before activation) and a23b98e (activation merged, before booking_financial_work).
 const MAIN_B4D0B46 = "6c9ccb3f5661b3222617abf0e77f409d918ea6f2c7de2ca54fcdc7188ad1788d";
 const MAIN_A23B98E = "7bce7dfae0448df028f3f4f642d78adc0e9257c529a3c193c81ed7360e7d82cf";
+const MAIN_9AD496A = "6a323e7e3610be0b37cc4f69353b38b2f4ccfee9d0695ffb4759d83c870bb21d";
 const STEP_OBJECTS = [
   "DROP INDEX idx_booking_financial_work_due; DROP TABLE booking_financial_work",   // step 2
   "DROP INDEX idx_booking_saga_activations_due; DROP TABLE booking_saga_activations", // step 1
 ];
 
-const rows = (db) => db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('app_schema_version','booking_saga_activations','booking_financial_work') ORDER BY name").all()
+const rows = (db) => db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('app_schema_version','booking_saga_activations','booking_financial_work','event_trace_context') ORDER BY name").all()
   .map(({ name }) => [name, db.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()]);
 
 // from = 0: the b4d0b46 schema (both steps missing); from = 1: the a23b98e schema (step 2 missing).
@@ -28,6 +29,7 @@ function withOldDatabase(run, { marker = true, from = 0 } = {}) {
   const db = new Database(join(directory, "old.sqlite"));
   try {
     migrate(db);
+    db.exec('DROP TABLE event_trace_context');
     // Turn it into exactly the previous schema/marker, then add data the old app could have written.
     for (const sql of STEP_OBJECTS.slice(0, STEP_OBJECTS.length - from)) db.exec(sql);
     db.prepare("UPDATE app_schema_version SET fingerprint = ?").run(PREVIOUS_FINGERPRINTS[from]);
@@ -52,8 +54,15 @@ function withOldDatabase(run, { marker = true, from = 0 } = {}) {
 }
 
 test("the previous fingerprint is exactly main's, so real old files are recognised", () => {
-  assert.deepEqual(PREVIOUS_FINGERPRINTS, [MAIN_B4D0B46, MAIN_A23B98E]);
+  assert.deepEqual(PREVIOUS_FINGERPRINTS, [MAIN_B4D0B46, MAIN_A23B98E,MAIN_9AD496A]);
 });
+
+test('Task4 main upgrades with every row and publication state preserved, and no invented historical context',()=>withOldDatabase(db=>{
+ db.exec("UPDATE events SET publish_attempts=3,published_at='2026-11-10T00:00:00Z'");
+ const before=rows(db);assert.equal(migrate(db),'upgraded');assert.deepEqual(rows(db),before);
+ assert.equal(db.prepare('SELECT count(*) n FROM event_trace_context').get().n,0);
+ assert.equal(migrate(db),'preserved');
+},{from:2}));
 
 test("current-main database (activation present) gets only booking_financial_work, empty, rows preserved", () => withOldDatabase((db) => {
   db.exec("INSERT INTO booking_saga_activations (saga_id, activate_command_id, state) VALUES ('saga-done', 'activate:saga-done', 'activated')");

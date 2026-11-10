@@ -4,5 +4,5 @@ import { randomUUID } from "node:crypto";
 
 export function requestId(req) {
   const incoming = req.headers.get("x-request-id");
-  return incoming && incoming.trim() ? incoming.trim() : randomUUID();
+  return incoming && /^[A-Za-z0-9._:-]{1,128}$/.test(incoming) ? incoming : randomUUID();
 }

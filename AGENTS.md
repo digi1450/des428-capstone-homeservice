@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For E's actual selected full-flow telemetry and additive outbox metadata, read `docs/e-task5-full-flow-handoff.md`. Preserve exact-schema upgrades and atomic event/context writes; never put credentials/baggage or transport metadata in public event data. Run the existing final-stack acceptance with `FINAL_STACK_TELEMETRY=true`; three trace paths do not prove all recovery/load/offline gates.
+
 - For A-led E Task4 actual authenticated16-service acceptance, read `tests/final-stack/README.md` and `docs/validation/a-e-final-stack-2026-11-10.md`. Use a new disposable project; never enable its flags against useful data or treat the smoke resource snapshot as load/peak8GB evidence. Historical migration and remaining E tasks stay separate.
 
 - For A-led real Keycloak verification, trusted proxy origin, refresh nonce/JWKS handling and selected customer/provider signup, read `docs/keycloak-onboarding-handoff.md`. `identity.profile_created` is private monolith binding work, never a broker event. Never auto-link by email, accept self-selected admin/domain IDs or copy Keycloak passwords. Self-registration/deployment flags remain false by default.

@@ -1,4 +1,5 @@
 import {recoverIdentityBindings} from '../modules/identity/onboarding.js';
+import {traceMetadata} from '../telemetry/context.js';
 // Explicit composition, deliberately NOT called by default instrumentation/startup.
 // A owns transport/lifecycle; B owns credentials/identity; C owns durable recovery.
 import {createServiceTokenProvider} from '../security/service-token.js';
@@ -73,10 +74,10 @@ export function configureAuthenticatedServices({issuer,paymentsUrl,notifications
   if(value.role!==auth?.role||value.domainId!==auth?.sub)throw new ForbiddenError('request identity does not match caller');
   const claims=JSON.parse(Buffer.from(value.accessToken.split('.')[1],'base64url').toString('utf8'));
   if(!(claims.aud===audience||(Array.isArray(claims.aud)&&claims.aud.includes(audience))))throw new UnauthorizedError('token not intended for service');
-  return {token:value.accessToken,...metadata(request)};
+  return {token:value.accessToken,...metadata(request),...traceMetadata()};
  };
  const userCredentials=credentialsFor('payments-wallet-service');
- const serviceCredentials=async()=>{active();return bookingCredentials();}; // no browser context, including recovery
+ const serviceCredentials=async()=>{active();return {...await bookingCredentials(),...traceMetadata()};}; // no browser authority, including recovery
  const cleanup=[],owned=[];
  const select=(configure,get,reset,arg)=>{const value=configure(arg);owned.push(()=>get()===value);cleanup.push(()=>{if(get()===value)reset();});return value;};
  let booking;
@@ -94,7 +95,7 @@ export function configureAuthenticatedServices({issuer,paymentsUrl,notifications
    if(!/^Bearer [^\s]+$/.test(header))throw new UnauthorizedError('gateway bearer required');
    // Forward the original callback bearer. NEVER mint privileged gateway credentials
    // for an arbitrary incoming event. Payments B verifier authorizes the real caller.
-   return {token:header.slice(7),...metadata(request)};
+   return {token:header.slice(7),...metadata(request),...traceMetadata()};
   }});
   select(configureIdentityAccess,getIdentityAccess,resetIdentityAccess,{logout:request=>logoutOidcSession(request,{path:sessionDbPath,secret:sessionSecret}),read:request=>{
    const value=session(request);if(!value)return null;

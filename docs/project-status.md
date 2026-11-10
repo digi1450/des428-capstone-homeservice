@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## E selected full-flow telemetry — 10 November 2026
+
+Based on merged PR56/57, [Task5 handoff](e-task5-full-flow-handoff.md) adds monolith request/AMQP spans, atomic durable allowlisted outbox context, wallet processing spans and correlated logs. [Local evidence](validation/e-task5-full-flow-2026-11-10.md) records296 monolith,6 Payments tracing and17 exporter tests, plus22 actual16-service acceptance groups. Actual Jaeger parent-child relationships passed for provider→wallet, webhook→PG outbox/relay→Booking and completion→Notifications; all three provisioned Grafana expressions returned finite data for both services. Shared activation flags remain false. New CI repeats this acceptance; local evidence is not a GitHub/merge claim. Broader faults/recovery tracing, load/peak8GB, browser/offline/demo/dossier and historical data/cutover remain separate.
+
 ## A-led E Task4 authenticated deployment acceptance — 10 November 2026
 
 [Actual16-service acceptance](validation/a-e-final-stack-2026-11-10.md) passed on a fresh root Compose deployment with authenticated mode enabled: real Keycloak login/refresh/signup, wallet and paid/notification messaging, booking/completion/refund replay, actual Payments outage plus Next recovery, worker broker-readiness transitions and persistent full-stack restart. The deployed monolith image now includes its existing owner identity-provisioning CLI/dependencies. [Reproduce](../tests/final-stack/README.md). This closes E Task4 for the tested fresh deployment; shared defaults remain false. It does not close E full-flow telemetry/load/offline evidence or A historical-data eligibility/cutover. Earlier infrastructure-only/pending-human statements below are historical and superseded only by this scoped acceptance.

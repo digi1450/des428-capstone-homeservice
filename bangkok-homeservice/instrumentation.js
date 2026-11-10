@@ -2,6 +2,8 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     try {
+      const {startTelemetry}=await import('./lib/telemetry/start.js');
+      startTelemetry();
       const {startApplication}=await import('./lib/runtime/startup.js');
       await startApplication();
     } catch {

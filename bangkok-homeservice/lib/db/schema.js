@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS booking_sagas;
 DROP TABLE IF EXISTS consistency_attention;
 DROP TABLE IF EXISTS processed_events;
 DROP TABLE IF EXISTS idempotency_keys;
+DROP TABLE IF EXISTS event_trace_context;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS reviews;
@@ -272,6 +273,13 @@ CREATE TABLE events (
 );
 CREATE INDEX idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
 CREATE INDEX idx_events_unpublished ON events(next_publish_at, id) WHERE published_at IS NULL;
+
+-- Allow-listed transport metadata, atomically committed with the owning outbox row.
+-- Separate from domain payloads and never part of a public event's data.
+CREATE TABLE event_trace_context (
+  event_id INTEGER PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
+  headers_json TEXT NOT NULL
+);
 
 CREATE TABLE idempotency_keys (
   key TEXT PRIMARY KEY, endpoint TEXT NOT NULL,
