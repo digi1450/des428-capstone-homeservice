@@ -1,0 +1,210 @@
+# Area B — staged authentication implementation handoff
+
+## Handoff-first status — 2026-11-10 (read this first)
+
+**Updated lead decision after A review/fix: PR #51 may merge as staged integration preparation once the reviewed head passes CI. This is NOT final-stack cutover or Area B completion.** The cookie-capacity defect is fixed, monolith266 and production build pass, and the fixed head3416378 passed all12 PR checks including all4 B jobs. Real Keycloak/browser/ownership/webhook/full-stack gates remain below. Historical no-merge statements are superseded by this staged-merge decision. This section supersedes stale historical status statements below, which are retained as implementation history. See [dated verification evidence](validation/area-b-security-2026-11-09.md).
+
+### A review follow-up — persistent OIDC sessions (2026-11-10)
+
+This supersedes the historical encrypted token-cookie/stateless-session descriptions
+below. The browser user-session cookie now holds only a random 256-bit opaque ID
+(43 base64url characters). The monolith persists the token-bearing session in
+`oidc_server_sessions` in its own SQLite sidecar, storing only the ID hash and an
+AES-GCM encrypted record. The short-lived pending PKCE cookie remains sealed and
+small. Raising the browser cookie limit is not the capacity fix.
+
+- Set `OIDC_SESSION_DB_PATH` to a persistent, protected monolith-owned sidecar;
+  when omitted, it uses `IDENTITY_MAPPING_DB_PATH` and a separate table in that
+  existing sidecar. Do not point either path at the fingerprinted Booking DB.
+  No business schema/importer fingerprint or service-owned PG schema changes.
+- Preserve the sidecar volume and `OIDC_SESSION_SECRET` across restarts. Back up
+  the sidecar as sensitive data (SQLite backup API/WAL-safe procedure); never
+  commit or log it. Secret replacement invalidates prior encrypted sessions.
+- Callback writes the session before issuing its ID cookie. Server Components,
+  service-fetch and proxies resolve the ID through the same server store; there
+  is no fallback accepting the old token-bearing user-session cookie. Existing
+  staged cookies require a new login after this update.
+- Refresh rechecks signed identity and current mapping, then atomically consumes
+  the old ID and issues a new one. Replaying the old ID fails without another
+  token request. Logout removes the stored session as well as clearing cookies.
+  A refresh returning after logout/another rotation cannot resurrect the old ID.
+  Concurrent stale rotation returns409 without a new cookie.
+- This is application session invalidation, **not** Keycloak global logout,
+  general access-token revocation, or proof of the realm's refresh-reuse policy.
+  Existing HTTPS, exact issuer/audience, same-origin POST and opt-in gates remain.
+- Server records have a separate bounded64KiB plaintext capacity; the browser
+  transaction cookie keeps its existing2800-byte bound. No tokens are returned
+  in JSON. Missing/unavailable storage fails closed.
+
+Regression: signed-token fixtures with a valid Unicode profile produced a
+2866-byte session and HTTP401 in the original callback. Opaque-cookie storage
+allows the same flow without putting tokens in the browser cookie. New tests
+cover large-token callback/forward/refresh/logout, persistence, encrypted storage,
+expiry, consumed IDs and stale replacement after logout. These are real SQLite
+and handler tests with a fixture issuer, not independent live Keycloak/browser
+acceptance. A/E must provision the persistent path before enabling the flags.
+
+### Available now for integration (implemented; distinguish evidence)
+
+| Consumer | Area B deliverable | What is proven | Next owner/action |
+| --- | --- | --- | --- |
+| A | User verifiers in Notifications/Payments; monolith identity-binding sidecar and authenticated resolver; opt-in OIDC login/callback/refresh; server-only `fetchAsOidcUser` helper; opt-in Notifications and Payments read proxies | Fixture/CI tests, not live browser or user BOLA | A reviews/adopts user-bound credential flow in API handlers and Server Components; A/B agree on signup and existing-user provisioning and test with real accounts |
+| C / A Booking | `createBookingServiceVerifier`, seven `booking:*` roles, stable issuer+subject caller ID; existing service-token provider | Live Keycloak Booking token issuance/role isolation; local auth-enabled Payments GET with valid nonexistent command returned 404 for Booking, 401 for Gateway | C/A connect real financial commands and confirm caller ID, dedupe and operation authorization in their integration stack |
+| A / mock gateway | `createGatewayWebhookVerifier`, `mock-gateway:settle_webhook` role and separate client | Live Keycloak client token issued and isolated from Booking on a financial GET; **webhook endpoint itself not live-tested** | A configures simulator credentials and preserves callback contract; B/A test actual `POST /api/payments/webhook` |
+| E | Importable Keycloak realm, client/audience/role contracts, role-assignment scripts, env placeholders and HTTPS issuer requirements | Local HTTPS/JWKS and live service-token tests; CI contract tests | E owns final Compose, routable trusted TLS hostname, secrets/rotation, resource budget; B verifies against deployed issuer |
+
+### B-owned follow-up (do not block handoff)
+
+1. Review any remaining verifier/security defects found during A/C/E integration; verify live human identity mapping, authorization and cross-user ownership/BOLA with provisioned test users. Fixture ownership tests are **not** live proof.
+2. With A, validate live browser authorization-code PKCE, server-side session, refresh/nonce/replay behavior and actual API/Server Component forwarding. Current browser route implementation is opt-in and unvalidated live.
+3. With A, validate gateway webhook caller isolation and with C validate financial operation permissions, stable caller identity and replay/dedupe against real commands.
+4. Record real-Keycloak-tested versus fixture-tested versus final-stack-tested evidence accurately. The CI workflow does not run Keycloak. Preserve before/after inherited BOLA evidence without claiming a demonstrated exploitable public route.
+5. Confirm Keycloak setup is repeatable on a fresh environment, user-role provisioning, Notifications audience, secrets/rotation and dependency audit with E. **Do not** recreate the developer's existing local Keycloak container: its H2 database was stored inside that container.
+
+### Explicit stop/go boundaries
+
+- **GO now:** request A/C/E integration review of PR #51 and hand over the interfaces and ownership table above.
+- **GO for reviewed staged merge:** the lead authorized merging the tested preparation.
+- **NO GO yet:** enabling `AREA_B_AUTH_ENABLED`, `OIDC_LOGIN_ENABLED`, proxy flags in shared deployment, or claiming production/final-stack acceptance.
+- A owns application browser/API/Server Component adoption; C owns financial workflow/transactions/recovery; E owns final Compose/deployment. B supports auth integration, not those teams' full implementations.
+- No need to repeat already recorded live Booking/Gateway smoke or local GET checks unless the deployment/configuration changes or a defect requires it.
+
+---
+
+
+## Implemented in this branch
+
+- `services/payments-wallet/src/security/booking-verifier.js`: `createBookingServiceVerifier` and `createGatewayWebhookVerifier` validate RS256 signatures from the configured Keycloak issuer's JWKS, exact issuer, service audience, expiry/time claims, authorized client and service-specific operation roles. Booking and mock gateway are distinct clients and principals. Caller identity is issuer + verified subject, never token/jti.
+- `services/{notifications,payments-wallet}/src/security/user-verifier.js`: `createUserVerifier({issuer,audience,resolveIdentity})` verifies the signed Keycloak access token before resolving an immutable legacy identity. No JWT-provided integer ID, user headers, query or body fields are accepted.
+- Booking verifier unit fixtures cover signature tampering, invalid claims, wrong client/permission, key refresh and JWKS outage. These are fixtures, not real-Keycloak results.
+
+## Proposed contract — requires A/C/E review
+
+| Caller | Token client (azp) | Target audience | Keycloak client role |
+| --- | --- | --- | --- |
+| Browser/Next.js user | homeservice-web | notifications-service | user:read |
+| Browser/Next.js user | homeservice-web | payments-wallet-service | user:read |
+| Booking monolith service account | booking-service | payments-wallet-service | booking:create, booking:query, booking:cancel, booking:activate, booking:complete_financial, booking:cancel_financial, booking:query_financial |
+| Offline mock gateway service account | mock-gateway-service | payments-wallet-service | mock-gateway:settle_webhook |
+
+Audience must be explicitly mapped into Keycloak access tokens. Client identity is not a substitute for audience. End-user and service clients must not share credentials. Do not add confidential client secrets to the browser.
+
+## Identity mapping proposal — not activated
+
+The monolith owns customer/provider/admin records and their existing integer IDs. It should also own a unique, immutable mapping from `(issuer, keycloak_sub)` to `(role, domain_id)`, with uniqueness for both the Keycloak identity and the `(role,domain_id)` pair. Only trusted server-side signup/migration/admin provisioning may create or update mappings; self-service profile edits must not.
+
+A server-side resolver must read only the monolith-owned mapping through a reviewed trusted API/delegation boundary, **not** cross-service SQL. Missing or conflicting mapping rejects access. Database outage fails closed. Provision existing accounts through a verified one-time migration, without changing their integer IDs. Do not assume Keycloak UUID equals a legacy integer. A/C must agree how the Next.js cookie/session is replaced with Keycloak login and how Server Components obtain a user-bound token; the existing monolith JWT is not accepted by these verifiers.
+
+The current verifier accepts an injected resolver and is **not** a complete production identity provisioning system. Mapping source, its API and browser login require coordinated review before enabling readers.
+
+## Runtime activation gates
+
+The default service `server.js` files are intentionally unchanged. They still return 503 for protected routes until the real verifier, mapping resolver, C financial operations and coordinated E infrastructure are composed. Do not activate a partial auth/cutover mode.
+
+E must provide a trusted HTTPS issuer reachable from the service containers, real Keycloak realm/clients/roles/audience mappers and secrets through deployment secret management; never commit credentials. The issuer must match the token's `iss` exactly. The current verifier requires HTTPS, including in test deployment; document TLS/trust configuration rather than disabling issuer validation.
+
+## Evidence
+
+- Implemented: standalone verifier modules and synthetic tests.
+- Fixture-tested: **not yet executed**; test source committed.
+- Real-Keycloak-tested: **not yet**.
+- Final-stack-tested: **not yet**.
+- Browser/API/Server Component credentials: **not yet implemented**.
+- Production runtime injection: **not yet implemented**.
+
+Suggested unit command (with dependencies installed): `node --test services/payments-wallet/test/booking-verifier.test.js`. Run in an isolated environment before reviewing for merge. Follow with actual Keycloak integration, ownership/BOLA tests, token refresh/replay, and A/C/E cutover review.
+
+## Opt-in service wiring added
+
+Both `services/notifications/src/server.js` and `services/payments-wallet/src/server.js` now support explicit `AREA_B_AUTH_ENABLED=true`. With this unset/false the original protected boundaries remain 503. If enabled without required configuration, startup fails rather than silently trusting request headers.
+
+Required **server-only** environment variables:
+```dotenv
+AREA_B_AUTH_ENABLED=false
+KEYCLOAK_ISSUER=https://id.example.test/realms/homeservice
+IDENTITY_RESOLVER_URL=https://identity.internal.example.test/internal/resolve
+IDENTITY_RESOLVER_TOKEN=replace-with-deployment-managed-secret
+```
+These are placeholders, **not live values**. Never set the opt-in flag true until the identity owner exposes an authenticated resolver and all service clients/roles are provisioned. The resolver endpoint must accept POST JSON `{issuer,sub}`, return exactly `{role,domainId}` on unique mapping, 404 on missing, 409 on conflict and 5xx on outage; it must reject unauthorized callers and ensure the caller cannot forge a mapping. The resolver must be maintained by the monolith identity owner; it is not implemented by this branch.
+
+The Booking monolith already has `lib/security/service-token.js` for client credentials, but its token provider must be configured for the actual Keycloak client and exercised end-to-end. The legacy `edemand_token` cookie is **not** a Keycloak token and must never be forwarded to these services.
+
+## Added test source (not executed)
+
+- `services/notifications/test/user-verifier.test.js`
+- `services/notifications/test/identity-resolver.test.js`
+- `services/payments-wallet/test/identity-resolver.test.js`
+- `services/payments-wallet/test/gateway-verifier.test.js`
+
+No local runtime or actual Keycloak test results are claimed.
+
+## Monolith identity owner implementation added
+
+- `bangkok-homeservice/lib/security/identity-mapping.js`: a separate, monolith-owned SQLite sidecar binding store. A unique `(issuer,subject)` and unique `(role,domain_id)` prevent rebinds; provisioning checks that the legacy user exists. Existing legacy IDs and the fingerprinted legacy schema are unchanged.
+- `bangkok-homeservice/app/api/internal/identity/resolve/route.js`: server-to-server POST with a deployment-managed `IDENTITY_RESOLVER_TOKEN`; only `{issuer,sub}` accepted; 404 on missing, 503 on storage/config failure.
+- `bangkok-homeservice/scripts/provision-keycloak-identity.js`: offline administrative provisioning. Example:
+  ```sh
+  cd bangkok-homeservice
+  IDENTITY_MAPPING_DB_PATH=/secure/identity-bindings.sqlite node scripts/provision-keycloak-identity.js \
+    https://id.example.test/realms/homeservice keycloak-subject-uuid customer 42
+  ```
+  This will refuse provisioning unless customer 42 already exists. Back up and protect the sidecar SQLite file; do not publish it or the resolver token.
+- Services must use `IDENTITY_RESOLVER_URL=https://<trusted-monolith-host>/api/internal/identity/resolve` (not the placeholder `/internal/resolve` in the earlier example).
+- The sidecar is a staged mapping, not an automatic account migration or browser login replacement. Coordinate provisioned accounts with Keycloak `sub` values; legacy login tokens remain distinct.
+
+## CI evidence (2026-11-09)
+
+GitHub Actions **Area B security verification** run 42634091148 completed successfully for both Notifications and Payments Wallet tests. These are Node test suites with synthetic JWT/JWKS fixtures and mock identity responses; this does **not** constitute real-Keycloak or final-stack verification. The new monolith SQLite mapping test was added afterward and has a separate CI run pending. Financial operations from Area C are now composed at Payments startup; cross-team acceptance and database migration still require verification.
+
+**Cutover blockers:** real Keycloak issuer and client credentials, Keycloak service-account/client-role grants, browser authorization-code login and credential forwarding, deployed identity owner endpoint and secret provisioning, full ownership/BOLA matrix, and final E stack integration. Keep `AREA_B_AUTH_ENABLED=false` until these are verified.
+
+## Opt-in browser OIDC flow implemented (not production-validated)
+
+- `GET /api/auth/keycloak/start` generates a state, nonce and S256 PKCE verifier, stores the pending transaction in an AES-GCM authenticated HttpOnly SameSite cookie and redirects to Keycloak.
+- `GET /api/auth/keycloak/callback` checks callback origin, state and age; exchanges the one-time code; validates the ID token's RS256 signature, issuer, audience, expiry and nonce; checks the monolith-owned binding; then issues a short-lived encrypted HttpOnly session.
+- `POST /api/auth/keycloak/logout` clears local OIDC cookies. This is **not** Keycloak global logout or token revocation.
+- `lib/security/oidc-server-session.js` supplies a **server-only** Authorization header for Next server-side service calls. It is not a client/browser token endpoint.
+- Configuration: `OIDC_LOGIN_ENABLED=true`, `KEYCLOAK_ISSUER`, `OIDC_REDIRECT_URI` (exact public callback URL), `OIDC_SESSION_SECRET` (at least 32 random characters), `IDENTITY_MAPPING_DB_PATH`. Deploy over HTTPS; the callback URI must be allowlisted in Keycloak.
+- Browser session is intentionally capped to ten minutes and **does not implement refresh-token rotation**. Existing legacy login is not replaced. Application pages/API handlers must explicitly adopt the new session; legacy JWT and Keycloak sessions are not interchangeable.
+- Test source: `bangkok-homeservice/test/oidc-session.test.js`. The CI workflow now runs the new tests. Real TLS/Keycloak and full E stack remain external acceptance gates.
+
+## Additional session hardening
+
+The browser callback now caps the encrypted session expiry to the Keycloak access-token expiry and requires the access token to have the expected issuer, subject and browser client ID. The server-side forwarding helper rejects expired or mismatched access tokens. Local OIDC logout requires a same-origin POST. The browser session is deliberately short-lived; refresh and global Keycloak logout remain unimplemented and should not be described as supported.
+
+GitHub Actions run 42635680512 passed all three Area B security jobs after the initial OIDC browser flow was added. Subsequent session hardening commits require their own CI confirmation.
+
+## Opt-in refresh endpoint added
+
+`POST /api/auth/keycloak/refresh` accepts only a same-origin request with the encrypted OIDC cookie. It exchanges the stored refresh token server-to-server, requires rotated refresh and ID tokens, verifies the ID token signature and original nonce, confirms the subject and current legacy binding, and replaces the encrypted session cookie. Refresh must occur **before the current session cookie expires**. The endpoint deliberately fails closed if a Keycloak realm omits the ID token/nonce on refresh; verify this behavior against the deployed realm before enabling. There is no automatic refresh scheduler in the frontend. Existing user API handlers and Server Components still need to adopt the server-only session helper. Keycloak single logout and revocation are not implemented.
+
+## Server-side end-user bearer integration helper
+
+`bangkok-homeservice/lib/security/oidc-service-fetch.js` exports `fetchAsOidcUser(request,{service,url,method,body})`. It reads the encrypted server-side session, checks the Keycloak access-token expiry and audience, and forwards the bearer only to configured `NOTIFICATIONS_SERVICE_URL` or `PAYMENTS_WALLET_SERVICE_URL` `/api/` endpoints. It rejects cross-origin redirects, absolute attacker URLs, `/internal/` commands and non-TLS remote targets. This is a helper for A-owned API routes and Server Components, **not** a browser-exposed token endpoint. The A-owned application routes must explicitly use it for the corresponding service calls; existing legacy routes remain untouched until the integration is accepted.
+
+The OIDC session refresh endpoint is available before cookie expiry, and no background automatic refresh is wired. Full Keycloak browser acceptance and token replay behavior remain deployment gates.
+
+## Live notifications route opt-in
+
+The existing Next routes `GET /api/notifications` and `POST /api/notifications/[id]/read` now use the server-only OIDC forwarding helper when `AREA_B_NOTIFICATIONS_PROXY=true`. This is a per-route opt-in to avoid silently changing A's legacy session semantics; if enabled, these routes do not fall back to legacy SQLite on upstream or authentication failure. Set `NOTIFICATIONS_SERVICE_URL` to the trusted Notifications origin, `AREA_B_AUTH_ENABLED=true` in the Notifications service, and provision the exact Keycloak user-to-legacy mapping before testing. Do not set the proxy flag in a partial deployment. Other Payments and booking routes remain A/C integration-owned.
+
+## Live Payments read route opt-in
+
+The Next routes `GET /api/provider/wallet` and `GET /api/customer/transactions` now have opt-in `AREA_B_PAYMENTS_PROXY=true` forwarding to the Payments Wallet service via verified OIDC session bearer. Provider/customer roles are enforced before forwarding; missing sessions return 401 and role mismatch returns 403. Remote errors fail closed without falling back to the monolith. Set `PAYMENTS_WALLET_SERVICE_URL`, `AREA_B_AUTH_ENABLED=true` in Payments, and Keycloak user bindings before activation. Payment writes, booking commands and financial finalization remain C/A integration-owned.
+
+## CI coverage correction and destination audience
+
+The Area B workflow now watches Keycloak configuration, browser login/callback/refresh/logout routes, notifications and Payments proxy routes, and OIDC tests, in addition to verifier modules. Previous runs did not necessarily trigger for route-only edits. The server-to-service bearer forwarding helper now checks the exact destination audience (`notifications-service` versus `payments-wallet-service`) rather than accepting a token intended only for the other service. A regression test rejects a wrong-audience token before any upstream request. This is a preflight check only; the receiving service must still validate the signed JWT.
+
+## Area B verification update — 2026-11-09
+
+- HTTP-level synthetic signed JWT tests now exist at `services/notifications/test/area-b-http-ownership.test.js` and `services/payments-wallet/test/area-b-http-ownership.test.js`. They exercise missing/expired/wrong-audience tokens and cross-account object access with trusted subject-to-domain mapping. These tests use mocked JWKS/identity and in-memory database doubles, **not live Keycloak or PostgreSQL**.
+- Inherited service boundary: `bangkok-homeservice/lib/modules/payments/service.js#getIntentForOrder` previously delegated to an unscoped repository lookup with no actor parameter. It now requires an authenticated customer/provider participant. Regression: `bangkok-homeservice/test/area-b-inherited-intent-bola.test.js`. The old unscoped call is source-level before evidence; no publicly exploitable HTTP endpoint has been demonstrated.
+- CI evidence: Area B security verification run 42642898032 passed all three jobs. This does not certify live Keycloak, service-account token issuance, final-stack readiness, browser refresh or replay defenses.
+- Pending: live realm import, end-to-end issuance and audience/role checks for browser, Booking and mock gateway clients; HTTPS/secret configuration and coordinated A/C/E cutover. Keep security feature flags off until these pass.
+
+## Refresh identity and replay boundary — 2026-11-09
+
+- Fixture regression `bangkok-homeservice/test/oidc-refresh-identity.test.js` signs a refreshed ID token with a different `sub` and checks that the refresh route rejects it (401), clears the browser session cookie, and does not accept a changed account binding. The existing refresh route also checks same-origin POST and re-resolves the monolith-owned identity mapping.
+- **Replay is not proven prevented.** The encrypted browser session is a stateless bearer cookie and this code has no server-side consumed-refresh-token registry or per-session revocation state. If a stolen prior cookie/refresh token is replayed, the application's own state cannot independently identify it as consumed. A live Keycloak realm may enforce refresh-token rotation/reuse policies, but that behavior must be configured and tested with real tokens; do not claim replay resistance from the fixture tests.
+- Acceptance evidence still required: obtain two refresh attempts using the same prior token/cookie against a live realm, document the second outcome, verify stable `(issuer,sub)` and mapped role/domain ID, and test logout/revocation behavior. Avoid logging raw cookies or tokens. Coordinate any server-side session/replay-store design with A/E before enabling browser login.

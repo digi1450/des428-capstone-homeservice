@@ -1,0 +1,60 @@
+name: Area B security verification
+on:
+  pull_request:
+    paths:
+      - 'services/notifications/**'
+      - 'services/payments-wallet/**'
+      - 'bangkok-homeservice/lib/security/**'
+      - 'bangkok-homeservice/test-helpers/oidc-sessions.js'
+      - 'bangkok-homeservice/lib/modules/payments/service.js'
+      - 'bangkok-homeservice/test/area-b-inherited-intent-bola.test.js'
+      - 'bangkok-homeservice/app/api/internal/identity/**'
+      - 'bangkok-homeservice/app/api/auth/keycloak/**'
+      - 'bangkok-homeservice/app/api/notifications/**'
+      - 'bangkok-homeservice/app/api/provider/wallet/**'
+      - 'bangkok-homeservice/app/api/customer/transactions/**'
+      - 'bangkok-homeservice/test/oidc-*.test.js'
+      - 'infra/keycloak/**'
+      - '.github/workflows/area-b-security.yml'
+  workflow_dispatch:
+jobs:
+  security-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [notifications, payments-wallet]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
+      - run: npm ci
+      - run: npm test
+  keycloak-smoke-script-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check infra/keycloak/smoke-real-service-tokens.mjs
+  monolith-identity-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bangkok-homeservice
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bangkok-homeservice/package-lock.json
+      - run: npm ci
+      - run: NODE_ENV=test node --test test/identity-mapping.test.js test/oidc-*.test.js test/keycloak-realm-contract.test.js test/area-b-inherited-intent-bola.test.js

@@ -1,0 +1,175 @@
+{
+  "realm": "homeservice",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "clients": [
+    {
+      "clientId": "notifications-service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "serviceAccountsEnabled": false,
+      "protocolMappers": [],
+      "defaultClientScopes": [],
+      "optionalClientScopes": [],
+      "authorizationServicesEnabled": false
+    },
+    {
+      "clientId": "payments-wallet-service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "serviceAccountsEnabled": false,
+      "protocolMappers": [],
+      "defaultClientScopes": [],
+      "optionalClientScopes": [],
+      "authorizationServicesEnabled": false
+    },
+    {
+      "clientId": "homeservice-web",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/api/auth/keycloak/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "homeservice-api-audiences"
+      ],
+      "optionalClientScopes": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "implicitFlowEnabled": false
+    },
+    {
+      "clientId": "booking-service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "defaultClientScopes": [
+        "roles",
+        "payments-audience"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "mock-gateway-service",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "defaultClientScopes": [
+        "roles",
+        "payments-audience"
+      ],
+      "optionalClientScopes": []
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "homeservice-api-audiences",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "notifications-aud",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "notifications-service",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "payments-aud",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "payments-wallet-service",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "payments-audience",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "payments-aud",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "payments-wallet-service",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": {
+    "client": {
+      "notifications-service": [
+        {
+          "name": "user:read"
+        }
+      ],
+      "payments-wallet-service": [
+        {
+          "name": "user:read"
+        },
+        {
+          "name": "booking:create"
+        },
+        {
+          "name": "booking:query"
+        },
+        {
+          "name": "booking:cancel"
+        },
+        {
+          "name": "booking:activate"
+        },
+        {
+          "name": "booking:complete_financial"
+        },
+        {
+          "name": "booking:cancel_financial"
+        },
+        {
+          "name": "booking:query_financial"
+        },
+        {
+          "name": "mock-gateway:settle_webhook"
+        }
+      ]
+    }
+  }
+}

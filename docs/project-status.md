@@ -1,5 +1,11 @@
 # Shared project status and handoff
 
+## B staged authentication and A session review fix — 10 November 2026
+
+[PR #51](https://github.com/digi1450/des428-capstone-homeservice/pull/51) supplies Keycloak realm/roles, RS256/JWKS user and separate Booking/gateway verifiers, trusted monolith-owned identity mapping/resolver, and opt-in OIDC/credential/read-proxy interfaces. A's reviewed correction persists encrypted tokens server-side and uses fixed-size opaque browser session IDs, with atomic refresh rotation and server logout invalidation. Monolith266, OIDC18 and production build passed; the fixed code head passed all12 PR checks including all4 Area B jobs. [B handoff](b-authentication-handoff.md) separates prior developer-reported live service-token evidence from independently tested fixtures.
+
+The lead permits staged merge after review/CI; auth, OIDC and proxy flags remain disabled. A/B/C/E must still validate real user provisioning/login/refresh/ownership, actual webhook and financial replay, trusted container TLS, persistent sidecar volumes and full runtime/cutover. Application session invalidation is not Keycloak global revocation. Historical missing-B-implementation/no-merge statements below are superseded only for this staged deliverable, not for final acceptance.
+
 ## C shared retry policy — 9 November 2026
 
 PR #50 extracts the existing capped equal-jitter policy and uses it for saga,

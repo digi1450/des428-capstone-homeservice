@@ -7,7 +7,7 @@ import {AppError} from "../../errors.js";
 import * as repository from "./repository.js";
 import * as bookingRepository from "../booking/repository.js";
 import { insertEvent } from "../../db/events.js";
-import { NotFoundError } from "../../errors.js";
+import { NotFoundError, ForbiddenError } from "../../errors.js";
 
 function publicTransaction(row) {
   return {
@@ -86,6 +86,15 @@ export function listCustomerTransactions(customerId) {
   return repository.listTransactionsForCustomer(customerId).map(publicTransaction);
 }
 
-export function getIntentForOrder(orderId) {
-  return repository.findIntentByOrderId(orderId);
+export function getIntentForOrder(orderId, actor) {
+  if (!actor || !["customer", "provider"].includes(actor.role) || !Number.isSafeInteger(actor.sub) || actor.sub < 1) {
+    throw new ForbiddenError("payment intent access requires an authenticated participant");
+  }
+  const intent = repository.findIntentByOrderId(orderId);
+  if (!intent) throw new NotFoundError(`payment intent for booking ${orderId} not found`);
+  const order = bookingRepository.findOrderById(orderId);
+  if (!order || !((actor.role === "customer" && order.customer_id === actor.sub) || (actor.role === "provider" && order.provider_id === actor.sub))) {
+    throw new ForbiddenError("not your payment intent");
+  }
+  return intent;
 }
