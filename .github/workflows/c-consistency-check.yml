@@ -1,0 +1,15 @@
+name: C read-only consistency checker
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  consistency-check:
+    name: C schema, command identity and unacked broker regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run real SQLite, PostgreSQL and RabbitMQ checker regressions
+        run: bash scripts/run-consistency-check-tests.sh

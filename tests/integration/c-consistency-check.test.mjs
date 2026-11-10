@@ -25,6 +25,7 @@ const exec = promisify(execFile);
 const CLI = resolve(dirname(fileURLToPath(import.meta.url)), "../../tools/consistency/c-check.mjs");
 const pgUrl = process.env.TEST_PAYMENTS_DATABASE_URL;
 const amqpUrl = process.env.TEST_AMQP_URL;
+const managementUrl = process.env.TEST_BROKER_MANAGEMENT_URL;
 
 test("checker's published event types match the monolith relay", () => {
   assert.deepEqual([...PUBLISHED_TYPES].sort(), [...RELAY_TYPES].sort());
@@ -43,6 +44,7 @@ test("C consistency checker", { skip: !pgUrl }, async (t) => {
   t.after(async () => { await pgdb.close(); rmSync(dir, { recursive: true, force: true }); });
 
   const cli = async (...extra) => {
+    if (extra.includes("--amqp-url") && !extra.includes("--broker-management-url") && managementUrl) extra.push("--broker-management-url",managementUrl);
     try {
       const { stdout } = await exec(process.execPath, [CLI, "--sqlite", file, "--payments-url", pgUrl, "--json", ...extra]);
       return { code: 0, ...JSON.parse(stdout) };
@@ -50,6 +52,10 @@ test("C consistency checker", { skip: !pgUrl }, async (t) => {
       if (error.code === 3) return { code: 3, stderr: error.stderr };
       return { code: error.code, ...JSON.parse(error.stdout) };
     }
+  };
+  const observed = async (args, predicate) => {
+    for (let n=0;n<80;n++) { const report=await cli(...args);if(predicate(report))return report;await new Promise(r=>setTimeout(r,250)); }
+    throw Error("broker statistics did not reach the asserted state");
   };
   const ids = (r) => r.findings.map((f) => `${f.severity}:${f.id}`);
   const customer = sql((db) => db.prepare("SELECT id FROM customers ORDER BY id LIMIT 1").get().id);
@@ -147,21 +153,100 @@ test("C consistency checker", { skip: !pgUrl }, async (t) => {
 
   await t.test("broker: undelivered messages are pending, dead letters are attention", { skip: !amqpUrl }, async () => {
     const connection = await amqp.connect(amqpUrl);
-    const ch = await connection.createChannel();
+    const ch = await connection.createConfirmChannel();
     try {
       for (const q of ["booking.events", "ratings.events", "notifications.events", "payments.events"]) {
+        await ch.assertQueue(q, { durable: true, arguments: { "x-queue-type": "quorum" } });
         await ch.assertQueue(`${q}.dlq`, { durable: true, arguments: { "x-queue-type": "quorum" } });
         await ch.purgeQueue(`${q}.dlq`);
       }
-      const before = await cli("--amqp-url", amqpUrl);
+      const before = await observed(["--amqp-url",amqpUrl], r=>r.code!==3);
       assert.ok(!ids(before).some((id) => id.startsWith("attention:broker.dlq")));
       ch.sendToQueue("payments.events.dlq", Buffer.from("{}"));
-      await new Promise((r) => setTimeout(r, 200));
-      const report = await cli("--amqp-url", amqpUrl, "--mode", "quiescent");
+      await ch.waitForConfirms();
+      const report = await observed(["--amqp-url",amqpUrl,"--mode","quiescent"],
+        r=>r.code===2&&ids(r).includes("attention:broker.dlq.payments.events.dlq"));
       assert.equal(report.code, 2);
       assert.ok(ids(report).includes("attention:broker.dlq.payments.events.dlq"));
       await ch.purgeQueue("payments.events.dlq");
     } finally { await ch.close(); await connection.close(); }
+  });
+
+  await t.test("missing/partial schemas and changed migration checksums never pass", async () => {
+    await pgdb.query('ALTER TABLE financial_fences RENAME TO hidden_financial_fences');
+    try { assert.equal((await cli('--mode','quiescent')).code,3); }
+    finally { await pgdb.query('ALTER TABLE hidden_financial_fences RENAME TO financial_fences'); }
+    const original=(await pgdb.query('SELECT version,sha256 FROM schema_migrations ORDER BY version LIMIT 1')).rows[0];
+    await pgdb.query("UPDATE schema_migrations SET sha256='changed' WHERE version=$1",[original.version]);
+    try { assert.equal((await cli()).code,3); }
+    finally { await pgdb.query('UPDATE schema_migrations SET sha256=$2 WHERE version=$1',[original.version,original.sha256]); }
+    sql(db=>db.exec('ALTER TABLE booking_financial_work RENAME TO hidden_work'));
+    try { assert.equal((await cli()).code,3); }
+    finally { sql(db=>db.exec('ALTER TABLE hidden_work RENAME TO booking_financial_work')); }
+    assert.equal((await cli('--mode','quiescent')).code,0);
+  });
+
+  await t.test("ready commands require matching keys, operation, immutable request and result", async () => {
+    const id=sql(db=>order(db,{status:'completed',method:'cod'}));
+    const operation=sql(db=>work(db,id,'completion','ready'));
+    const command='complete:'+operation;
+    const request={operation_id:operation,order_id:Number(id),customer_id:customer,provider_id:provider,payment_method:'cod',amount_cents:10700,currency:'THB',commission_cents:1070};
+    const result={state:'ready',kind:'completion',command_id:command,request,outcome:'accounted'};
+    sql(db=>db.prepare('UPDATE booking_financial_work SET request_json=?,result_json=? WHERE operation_id=?').run(JSON.stringify(request),JSON.stringify(result),operation));
+    await pgdb.query(`INSERT INTO financial_commands(caller_id,command_id,kind,operation_id,order_id,request_digest,request,state,result)
+      VALUES ('review-booking',$1,'completion',$2,$3,'fixture',$4,'ready',$5)`,[command,operation,id,request,result]);
+    await pgdb.query("INSERT INTO transactions(kind,order_id,customer_id,provider_id,amount_cents,method,status) VALUES ('commission_owed',$1,$2,$3,1070,'cod','succeeded')",[id,customer,provider]);
+    try {
+      assert.equal((await cli('--mode','quiescent')).code,0,'matching saved command is accepted');
+      const other=randomUUID();
+      await pgdb.query('UPDATE financial_commands SET operation_id=$2,command_id=$3 WHERE order_id=$1',[id,other,'complete:'+other]);
+      const keys=await cli();assert.equal(keys.code,1);assert.ok(ids(keys).includes('violation:cross.financial.command_identity_mismatch'));
+      await pgdb.query('UPDATE financial_commands SET operation_id=$2,command_id=$3 WHERE order_id=$1',[id,operation,command]);
+      await pgdb.query('UPDATE financial_commands SET request=$2 WHERE order_id=$1',[id,{...request,amount_cents:99999}]);
+      assert.ok(ids(await cli()).includes('violation:cross.financial.command_identity_mismatch'));
+      await pgdb.query('UPDATE financial_commands SET request=$2,result=$3 WHERE order_id=$1',[id,request,{...result,outcome:'changed'}]);
+      assert.ok(ids(await cli()).includes('violation:cross.financial.ready_result_mismatch'));
+      await pgdb.query('UPDATE financial_commands SET result=$2 WHERE order_id=$1',[id,result]);
+      assert.equal((await cli('--mode','quiescent')).code,0);
+    } finally {
+      await pgdb.query('DELETE FROM financial_commands WHERE order_id=$1',[id]);
+      await pgdb.query('DELETE FROM transactions WHERE order_id=$1',[id]);
+      sql(db=>db.prepare('DELETE FROM booking_financial_work WHERE operation_id=?').run(operation));
+    }
+  });
+
+  await t.test("unacked deliveries, missing counters/queues and management failures never pass", {skip:!amqpUrl||!managementUrl}, async () => {
+    const connection=await amqp.connect(amqpUrl),ch=await connection.createConfirmChannel();
+    const until=async(predicate)=>{for(let n=0;n<80;n++){if(await predicate())return;await new Promise(r=>setTimeout(r,250));}throw Error('broker statistics deadline');};
+    const broker=new URL(amqpUrl),auth='Basic '+Buffer.from(decodeURIComponent(broker.username)+':'+decodeURIComponent(broker.password)).toString('base64');
+    const vhost=decodeURIComponent(broker.pathname.slice(1))||'/';
+    const stats=async q=>{const r=await fetch(new URL('/api/queues/'+encodeURIComponent(vhost)+'/'+encodeURIComponent(q),managementUrl),{headers:{Authorization:auth}});return r.json();};
+    const brokerArgs=['--amqp-url',amqpUrl,'--mode','quiescent'];
+    try {
+      for(const name of ['booking.events','ratings.events','notifications.events','payments.events']){
+        await ch.assertQueue(name,{durable:true,arguments:{'x-queue-type':'quorum'}});
+        await ch.assertQueue(name+'.dlq',{durable:true,arguments:{'x-queue-type':'quorum'}});
+      }
+      await until(async()=>{const r=await cli(...brokerArgs);return r.code===0;});
+      ch.sendToQueue('booking.events',Buffer.from('{"probe":"real-unacked"}'));await ch.waitForConfirms();
+      let received;const delivery=new Promise(resolve=>{received=resolve;});
+      const {consumerTag}=await ch.consume('booking.events',message=>received(message),{noAck:false});
+      const message=await delivery;assert.ok(message);
+      await until(async()=>((await stats('booking.events')).messages_unacknowledged===1));
+      const report=await cli(...brokerArgs);assert.equal(report.code,2);assert.equal(report.info.queues['booking.events'].messages,0);
+      assert.equal(report.info.queues['booking.events'].unacknowledged,1);assert.ok(ids(report).includes('pending:broker.queue.booking.events'));
+      ch.ack(message);
+      await until(async()=>((await stats('booking.events')).messages_unacknowledged===0));
+      const attached=await cli(...brokerArgs);assert.equal(attached.code,2);assert.ok(ids(attached).includes('pending:broker.consumers.booking.events'));
+      await ch.cancel(consumerTag);
+      await until(async()=>{const r=await cli(...brokerArgs);return r.code===0;});
+      const unknown=await cli(...brokerArgs,'--broker-management-url','');assert.equal(unknown.code,2);assert.ok(ids(unknown).includes('attention:broker.unacknowledged.unknown'));
+      const unavailable=new URL(managementUrl);unavailable.port='1';
+      assert.equal((await cli(...brokerArgs,'--broker-management-url',unavailable.origin)).code,3);
+      await ch.deleteQueue('payments.events.dlq');
+      const missing=await cli(...brokerArgs);assert.equal(missing.code,2);assert.ok(ids(missing).includes('attention:broker.queue.missing'));
+      await ch.assertQueue('payments.events.dlq',{durable:true,arguments:{'x-queue-type':'quorum'}});
+    }finally{await ch.close();await connection.close();}
   });
 
   await t.test("unreachable source is a usage/connection error (exit 3), not a pass", async () => {

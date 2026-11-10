@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## C read-only consistency checker and A review corrections — 10 November 2026
+
+[Checker usage](c-consistency-check.md) and [validation](validation/c-consistency-check-2026-11-10.md) add source snapshots, money/work/hold invariants, read-only broker ready/unacknowledged coverage and explicit report/quiescent exit codes. A review corrections reject incomplete schemas/migration checksums and mismatching financial command/request/result identities; unknown unacked counts, missing DLQs and active consumers prevent quiescent approval. The current-source isolated regression runner passed11 tests with no skips and now runs in dedicated CI. This supplies a rehearsal tool; it does not freeze writers, repair data, decide PR60 legacy binding or authorize historical cutover.
+
 ## E Task5 crash/redelivery and financial recovery acceptance — 10 November 2026
 
 [Fault/recovery handoff](e-task5-fault-recovery-handoff.md) extends merged PR58 with deterministic real-process SIGKILL at broker-confirm/pre-mark, Notifications pre-commit and post-commit/pre-ack checkpoints. It adds atomic financial-work trace metadata without changing command payloads/keys/retry policy. [Local evidence](validation/e-task5-fault-recovery-2026-11-10.md) records31 actual16-service assertion groups,298 monolith and17 exporter tests: rollback/dedupe/one charge/one notification, lease republish with stable event/parent, actual standalone Next SIGKILL and autonomous cancellation recovery linked through Notifications. This supplies the agreed remaining Task5 crash/recovery checklist alongside PR58's normal flows/logs/dashboard evidence. Hosted CI repeats both flags; local evidence is not a merge claim. Task6 load/peak8GB/browser/offline/demo/dossier, broader D financial races and historical eligibility/cutover remain separate; shared activation flags remain false.

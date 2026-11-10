@@ -1,0 +1,39 @@
+# New disposable project only: isolated owners, no host ports, no persistent volumes.
+services:
+  payments-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fixture
+      POSTGRES_PASSWORD: disposable-fixture
+      POSTGRES_DB: checker
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U fixture -d checker]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    user: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: fixture
+      RABBITMQ_DEFAULT_PASS: disposable-fixture
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: +S 2:2 +SDcpu 1 +SDio 1 -rabbit collect_statistics_interval 500
+      RABBITMQ_CTL_ERL_ARGS: +S 1:1 +SDcpu 1 +SDio 1
+    tmpfs: ["/var/lib/rabbitmq:uid=100,gid=101"]
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  checker:
+    build:
+      context: ../..
+      dockerfile: tests/consistency/Dockerfile
+    environment:
+      TEST_PAYMENTS_DATABASE_URL: postgres://fixture:disposable-fixture@payments-db:5432/checker
+      TEST_AMQP_URL: amqp://fixture:disposable-fixture@rabbitmq:5672?frameMax=131072
+      TEST_BROKER_MANAGEMENT_URL: http://rabbitmq:15672
+    depends_on:
+      payments-db: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}

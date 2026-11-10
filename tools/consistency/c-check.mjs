@@ -5,7 +5,7 @@
 //   monolith SQLite (Booking/saga/outbox/inbox/financial work)  --sqlite <file>      (opened read-only)
 //   Payments & Wallet PostgreSQL                              --payments-url <url> (READ ONLY REPEATABLE READ tx)
 //   Notifications PostgreSQL (optional)                       --notifications-url <url>
-//   RabbitMQ (optional, passive queue checks only)            --amqp-url <url>
+//   RabbitMQ (optional, passive checks + read-only management GET for unacked counts)
 // and reports findings in three severities:
 //   violation  a C invariant is broken (money/holds/state contradiction)        -> always fails (exit 1)
 //   attention  needs a recorded human decision (attention rows, DLQ, reconcile)  -> fails in --mode quiescent
@@ -13,9 +13,11 @@
 // Exit codes: 0 ok, 1 violations, 2 not quiescent (quiescent mode only), 3 usage/connection error.
 //
 // The SQLite and PostgreSQL snapshots are taken separately (they are different databases), so
-// cross-service checks only flag contradictions that cannot be explained by in-flight work
-// unless writers are stopped. Run with writers stopped for cutover evidence.
-import { parseArgs } from "node:util";
+// live cross-service mismatches can reflect in-flight work between those snapshots.
+// Freeze writers and drain/stop consumers before final quiescent cutover evidence.
+import { parseArgs, isDeepStrictEqual } from "node:util";
+import { readdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -30,6 +32,11 @@ const amqp = requireFrom("services/payments-wallet")("amqplib");
 export const PUBLISHED_TYPES = ["booking.status_changed", "booking.completed", "bid.accepted", "review.created", "provider.approved", "provider.registered"];
 export const QUEUES = ["booking.events", "ratings.events", "notifications.events", "payments.events"];
 const SAMPLE = 5;
+const migrationDirectory = path.join(root, "services/payments-wallet/migrations");
+const expectedMigrations = readdirSync(migrationDirectory).filter(n => /^\d+_[a-z0-9_]+\.sql$/.test(n)).sort().map(version => ({
+  version, sha256: createHash("sha256").update(readFileSync(path.join(migrationDirectory, version))).digest("hex"),
+}));
+const PAYMENT_TABLES = ["schema_migrations", "payment_intents", "transactions", "provider_wallets", "webhook_events", "outbox_events", "payment_commands", "payment_provisioning", "processed_events", "financial_commands", "financial_fences"];
 
 class Report {
   constructor() { this.findings = []; this.info = {}; }
@@ -50,6 +57,9 @@ export function checkSqlite(file, report) {
   const s = {};
   try {
     db.exec("BEGIN"); // one read snapshot of the file
+    for (const table of ["orders", "slot_holds", "events", "booking_sagas", "booking_saga_activations", "booking_financial_work", "consistency_attention"]) {
+      if (!has(table)) throw new Error("SQLITE_SCHEMA_REVIEW_REQUIRED: missing " + table);
+    }
     const marks = PUBLISHED_TYPES.map(() => "?").join(",");
     if (db.prepare("SELECT 1 FROM pragma_table_info('events') WHERE name='published_at'").get()) {
       report.add("pending", "sqlite.outbox.unpublished", all(`SELECT id, type FROM events WHERE published_at IS NULL AND type IN (${marks}) ORDER BY id`, ...PUBLISHED_TYPES),
@@ -69,7 +79,7 @@ export function checkSqlite(file, report) {
       report.add("violation", "sqlite.activation.without_completed_saga", rows.filter((r) => r.state === "activated" && r.saga_state !== "COMPLETED"), "activated payment setup for a saga that is not COMPLETED");
     }
     if (has("booking_financial_work")) {
-      s.work = all(`SELECT w.operation_id, w.kind, w.order_id, w.state, w.result_json, o.status AS order_status, o.payment_status
+      s.work = all(`SELECT w.operation_id, w.command_id, w.request_json, w.kind, w.order_id, w.state, w.result_json, o.status AS order_status, o.payment_status
         FROM booking_financial_work w JOIN orders o ON o.id = w.order_id`);
       report.add("pending", "sqlite.financial.pending", s.work.filter((r) => r.state === "pending"), "financial completion/cancellation work not yet confirmed by Payments");
       report.add("attention", "sqlite.financial.attention", s.work.filter((r) => r.state === "attention"), "financial work needing reconciliation");
@@ -101,6 +111,11 @@ export async function checkPayments(url, report) {
   try {
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
     const tables = new Set((await q("SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()")).map((r) => r.table_name));
+    const missing = PAYMENT_TABLES.filter(name => !tables.has(name));
+    if (missing.length) throw new Error("PAYMENTS_SCHEMA_REVIEW_REQUIRED: missing " + missing.join(", "));
+    const applied = await q("SELECT version, sha256 FROM schema_migrations ORDER BY version");
+    if (!isDeepStrictEqual(applied, expectedMigrations)) throw new Error("PAYMENTS_SCHEMA_REVIEW_REQUIRED: migration versions/checksums differ");
+    report.info.payments_migrations = applied.map(row => row.version);
     if (tables.has("outbox_events")) {
       report.add("pending", "payments.outbox.unpublished", await q("SELECT event_id, event_type FROM outbox_events WHERE published_at IS NULL ORDER BY seq"), "Payments events not yet published");
     }
@@ -109,7 +124,7 @@ export async function checkPayments(url, report) {
         "provisioned intents not yet activated (not settleable)");
     }
     if (tables.has("financial_commands")) {
-      p.commands = await q("SELECT order_id, kind, state, command_id, result FROM financial_commands");
+      p.commands = await q("SELECT caller_id, operation_id, order_id, kind, state, command_id, request, result FROM financial_commands");
       report.add("pending", "payments.financial.pending", p.commands.filter((r) => r.state === "pending"), "financial commands still pending (e.g. awaiting settlement)");
       report.add("attention", "payments.financial.attention", p.commands.filter((r) => r.state === "attention"), "financial commands in attention");
     }
@@ -158,6 +173,13 @@ export function checkCross(s, p, report) {
   const byOrder = (rows) => new Map((rows ?? []).map((r) => [`${r.order_id}:${r.kind}`, r]));
   const work = byOrder(s.work);
   const commands = byOrder(p.commands);
+  report.add("violation", "cross.financial.command_identity_mismatch",
+    (s.work ?? []).filter(w => { const c = commands.get(`${w.order_id}:${w.kind}`); return c &&
+      (w.command_id !== c.command_id || w.operation_id !== c.operation_id || !isDeepStrictEqual(JSON.parse(w.request_json), c.request)); }),
+    "Booking/Payments command ID, operation ID or immutable request differs");
+  report.add("violation", "cross.financial.ready_result_mismatch",
+    (s.work ?? []).filter(w => { const c = commands.get(`${w.order_id}:${w.kind}`); return w.state === "ready" && c?.state === "ready" &&
+      !isDeepStrictEqual(JSON.parse(w.result_json), c.result); }), "Booking/Payments ready results differ");
   // Payments holds an accepted financial command Booking does not know about (Booking lost its work).
   report.add("violation", "cross.financial.orphan_payments_command",
     (p.commands ?? []).filter((c) => !work.has(`${c.order_id}:${c.kind}`)), "Payments financial command without Booking work");
@@ -192,7 +214,17 @@ export async function checkNotifications(url, report) {
   } finally { await client.end(); }
 }
 
-export async function checkBroker(url, report) {
+export async function checkBroker(url, report, { managementUrl, mode = "report" } = {}) {
+  const broker = new URL(url);
+  let management;
+  if (managementUrl) {
+    management = new URL(managementUrl);
+    if (!["https:", "http:"].includes(management.protocol) || management.hostname !== broker.hostname ||
+      management.username || management.password || management.search || management.hash || management.pathname !== "/")
+      throw new Error("Broker management must be an explicit HTTP(S) origin on the AMQP broker hostname");
+  }
+  const vhost = decodeURIComponent(broker.pathname.slice(1)) || "/";
+  const authorization = "Basic " + Buffer.from(decodeURIComponent(broker.username || "guest") + ":" + decodeURIComponent(broker.password || "guest")).toString("base64");
   const connection = await amqp.connect(url);
   connection.on("error", () => {});
   const queues = {};
@@ -202,8 +234,21 @@ export async function checkBroker(url, report) {
       channel.on("error", () => {});
       try {
         const { messageCount, consumerCount } = await channel.checkQueue(name);
-        queues[name] = { messages: messageCount, consumers: consumerCount };
-      } catch {
+        queues[name] = { messages: messageCount, consumers: consumerCount, unacknowledged: null };
+        if (management) {
+          const response = await fetch(new URL("/api/queues/" + encodeURIComponent(vhost) + "/" + encodeURIComponent(name), management), {
+            headers: { Authorization: authorization }, redirect: "error", signal: AbortSignal.timeout(5000),
+          });
+          if (!response.ok) throw new Error("Broker management queue read failed (HTTP " + response.status + ")");
+          const data = await response.json();
+          for (const key of ["messages_ready", "messages_unacknowledged", "consumers"])
+            if (!Number.isSafeInteger(data[key]) || data[key] < 0) throw new Error("Broker management counters unavailable; retry after statistics refresh");
+          queues[name].messages = Math.max(messageCount, data.messages_ready);
+          queues[name].consumers = Math.max(consumerCount, data.consumers);
+          queues[name].unacknowledged = data.messages_unacknowledged;
+        }
+      } catch (error) {
+        if (error?.code !== 404) throw error; // network/permission failures are unreadable, not empty
         queues[name] = { missing: true };
       } finally {
         try { await channel.close(); } catch { /* closed by the broker after 404 */ }
@@ -211,12 +256,18 @@ export async function checkBroker(url, report) {
     }
   } finally { await connection.close(); }
   report.info.queues = queues;
+  report.info.broker_unacknowledged_verified = Boolean(management);
+  if (!management) report.add("attention", "broker.unacknowledged.unknown", 1,
+    "passive AMQP does not expose unacknowledged deliveries; supply --broker-management-url before declaring quiescence");
   for (const [name, q] of Object.entries(queues)) {
     if (q.missing) continue;
-    if (name.endsWith(".dlq")) report.add("attention", `broker.dlq.${name}`, q.messages, `dead-lettered messages in ${name} (inspect, then decide)`);
-    else report.add("pending", `broker.queue.${name}`, q.messages, `undelivered messages in ${name}`);
+    const outstanding = q.messages + (q.unacknowledged ?? 0);
+    if (name.endsWith(".dlq")) report.add("attention", `broker.dlq.${name}`, outstanding, `ready or unacknowledged dead letters in ${name}`);
+    else report.add("pending", `broker.queue.${name}`, outstanding, `ready or unacknowledged messages in ${name}`);
+    if (mode === "quiescent") report.add("pending", `broker.consumers.${name}`, q.consumers,
+      `consumers still attached to ${name}; stop/drain consumers before frozen-writer validation`);
   }
-  report.add("attention", "broker.queue.missing", QUEUES.filter((n) => queues[n]?.missing).map((id) => ({ id })), "expected consumer queue not declared");
+  report.add("attention", "broker.queue.missing", Object.entries(queues).filter(([,q]) => q.missing).map(([id]) => ({ id })), "expected consumer/dead-letter queue not declared");
 }
 
 // ------------------------------------------------------------------ CLI
@@ -226,11 +277,14 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
     "payments-url": { type: "string", default: env.C_CHECK_PAYMENTS_URL },
     "notifications-url": { type: "string", default: env.C_CHECK_NOTIFICATIONS_URL },
     "amqp-url": { type: "string", default: env.C_CHECK_AMQP_URL },
+    "broker-management-url": { type: "string", default: env.C_CHECK_BROKER_MANAGEMENT_URL },
     mode: { type: "string", default: "report" },
     json: { type: "boolean", default: false },
   } });
-  if (!["report", "quiescent"].includes(values.mode) || (!values.sqlite && !values["payments-url"])) {
-    return { code: 3, output: "usage: c-check.mjs --sqlite <file> --payments-url <url> [--notifications-url <url>] [--amqp-url <url>] [--mode report|quiescent] [--json]" };
+  if (!["report", "quiescent"].includes(values.mode) || (!values.sqlite && !values["payments-url"]) ||
+    (values.mode === "quiescent" && (!values.sqlite || !values["payments-url"])) ||
+    (values["broker-management-url"] && !values["amqp-url"])) {
+    return { code: 3, output: "usage: c-check.mjs --sqlite <file> --payments-url <url> [--notifications-url <url>] [--amqp-url <url> --broker-management-url <origin>] [--mode report|quiescent] [--json]" };
   }
   const report = new Report();
   try {
@@ -238,7 +292,7 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
     const p = values["payments-url"] ? await checkPayments(values["payments-url"], report) : null;
     checkCross(s, p, report);
     if (values["notifications-url"]) await checkNotifications(values["notifications-url"], report);
-    if (values["amqp-url"]) await checkBroker(values["amqp-url"], report);
+    if (values["amqp-url"]) await checkBroker(values["amqp-url"], report, { managementUrl: values["broker-management-url"], mode: values.mode });
   } catch (error) {
     return { code: 3, output: `c-check: could not read a source (${error?.code ?? error?.name ?? "error"}: ${error?.message ?? error})` };
   }
