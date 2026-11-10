@@ -38,7 +38,7 @@ services:
         condition: service_healthy
       payments-pact-db:
         condition: service_healthy
-    volumes:
-      - ./contracts/pacts:/workspace/contracts/pacts
+    # Consumer generation and provider verification share this container filesystem.
+    # No host bind mount: works with remote Docker and act as well as Actions.
     # Generation must finish successfully before any provider reads its contract.
     command: ["npm", "--prefix", "contracts", "run", "test:pact"]

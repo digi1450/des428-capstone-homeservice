@@ -4,8 +4,9 @@ name: Area E - Service Tests
 on:
   push:
     branches:
-      - feat/e-structured-logs
+      - main
   pull_request:
+  workflow_dispatch:
 
 jobs:
   service-tests:

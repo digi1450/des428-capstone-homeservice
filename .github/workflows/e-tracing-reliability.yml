@@ -1,0 +1,21 @@
+name: E tracing and reliability
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  tracing-reliability:
+    name: HTTP AMQP trace, consumer lifecycle and outbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: homeservice-e-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run isolated tracing and reliability suites
+        shell: bash
+        run: bash scripts/run-e-tracing-reliability.sh
+      - name: Clean up after cancellation
+        if: always()
+        run: docker compose -f tests/e2e-tracing/compose.yml down --volumes --remove-orphans
