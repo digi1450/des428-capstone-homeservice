@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## E Task5 crash/redelivery and financial recovery acceptance — 10 November 2026
+
+[Fault/recovery handoff](e-task5-fault-recovery-handoff.md) extends merged PR58 with deterministic real-process SIGKILL at broker-confirm/pre-mark, Notifications pre-commit and post-commit/pre-ack checkpoints. It adds atomic financial-work trace metadata without changing command payloads/keys/retry policy. [Local evidence](validation/e-task5-fault-recovery-2026-11-10.md) records31 actual16-service assertion groups,298 monolith and17 exporter tests: rollback/dedupe/one charge/one notification, lease republish with stable event/parent, actual standalone Next SIGKILL and autonomous cancellation recovery linked through Notifications. This supplies the agreed remaining Task5 crash/recovery checklist alongside PR58's normal flows/logs/dashboard evidence. Hosted CI repeats both flags; local evidence is not a merge claim. Task6 load/peak8GB/browser/offline/demo/dossier, broader D financial races and historical eligibility/cutover remain separate; shared activation flags remain false.
+
 ## E selected full-flow telemetry — 10 November 2026
 
 Based on merged PR56/57, [Task5 handoff](e-task5-full-flow-handoff.md) adds monolith request/AMQP spans, atomic durable allowlisted outbox context, wallet processing spans and correlated logs. [Local evidence](validation/e-task5-full-flow-2026-11-10.md) records296 monolith,6 Payments tracing and17 exporter tests, plus22 actual16-service acceptance groups. Actual Jaeger parent-child relationships passed for provider→wallet, webhook→PG outbox/relay→Booking and completion→Notifications; all three provisioned Grafana expressions returned finite data for both services. Shared activation flags remain false. New CI repeats this acceptance; local evidence is not a GitHub/merge claim. Broader faults/recovery tracing, load/peak8GB, browser/offline/demo/dossier and historical data/cutover remain separate.

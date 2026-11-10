@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For E Task5 deterministic process-crash/redelivery and financial trace recovery, read `docs/e-task5-fault-recovery-handoff.md`. Test-only child workers use production libraries; do not add runtime fault hooks or alter retry/business state to force recovery. Keep work/context atomic and preserve original command/snapshot/authority. Run both FINAL_STACK_TELEMETRY and FINAL_STACK_FAULTS acceptance in a new disposable project.
+
 - For E's actual selected full-flow telemetry and additive outbox metadata, read `docs/e-task5-full-flow-handoff.md`. Preserve exact-schema upgrades and atomic event/context writes; never put credentials/baggage or transport metadata in public event data. Run the existing final-stack acceptance with `FINAL_STACK_TELEMETRY=true`; three trace paths do not prove all recovery/load/offline gates.
 
 - For A-led E Task4 actual authenticated16-service acceptance, read `tests/final-stack/README.md` and `docs/validation/a-e-final-stack-2026-11-10.md`. Use a new disposable project; never enable its flags against useful data or treat the smoke resource snapshot as load/peak8GB evidence. Historical migration and remaining E tasks stay separate.

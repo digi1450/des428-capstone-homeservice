@@ -76,6 +76,11 @@ See [dated local evidence](validation/e-task5-full-flow-2026-11-10.md).
 
 ## Limits and remaining work
 
+Follow-up: [crash-window and durable financial recovery tracing](e-task5-fault-recovery-handoff.md)
+extends this acceptance with `FINAL_STACK_FAULTS=true`. It supersedes the pending
+Task5 crash/recovery items below for its explicitly tested scope; historical work
+without a carrier and broader D/Task6/cutover gates remain separate.
+
 This supplies real telemetry evidence for the three named flows; it is not a claim
 that every recovery/financial/error path is one trace. Recovery rounds after a
 process crash may start new traces; business operation/event IDs remain durable.

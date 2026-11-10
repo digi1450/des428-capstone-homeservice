@@ -88,3 +88,5 @@ E authenticated deployment: [local Compose/TLS/Keycloak/worker integration](docs
 Area E Task 3: [Pact coverage, tracing/reliability CI and act commands](docs/e-task3-ci-handoff.md), with [dated local results](docs/validation/e-task3-ci-2026-11-10.md).
 
 Area E Task 5: [selected actual full-flow trace/log/dashboard acceptance](docs/e-task5-full-flow-handoff.md), with [dated local evidence](docs/validation/e-task5-full-flow-2026-11-10.md). Extends the merged Task4 runner; broader fault/load/offline/cutover gates remain.
+
+Task5 follow-up: [process-crash/redelivery and durable financial recovery tracing](docs/e-task5-fault-recovery-handoff.md), with [dated local results](docs/validation/e-task5-fault-recovery-2026-11-10.md). Run the same fresh-stack runner with FINAL_STACK_TELEMETRY=true and FINAL_STACK_FAULTS=true.

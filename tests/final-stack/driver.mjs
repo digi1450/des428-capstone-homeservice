@@ -115,8 +115,20 @@ if(phase==='prepare'){
   assert.equal((await api(alice,`/api/bookings/${state.refundId}/cancel`,{})).status,200);
   pass('authenticated paid cancellation/refund replay');
   const recovery=await place('16:00');assert.equal(recovery.status,201);state.recoveryId=recovery.body.order.id;
+ }else if(phase==='fault-event'){
+  date.setUTCDate(date.getUTCDate()+1);while(date.getUTCDay()===0)date.setUTCDate(date.getUTCDate()+1);
+  const booked=await place('10:00');assert.equal(booked.status,201);state.faultOrderId=booked.body.order.id;
+  await until(async()=>((await api(alice,`/api/bookings/${state.faultOrderId}`)).body.payment_setup==='ready'),'fault booking activation');
+  state.faultTraceId=randomUUID().replaceAll('-','');
+  const event={gateway_event_id:'fault-'+randomUUID(),gateway_ref:booked.body.payment_intent.gateway_ref,type:'payment_intent.succeeded'};
+  assert.equal((await api(jar(),'/api/payments/webhook',event,{Authorization:'Bearer '+await gateway(),traceparent:'00-'+state.faultTraceId+'-1234567890abcdef-01','X-Request-Id':'task5-crash'})).status,200);
+  pass('real authenticated payment commits while owning relay and Notifications consumer are stopped');
+ }else if(phase==='fault-paid'){
+  await until(async()=>((await api(alice,`/api/bookings/${state.faultOrderId}`)).body.payment_status==='paid'),'crash-recovered paid Booking');
+  pass('published-before-mark crash still delivers paid status to Booking');
  }else if(phase==='outage'){
-  const pending=await api(alice,`/api/bookings/${state.recoveryId}/cancel`,{});assert.equal(pending.status,202);assert.equal(pending.body.cancellation_status,'pending');pass('actual Payments container outage leaves cancellation pending');
+  state.recoveryTraceId=randomUUID().replaceAll('-','');
+  const pending=await api(alice,`/api/bookings/${state.recoveryId}/cancel`,{},{traceparent:'00-'+state.recoveryTraceId+'-1234567890abcdef-01','X-Request-Id':'task5-recovery'});assert.equal(pending.status,202);assert.equal(pending.body.cancellation_status,'pending');pass('actual Payments container outage leaves cancellation pending');
  }else if(phase==='restart-pending'){
   assert.equal((await api(alice,'/api/me')).status,200);assert.notEqual((await api(alice,`/api/bookings/${state.recoveryId}`)).body.status,'cancelled');pass('restarted standalone Next preserves session and pending booking');
  }else if(phase==='recovered'){
