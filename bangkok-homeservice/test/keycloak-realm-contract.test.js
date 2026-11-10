@@ -28,3 +28,18 @@ test("browser audience scope and client roles match verifier expectations",()=>{
  const payments=new Set(realm.roles.client["payments-wallet-service"].map(r=>r.name));
  for(const role of ["user:read","booking:create","booking:query","booking:cancel","booking:activate","booking:complete_financial","booking:cancel_financial","booking:query_financial","mock-gateway:settle_webhook"])assert.ok(payments.has(role),role);
 });
+test('fresh realm explicitly defines every referenced scope and emits client roles',()=>{
+ for(const c of realm.clients)for(const name of c.defaultClientScopes||[])assert.ok(scopes[name],`${c.clientId}: missing ${name}`);
+ const mapper=scopes.roles.protocolMappers.find(m=>m.protocolMapper==='oidc-usermodel-client-role-mapper');
+ assert.equal(mapper.config['claim.name'],'resource_access.${client_id}.roles');assert.equal(mapper.config['access.token.claim'],'true');
+});
+test('fresh Keycloak26 access tokens receive stable subject for all interactive/service clients',()=>{
+ const mapper=scopes.basic.protocolMappers.find(m=>m.protocolMapper==='oidc-sub-mapper');assert.equal(mapper.config['access.token.claim'],'true');
+ for(const name of ['homeservice-web','booking-service','mock-gateway-service'])assert.ok(clients[name].defaultClientScopes.includes('basic'));
+});
+test('self-registration grants browser read scope only, never Booking/Gateway/admin permissions',()=>{
+ assert.equal(realm.registrationAllowed,true);
+ const roles=clients['homeservice-web'].protocolMappers.filter(m=>m.protocolMapper==='oidc-hardcoded-role-mapper').map(m=>m.config.role);
+ assert.deepEqual(new Set(roles),new Set(['notifications-service.user:read','payments-wallet-service.user:read']));
+ for(const id of ['booking-service','mock-gateway-service'])assert.ok(!(clients[id].protocolMappers||[]).some(m=>m.protocolMapper==='oidc-hardcoded-role-mapper'));
+});

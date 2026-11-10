@@ -38,6 +38,6 @@ const allRoles=realm.roles.client['payments-wallet-service'].map(r=>r.name);
 realm.users=[['booking-service',allRoles.filter(r=>r.startsWith('booking:'))],['mock-gateway-service',['mock-gateway:settle_webhook']]].map(([clientId,roles])=>({username:'service-account-'+clientId,enabled:true,serviceAccountClientId:clientId,clientRoles:{'payments-wallet-service':roles}}));
 writeFileSync(resolve(local,'realm/homeservice-realm.json'),JSON.stringify(realm,null,2)+'\n',{mode:0o644,flag:'wx'});
 // Flags remain disabled until explicit disposable-demo or real cutover review.
-const config={...values,AUTHENTICATED_SERVICES_ENABLED:'false',AUTHENTICATED_CUTOVER_APPROVED:'false',OIDC_LOGIN_ENABLED:'false',AREA_B_AUTH_ENABLED:'false',AUTHENTICATED_AMQP_URL:'',GATEWAY_PORT:'18081',GRAFANA_PORT:'3304',PROMETHEUS_PORT:'9091',JAEGER_UI_PORT:'16687',RABBITMQ_UI_PORT:'15673'};
+const config={...values,AUTHENTICATED_SERVICES_ENABLED:'false',AUTHENTICATED_CUTOVER_APPROVED:'false',OIDC_LOGIN_ENABLED:'false',OIDC_SELF_REGISTRATION_ENABLED:'false',AREA_B_AUTH_ENABLED:'false',AUTHENTICATED_AMQP_URL:'',GATEWAY_PORT:'18081',GRAFANA_PORT:'3304',PROMETHEUS_PORT:'9091',JAEGER_UI_PORT:'16687',RABBITMQ_UI_PORT:'15673'};
 writeFileSync(envPath,Object.entries(config).map(([k,v])=>k+'='+v).join('\n')+'\n',{mode:0o600,flag:'wx'});
 console.log('Prepared ignored .env.authenticated, local CA/certificate and realm. No deployment was started; activation flags remain false.');

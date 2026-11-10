@@ -55,7 +55,7 @@ test('large signed tokens login, forward, refresh and logout with a fixed-size o
  const next=renewed.headers.get('set-cookie').split(';')[0].split('=')[1];assert.equal(next.length,43);assert.notEqual(next,sessionId);
  const store=createOidcSessionStore();
  try{assert.equal(store.get(sessionId),null);assert.equal(store.get(next).refreshToken,refreshToken+'-rotated');}finally{store.close();}
- assert.equal((await refresh(refreshRequest())).status,401);assert.equal(tokenCalls,2,'consumed ID does not request another refresh');
+ const replay=await refresh(refreshRequest());assert.equal(replay.status,401);assert.equal(replay.headers.getSetCookie().length,0,'stale refresh response must not clear a newer browser cookie');assert.equal(tokenCalls,2,'consumed ID does not request another refresh');
  const ended=await logout(new Request(origin+'/api/auth/keycloak/logout',{method:'POST',headers:{Origin:origin,Cookie:'homeservice_oidc_session='+next}}));
  assert.equal(ended.status,200);
  assert.equal(getServerOidcSession(new Request(origin,{headers:{Cookie:'homeservice_oidc_session='+next}})),null,'logout revokes server session, including copied cookie');

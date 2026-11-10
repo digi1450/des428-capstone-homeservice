@@ -1,3 +1,4 @@
+import {recoverIdentityBindings} from '../modules/identity/onboarding.js';
 // Explicit composition, deliberately NOT called by default instrumentation/startup.
 // A owns transport/lifecycle; B owns credentials/identity; C owns durable recovery.
 import {createServiceTokenProvider} from '../security/service-token.js';
@@ -108,7 +109,7 @@ export function configureAuthenticatedServices({issuer,paymentsUrl,notifications
   active();if(!owns())throw new Error('authenticated runtime ownership changed');
   if(inFlight)return inFlight;
   inFlight=(async()=>{
-   for(const recover of [recoverOnce,recoverFinalizationOnce]){
+   for(const recover of [recoverOnce,recoverFinalizationOnce,...(process.env.OIDC_SELF_REGISTRATION_ENABLED==='true'?[()=>recoverIdentityBindings({path:identityMappingDbPath})]:[])]){
     try{await recover();}catch(error){logger.error({kind:String(error?.name??'error').slice(0,80)},'authenticated recovery round failed');}
    }
   })().finally(()=>{inFlight=null;});

@@ -1,3 +1,5 @@
+import {getIdentityAccess} from "#lib/http/identity-access.js";
+import {ConflictError} from "#lib/errors.js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,7 @@ import * as identity from "#lib/modules/identity/service.js";
 const schema = z.object({ email: z.string().email(), password: z.string().min(1) });
 
 export const POST = handle(async (req) => {
+  if(getIdentityAccess())throw new ConflictError("Use Keycloak login");
   const input = parse(schema, await readJson(req));
   const { token, is_approved } = identity.loginProvider(input);
   return json({ token, is_approved }, { status: 200, headers: { "Set-Cookie": tokenCookie(token) } });

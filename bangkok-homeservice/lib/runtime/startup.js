@@ -12,6 +12,9 @@ const dependencies=async()=>{
 export function startupConfiguration(env=process.env){
  const flag=env.AUTHENTICATED_SERVICES_ENABLED;
  if(flag!==undefined&&!['true','false'].includes(flag))throw new Error('Invalid AUTHENTICATED_SERVICES_ENABLED');
+ const registration=env.OIDC_SELF_REGISTRATION_ENABLED;
+ if(registration!==undefined&&!['true','false'].includes(registration))throw new Error('Invalid OIDC_SELF_REGISTRATION_ENABLED');
+ if(registration==='true'&&flag!=='true')throw new Error('Keycloak signup requires integrated authenticated startup');
  if(flag!=='true')return null;
  if(env.AUTHENTICATED_CUTOVER_APPROVED!=='true')throw new Error('Authenticated startup requires the reviewed data/identity cutover gate');
  if(env.OIDC_LOGIN_ENABLED!=='true'||env.AREA_B_NOTIFICATIONS_PROXY==='true'||env.AREA_B_PAYMENTS_PROXY==='true')throw new Error('Integrated startup requires OIDC login and disabled proxy-only flags');

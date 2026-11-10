@@ -1,3 +1,4 @@
+import {createOidcSessionStore} from "../lib/security/oidc-session-store.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {generateKeyPairSync,sign} from "node:crypto";
@@ -34,7 +35,8 @@ test("refresh rejects a signed ID token whose subject differs from the original 
   const response=await refresh(new Request(origin+"/api/auth/keycloak/refresh",{method:"POST",headers:{Origin:origin,Cookie:"homeservice_oidc_session="+session}}));
   assert.equal(response.status,401);
   assert.equal((await response.json()).error,"refresh failed");
-  assert.match(response.headers.get("set-cookie"),/Max-Age=0/);
+  assert.equal(response.headers.getSetCookie().length,0,"failed old refresh must not clear a newer browser cookie");
+  const store=createOidcSessionStore();try{assert.equal(store.get(session),null,"original invalid session is revoked server-side");}finally{store.close();}
   assert.equal(calls,2);
  }finally{
   globalThis.fetch=originalFetch;

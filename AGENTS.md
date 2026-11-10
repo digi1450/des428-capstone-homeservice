@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For A-led real Keycloak verification, trusted proxy origin, refresh nonce/JWKS handling and selected customer/provider signup, read `docs/keycloak-onboarding-handoff.md`. `identity.profile_created` is private monolith binding work, never a broker event. Never auto-link by email, accept self-selected admin/domain IDs or copy Keycloak passwords. Self-registration/deployment flags remain false by default.
+
 - For explicit authenticated startup, cross-Next-bundle runtime/error identity and deployment gates, read `docs/authenticated-startup-handoff.md`. Both startup gates remain false by default. Compiled API/RSC fixture acceptance is not real Keycloak, broker readiness or useful-data cutover.
 
 - For A's integrated B session/identity + C financial/saga recovery composition, read `docs/authenticated-runtime-handoff.md`. Construction is explicit, not default startup activation. Configure before legacy timers, keep one recovery scheduler, and pass through the actual webhook bearer instead of minting gateway authority. Real Keycloak/page/AMQP/data-cutover gates remain.

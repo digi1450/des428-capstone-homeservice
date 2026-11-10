@@ -35,5 +35,9 @@ service-account*.json
 /output/
 /tmp/
 
+# Python tool caches
+__pycache__/
+*.py[cod]
+
 # Local authenticated integration certificates, generated realm and secrets
 .local/

@@ -1,0 +1,36 @@
+import {POST as legacyLogin} from '../app/api/auth/customer/login/route.js';
+import {POST as legacyRegister} from '../app/api/auth/customer/register/route.js';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {freshBoot} from '../test-helpers/boot.js';
+import {configureIdentityAccess,resetIdentityAccess} from '../lib/http/identity-access.js';
+import {createOidcSessionStore} from '../lib/security/oidc-session-store.js';
+import {POST} from '../app/api/auth/keycloak/profile/route.js';
+import {logoutOidcSession} from '../lib/security/oidc-logout.js';
+freshBoot();
+test('profile HTTP endpoint requires verified onboarding authority and same-origin; no admin or identity injection',async t=>{
+ const dir=mkdtempSync(join(tmpdir(),'oidc-profile-route-')),path=join(dir,'sidecar.sqlite'),issuer='https://id.example.test/realms/homeservice',secret='s'.repeat(32),origin='https://app.example.test';
+ const env={OIDC_LOGIN_ENABLED:'true',OIDC_SELF_REGISTRATION_ENABLED:'true',KEYCLOAK_ISSUER:issuer,OIDC_REDIRECT_URI:origin+'/api/auth/keycloak/callback',OIDC_SESSION_SECRET:secret,OIDC_SESSION_DB_PATH:path,IDENTITY_MAPPING_DB_PATH:path};
+ const previous=Object.fromEntries(Object.keys(env).map(k=>[k,process.env[k]]));Object.assign(process.env,env);
+ configureIdentityAccess({read:()=>null,logout:async()=>new Response()});
+ t.after(()=>{resetIdentityAccess();for(const [k,v]of Object.entries(previous)){if(v===undefined)delete process.env[k];else process.env[k]=v;}rmSync(dir,{recursive:true,force:true});});
+ const store=createOidcSessionStore({path,secret}),id=store.create({purpose:'onboarding',issuer,sub:'verified-new-user',email:'new-route@example.test',exp:Math.floor(Date.now()/1000)+300,accessToken:'fixture',refreshToken:'fixture',nonce:'fixture'});store.close();
+ const request=(body,{cookie=id,site=origin}={})=>new Request(origin+'/api/auth/keycloak/profile',{method:'POST',headers:{'Content-Type':'application/json',Origin:site,Cookie:'homeservice_oidc_onboarding='+cookie},body:JSON.stringify(body)});
+ assert.equal((await legacyLogin(request({email:'nong@example.com',password:'irrelevant'}))).status,409);
+ assert.equal((await legacyRegister(request({email:'legacy-route@example.test',password:'Password1',name:'Legacy'}))).status,409);
+ assert.equal((await POST(request({role:'customer',name:'New'},{cookie:'forged'}))).status,401);
+ assert.equal((await POST(request({role:'customer',name:'New'},{site:'https://evil.example.test'}))).status,403);
+ assert.equal((await POST(request({role:'admin',name:'Admin'}))).status,400);
+ assert.equal((await POST(request({role:'customer',name:'New',sub:'victim',email:'victim@example.test',domainId:1}))).status,400);
+ assert.equal((await POST(request({role:'customer',name:'x'.repeat(17000)}))).status,413);
+ const wrongType=new Request(origin+'/api/auth/keycloak/profile',{method:'POST',headers:{Origin:origin,Cookie:'homeservice_oidc_onboarding='+id,'Content-Type':'text/plain'},body:'{}'});assert.equal((await POST(wrongType)).status,415);
+ const result=await POST(request({role:'customer',name:'New'}));assert.equal(result.status,201);assert.deepEqual(await result.json(),{ok:true,role:'customer',redirectTo:'/'});
+ assert.ok(result.headers.getSetCookie().some(c=>c.startsWith('homeservice_oidc_session=')&&c.includes('Secure')&&c.includes('HttpOnly')));
+ assert.equal((await POST(request({role:'customer',name:'New'}))).status,401,'consumed onboarding ID is not reusable');
+ const pendingStore=createOidcSessionStore({path,secret}),pending=pendingStore.create({purpose:'onboarding',issuer,sub:'pending-user',email:'pending@example.test',exp:Math.floor(Date.now()/1000)+300,accessToken:'fixture'});pendingStore.close();
+ const logout=await logoutOidcSession(new Request(origin+'/api/auth/logout',{method:'POST',headers:{Origin:origin,Cookie:'homeservice_oidc_onboarding='+pending}}));assert.equal(logout.status,200);
+ const after=createOidcSessionStore({path,secret});try{assert.equal(after.get(pending),null);}finally{after.close();}
+});

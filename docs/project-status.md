@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A-led B live Keycloak and selected signup — 10 November 2026
+
+[Auth/onboarding handoff](keycloak-onboarding-handoff.md) implements the lead-selected Keycloak registration followed by a customer/provider-only profile, with durable private identity-binding work and no email-based account linking. It fixes fresh-realm scope/subject mapping, trusted TLS ingress origin, Next JWKS cache pinning and refresh nonce interoperability. Actual isolated acceptance passed11 groups twice with fresh signing keys: PKCE/login/refresh/logout, new provider signup/wallet event, both services' JWT/owner checks, gateway financial replay, paid RabbitMQ delivery, completion/refund exactly once and outage/restart recovery. [Dated evidence](validation/a-b-live-keycloak-2026-11-10.md) distinguishes this Node22/Keycloak26/two-PG/broker deployment from E's final stack and historical data. Default deployment/self-registration flags remain false. Inherited monolith dependency advisories remain a separate compatibility/remediation task; this is not a whole-project or production-security completion claim.
+
 ## E Task 3 CI and contracts — 10 November 2026
 
 [Task 3 handoff](e-task3-ci-handoff.md) adds sequential tracing/lifecycle/outbox CI, PR/main/manual triggers, isolated cleanup and five consumer/provider Pact interactions. [Local act validation](validation/e-task3-ci-2026-11-10.md) records passing trace1/lifecycle5/outbox9, consumer5/provider2 and separate schema30 tests, with exact limits. Local act is not a GitHub CI or merge claim. No application/auth/data cutover or completion of the other E tasks.
