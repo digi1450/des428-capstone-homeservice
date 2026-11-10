@@ -12,7 +12,7 @@ profile, selecting **customer or provider only**. Admin identities require trust
 administrator provisioning. Existing accounts are bound using the verified issuer,
 Keycloak subject and existing integer ID; email is never authority to claim one.
 
-- `OIDC_SELF_REGISTRATION_ENABLED=false` remains the default. Enable only with the
+- `OIDC_SELF_REGISTRATION_ENABLED=false` remains the default. E PR54/55 are integrated; its authenticated overlay and generated env now pass this additional opt-in flag. Existing generated envs without it safely default false. Enable only with the
   reviewed authenticated startup/identity deployment and the matching realm settings.
 - Customer/provider register pages redirect to Keycloak's PKCE registration endpoint
   only when authenticated composition is selected. Local password login/registration

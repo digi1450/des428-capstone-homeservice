@@ -18,10 +18,10 @@ test('startup gates, ordering, shared ownership and failure behavior',async t=>{
   const app=await a;assert.equal(app.mode,'legacy');assert.deepEqual(f.calls,['db','legacy']);await app.stop();assert.deepEqual(f.calls,['db','legacy','legacy-stop']);
  });
  await t.test('missing cutover or conflicting proxy fails before DB/workers',async()=>{
-  for(const invalid of [{AUTHENTICATED_CUTOVER_APPROVED:'false'},{OIDC_LOGIN_ENABLED:'false'},{AREA_B_PAYMENTS_PROXY:'true'},{AMQP_URL:''},{DB_PATH:env.IDENTITY_MAPPING_DB_PATH},{OIDC_REDIRECT_URI:'http://app.example.test/api/auth/keycloak/callback'}]){
+  for(const invalid of [{AUTHENTICATED_CUTOVER_APPROVED:'false'},{OIDC_SELF_REGISTRATION_ENABLED:'typo'},{OIDC_LOGIN_ENABLED:'false'},{AREA_B_PAYMENTS_PROXY:'true'},{AMQP_URL:''},{DB_PATH:env.IDENTITY_MAPPING_DB_PATH},{OIDC_REDIRECT_URI:'http://app.example.test/api/auth/keycloak/callback'}]){
    const f=fixture();await assert.rejects(startApplication({env:{...env,...invalid},load:f.load}));assert.deepEqual(f.calls,[]);
   }
-  assert.throws(()=>startupConfiguration({AUTHENTICATED_SERVICES_ENABLED:'yes'}));
+  assert.throws(()=>startupConfiguration({AUTHENTICATED_SERVICES_ENABLED:'yes'}));assert.throws(()=>startupConfiguration({OIDC_SELF_REGISTRATION_ENABLED:'true'}));
  });
  await t.test('authenticated boot selects clients before workers, no legacy relay, one recovery',async()=>{
   const f=fixture(),app=await startApplication({env,load:f.load});assert.equal(app.mode,'authenticated');assert.deepEqual(f.calls,['db','configure','consumers','broker','recovery']);await app.stop();await app.stop();assert.deepEqual(f.calls.slice(5),['runtime-stop','consumers-stop','broker-stop']);

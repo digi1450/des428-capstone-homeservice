@@ -84,3 +84,13 @@ high, one moderate). Both service locked installs report zero. These are advisor
 matches, not validated exploitation findings; major framework/schema-library
 remediation requires a separate compatibility review. No dependency versions or
 lockfiles changed in this slice. It is not a production-ready security assertion.
+
+## Compatibility with newly merged E work
+
+Integrated main aae5f1d (#54/#55) without dropping E's env/ignore/status/ownership
+changes. Added only the default-false signup flag to E's authenticated overlay and
+env generator; no infrastructure, ports or credential ownership changed.
+A separate temporary preparation/config check passed, retaining explicit basic/
+profile/email/roles scopes and disabled signup. The signup startup gate tests
+passed9/9 after adding invalid/mixed-mode validation. The final PR CI runs the
+combined source, including E's optional worker-readiness callbacks.
