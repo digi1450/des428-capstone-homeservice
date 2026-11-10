@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## Lead-selected legacy binding direction — 10 November 2026
+
+[PR60 baseline](c-legacy-binding-proposal.md) is selected by the lead: audited bindings for eligible old open gateway bookings; full-hash manifest shared by Booking/Payments; Payments binding written in its import transaction; v1.1 mutually exclusive legacy/provisioning reference; existing pending/ready UI. A exact manifest/contract fixtures come first, followed by A/C implementation and B operator-access work. Both owners must reconcile while ingress remains closed; append schema upgrades after E metadata and preserve existing guards. This is an accepted plan, not implemented006/binding support, another service extraction or historical cutover.
+
 ## C read-only consistency checker and A review corrections — 10 November 2026
 
 [Checker usage](c-consistency-check.md) and [validation](validation/c-consistency-check-2026-11-10.md) add source snapshots, money/work/hold invariants, read-only broker ready/unacknowledged coverage and explicit report/quiescent exit codes. A review corrections reject incomplete schemas/migration checksums and mismatching financial command/request/result identities; unknown unacked counts, missing DLQs and active consumers prevent quiescent approval. The current-source isolated regression runner passed11 tests with no skips and now runs in dedicated CI. This supplies a rehearsal tool; it does not freeze writers, repair data, decide PR60 legacy binding or authorize historical cutover.

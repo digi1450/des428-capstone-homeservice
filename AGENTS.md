@@ -11,6 +11,8 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 ## Read the shared handoffs before implementation
 
+- For the lead-selected old open gateway booking path, read `docs/c-legacy-binding-proposal.md` (accepted baseline despite its stable filename). A publishes exact manifest/hash and v1.1 reference fixtures first; C/A implement against them. Payments bindings are atomic with its import; both owners/checkpoint must reconcile before traffic opens. Append Booking upgrades after E's existing steps. Acceptance of this plan is not implemented legacy eligibility or cutover approval.
+
 - Before using the read-only C consistency checker for cutover/rollback, read `docs/c-consistency-check.md`: validate current owner schemas, stable command/request/result identity and broker ready/unacknowledged coverage. Quiescent checks require frozen writers and drained/disconnected consumers; missing counters or sources are not cutover approval.
 
 - For E Task5 deterministic process-crash/redelivery and financial trace recovery, read `docs/e-task5-fault-recovery-handoff.md`. Test-only child workers use production libraries; do not add runtime fault hooks or alter retry/business state to force recovery. Keep work/context atomic and preserve original command/snapshot/authority. Run both FINAL_STACK_TELEMETRY and FINAL_STACK_FAULTS acceptance in a new disposable project.

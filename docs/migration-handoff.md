@@ -143,3 +143,14 @@ The baseline 61-test run is historical. All new saga, broker, security, concurre
 B/D still need real inherited BOLA/race candidates matching the team rubric. Do not introduce a flaw to manufacture a fix; clarify acceptable evidence with the lecturer if the guarded teaching source does not supply the required candidate. This does not block initial API/outbox/saga design.
 
 GitHub membership usernames and the calendar deadline remain unknown. This document records planning decisions; teammate invitations, implementation and deployment require their own actions.
+
+
+## Selected legacy open-booking compatibility — 10 November 2026
+
+The lead selected the [legacy-binding baseline](c-legacy-binding-proposal.md).
+Booking stays in the monolith. A owns manifest/hash and v1.1 fixtures first, then
+importer/client/UI; C owns owned binding schemas, eligibility/financial checks,
+Booking operator CLI and consistency invariants; B owns concrete operator access.
+Preserve E metadata upgrades and keep traffic closed until both owner bindings
+and the full checkpoint/rehearsal agree. This is direction only; no006/schema,
+contract version or shared activation has changed in this documentation update.
