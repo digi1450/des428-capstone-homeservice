@@ -59,8 +59,13 @@ test("the previous fingerprint is exactly main's, so real old files are recognis
   assert.deepEqual(PREVIOUS_FINGERPRINTS, [MAIN_B4D0B46, MAIN_A23B98E,MAIN_9AD496A,MAIN_8494AA2]);
 });
 test('Task5 main gains only an empty recovery carrier table without changing durable work',()=>withOldDatabase(db=>{
+ const orderId=db.prepare('SELECT id FROM orders ORDER BY id LIMIT 1').get().id;
+ db.prepare("INSERT INTO booking_financial_work (operation_id,kind,order_id,command_id,request_json,state,attempts,next_attempt_at,locked_by,locked_until) VALUES ('saved-work','cancellation',?,'cancel:saved-work','{\"saved\":true}','pending',4,'2027-03-01','old-worker','2027-03-02')").run(orderId);
+ db.prepare("INSERT INTO event_trace_context (event_id,headers_json) VALUES (1,'{\"x-request-id\":\"existing\"}')").run();
  const before=rows(db);const work=db.prepare('SELECT * FROM booking_financial_work').all();
+ const eventContext=db.prepare('SELECT * FROM event_trace_context').all();assert.equal(work.length,1);
  assert.equal(migrate(db),'upgraded');assert.deepEqual(rows(db),before);assert.deepEqual(db.prepare('SELECT * FROM booking_financial_work').all(),work);
+ assert.deepEqual(db.prepare('SELECT * FROM event_trace_context').all(),eventContext);
  assert.equal(db.prepare('SELECT count(*) n FROM booking_work_trace_context').get().n,0);assert.equal(migrate(db),'preserved');
 },{from:3}));
 
