@@ -1,5 +1,7 @@
 # E authenticated Compose integration
 
+**10 November follow-up:** A completed [actual authenticated16-service acceptance](validation/a-e-final-stack-2026-11-10.md), including real user/business/event flows, scoped outages/readiness and persistent full-stack restart. [Runner](../tests/final-stack/README.md). This supersedes the infrastructure-only evidence boundary below for E Task4 in a fresh disposable deployment; historical migration and other E tasks remain open.
+
 Based on main after PR53, 10 November 2026. This prepares a reproducible **local,
 disposable integration deployment**, not an approved migration of useful data.
 Default startup/cutover/auth flags remain false. Existing base gateway traffic stays
