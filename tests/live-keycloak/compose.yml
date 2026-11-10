@@ -1,0 +1,44 @@
+# Disposable A/B acceptance environment; independent of E's final Compose.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.0
+    command: [start-dev, --import-realm, --http-enabled=false, --https-certificate-file=/fixture/cert.pem, --https-certificate-key-file=/fixture/key.pem, --hostname=https://keycloak:8443]
+    mem_limit: 768m
+    environment:
+      JAVA_OPTS_APPEND: '-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=2'
+    volumes:
+      - ${LIVE_OIDC_FIXTURES:?}/cert.pem:/fixture/cert.pem:ro
+      - ${LIVE_OIDC_FIXTURES:?}/key.pem:/fixture/key.pem:ro
+      - ${LIVE_OIDC_FIXTURES:?}/homeservice-realm.json:/opt/keycloak/data/import/homeservice-realm.json:ro
+    tmpfs: ['/opt/keycloak/data:uid=1000,gid=0,mode=0770']
+  payments-db:
+    image: postgres:16-alpine
+    mem_limit: 128m
+    environment: {POSTGRES_USER: fixture, POSTGRES_PASSWORD: fixture, POSTGRES_DB: payments}
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U fixture -d payments], interval: 2s, timeout: 2s, retries: 30}
+  notifications-db:
+    image: postgres:16-alpine
+    mem_limit: 128m
+    environment: {POSTGRES_USER: fixture, POSTGRES_PASSWORD: fixture, POSTGRES_DB: notifications}
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U fixture -d notifications], interval: 2s, timeout: 2s, retries: 30}
+  rabbitmq:
+    image: rabbitmq:4.1-alpine
+    user: rabbitmq
+    tmpfs: ["/var/lib/rabbitmq:uid=100,gid=101,mode=0770"]
+    mem_limit: 256m
+    environment: {RABBITMQ_DEFAULT_USER: fixture, RABBITMQ_DEFAULT_PASS: fixture, RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "+S 2:2 +A 2 +SDcpu 1 +SDio 1", RABBITMQ_CTL_ERL_ARGS: "+S 1:1 +A 1 +SDcpu 1 +SDio 1"}
+    healthcheck: {test: [CMD, rabbitmq-diagnostics, -q, ping], interval: 5s, timeout: 10s, retries: 30, start_period: 15s}
+  acceptance:
+    image: ${LIVE_OIDC_RUNNER_IMAGE:-homeservice-live-oidc-acceptance:local}
+    mem_limit: 1536m
+    init: true
+    environment:
+      NODE_EXTRA_CA_CERTS: /fixture/cert.pem
+    volumes:
+      - ${LIVE_OIDC_FIXTURES:?}/cert.pem:/fixture/cert.pem:ro
+      - ${LIVE_OIDC_FIXTURES:?}/key.pem:/fixture/key.pem:ro
+      - next-cache:/repo/bangkok-homeservice/.next/cache
+volumes:
+  next-cache: {}

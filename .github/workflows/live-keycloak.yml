@@ -1,0 +1,12 @@
+name: Real Keycloak and browser-service acceptance
+on:
+  pull_request:
+jobs:
+  live-keycloak:
+    name: Real Keycloak PKCE, ownership and financial flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fresh TLS realm, actual Next/services/PostgreSQL/RabbitMQ and fresh-key reimport
+        run: bash tests/live-keycloak/run.sh

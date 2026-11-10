@@ -1,5 +1,9 @@
 # Area B — staged authentication implementation handoff
 
+## A-led real Keycloak and signup follow-up — 10 November 2026
+
+The lead authorized A to complete B follow-up using the existing B seams. Read [the new auth/onboarding handoff](keycloak-onboarding-handoff.md) and [dated actual acceptance evidence](validation/a-b-live-keycloak-2026-11-10.md) first. It supersedes historical “real user/browser/webhook not tested” statements only for the isolated acceptance deployment described there. E final deployment, historical migration/cutover, dependency advisories and complete D/E acceptance remain open; default deployment/self-registration flags are still false.
+
 ## Handoff-first status — 2026-11-10 (read this first)
 
 **Updated lead decision after A review/fix: PR #51 may merge as staged integration preparation once the reviewed head passes CI. This is NOT final-stack cutover or Area B completion.** The cookie-capacity defect is fixed, monolith266 and production build pass, and the fixed head3416378 passed all12 PR checks including all4 B jobs. Real Keycloak/browser/ownership/webhook/full-stack gates remain below. Historical no-merge statements are superseded by this staged-merge decision. This section supersedes stale historical status statements below, which are retained as implementation history. See [dated verification evidence](validation/area-b-security-2026-11-09.md).

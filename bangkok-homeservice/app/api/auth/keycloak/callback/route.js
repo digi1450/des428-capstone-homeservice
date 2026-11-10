@@ -1,3 +1,5 @@
+import {recoverIdentityBinding} from "#lib/modules/identity/onboarding.js";
+import {oidcRequestUrl} from "#lib/security/oidc-origin.js";
 import {timingSafeEqual} from "node:crypto";
 import {exchangeAuthorizationCode} from "#lib/security/oidc-pkce.js";
 import {verifyOidcIdToken} from "#lib/security/oidc-id-token.js";
@@ -10,7 +12,7 @@ const equal=(a,b)=>typeof a==="string"&&typeof b==="string"&&Buffer.byteLength(a
 export async function GET(request){
  const issuer=process.env.KEYCLOAK_ISSUER,redirectUri=process.env.OIDC_REDIRECT_URI,secret=process.env.OIDC_SESSION_SECRET,path=process.env.IDENTITY_MAPPING_DB_PATH;
  if(process.env.OIDC_LOGIN_ENABLED!=="true"||!issuer||!redirectUri||!secret||!path)return Response.json({error:"unavailable"},{status:503});
- const origin=new URL(request.url);
+ let origin;try{origin=oidcRequestUrl(request);}catch{return Response.json({error:"origin mismatch"},{status:503});}
  if(new URL(redirectUri).origin!==origin.origin)return Response.json({error:"origin mismatch"},{status:503});
  const secure=origin.protocol==="https:";
  const clear=cookie("homeservice_oidc_pending","",{maxAge:0,secure});
@@ -25,7 +27,7 @@ export async function GET(request){
   let store;
   let identity;
   try{store=createIdentityMappingStore({path});identity=store.lookup({issuer,sub:verified.sub});}finally{store?.close();}
-  if(!identity)return Response.json({error:"account not provisioned"},{status:403,headers:{"Set-Cookie":clear}});
+  if(!identity&&process.env.OIDC_SELF_REGISTRATION_ENABLED==="true")identity=recoverIdentityBinding({issuer,sub:verified.sub},{path});
   // Decode the access-token expiry only as a session lifetime bound.
   // The downstream service performs the authoritative JWT verification.
   const accessParts=tokens.access_token.split(".");
@@ -34,6 +36,14 @@ export async function GET(request){
   if(accessClaims.iss!==issuer||accessClaims.sub!==verified.sub||accessClaims.azp!=="homeservice-web"||
      !Number.isSafeInteger(accessClaims.exp)||accessClaims.exp<=Math.floor(Date.now()/1000))throw Error("invalid access token claims");
   const expiry=Math.min(verified.exp,accessClaims.exp,Math.floor(Date.now()/1000)+600);
+  if(!identity){
+   if(process.env.OIDC_SELF_REGISTRATION_ENABLED!=="true"||typeof verified.email!=="string"||!verified.email||verified.email.length>254)return Response.json({error:"account not provisioned"},{status:403,headers:{"Set-Cookie":clear}});
+   let store,id;
+   try{store=createOidcSessionStore();id=store.create({purpose:"onboarding",issuer,sub:verified.sub,email:verified.email,exp:expiry,accessToken:tokens.access_token,refreshToken:typeof tokens.refresh_token==="string"?tokens.refresh_token:null,nonce:pending.nonce});}finally{store?.close();}
+   const headers=new Headers({Location:"/onboarding","Cache-Control":"no-store"});
+   headers.append("Set-Cookie",clear);headers.append("Set-Cookie",cookie("homeservice_oidc_onboarding",id,{maxAge:Math.max(1,expiry-Math.floor(Date.now()/1000)),secure}));
+   return new Response(null,{status:303,headers});
+  }
   let sessions,session;
   try{sessions=createOidcSessionStore();session=sessions.create({issuer,sub:verified.sub,role:identity.role,domainId:identity.domainId,exp:expiry,accessToken:tokens.access_token,nonce:pending.nonce,refreshToken:typeof tokens.refresh_token==="string"?tokens.refresh_token:null});}finally{sessions?.close();}
   const headers=new Headers({"Location":"/","Cache-Control":"no-store"});

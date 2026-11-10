@@ -1,3 +1,4 @@
+import {oidcRequestUrl} from "#lib/security/oidc-origin.js";
 import {readCookie,cookie} from "#lib/security/oidc-session.js";
 import {verifyOidcIdToken} from "#lib/security/oidc-id-token.js";
 import {createIdentityMappingStore} from "#lib/security/identity-mapping.js";
@@ -5,7 +6,8 @@ import {createOidcSessionStore,isOidcSessionId} from "#lib/security/oidc-session
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 export async function POST(request){
- const url=new URL(request.url),issuer=process.env.KEYCLOAK_ISSUER,secret=process.env.OIDC_SESSION_SECRET,path=process.env.IDENTITY_MAPPING_DB_PATH;
+ let url;try{url=oidcRequestUrl(request);}catch{return Response.json({error:"origin mismatch"},{status:503});}
+ const issuer=process.env.KEYCLOAK_ISSUER,secret=process.env.OIDC_SESSION_SECRET,path=process.env.IDENTITY_MAPPING_DB_PATH;
  if(process.env.OIDC_LOGIN_ENABLED!=="true"||!issuer||!secret||!path)return Response.json({error:"unavailable"},{status:503});
  if(request.headers.get("origin")!==url.origin)return Response.json({error:"origin required"},{status:403});
  const secure=url.protocol==="https:";
@@ -23,7 +25,7 @@ export async function POST(request){
   if(!response.ok)throw Error("refresh failed");
   const tokens=await response.json();
   if(typeof tokens.id_token!=="string"||typeof tokens.access_token!=="string"||typeof tokens.refresh_token!=="string"||tokens.token_type?.toLowerCase()!=="bearer")throw Error("invalid refresh");
-  const verified=await verifyOidcIdToken({token:tokens.id_token,issuer,nonce:previous.nonce});
+  const verified=await verifyOidcIdToken({token:tokens.id_token,issuer,nonce:previous.nonce,refresh:true});
   if(verified.sub!==previous.sub)throw Error("subject changed");
   const parts=tokens.access_token.split(".");
   if(parts.length!==3)throw Error("invalid access token");

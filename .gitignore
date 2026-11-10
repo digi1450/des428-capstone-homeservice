@@ -34,3 +34,7 @@ service-account*.json
 # Local planning and scratch evidence; reviewed evidence goes under docs/
 /output/
 /tmp/
+
+# Python tool caches
+__pycache__/
+*.py[cod]

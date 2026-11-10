@@ -18,6 +18,12 @@ This is an **importable starting realm**, not an activated production IdP or a c
 4. Set up a stable HTTPS hostname and TLS trusted by both service containers. Configure the verifier issuer to the **exact** `iss` in the access token (for example `https://id.example.test/realms/homeservice`). Do not turn off TLS verification or accept an untrusted JWKS URL.
 5. Provision client secrets through environment/secrets management outside Git; rotate them in Keycloak **and** update consuming runtimes. Changing only a local `.env` does not rotate persisted Keycloak credentials.
 
+## A-led fresh import and signup follow-up
+
+Read [the auth/onboarding handoff](../../docs/keycloak-onboarding-handoff.md). The realm now explicitly includes profile/email/roles/basic scopes and subject mapping for all three caller clients. Only the browser client receives generic user:read on the two API audiences. Self-registration and refresh rotation are enabled in the realm source; application self-registration remains separately disabled until reviewed deployment. Existing realms are not updated automatically by an import using IGNORE_EXISTING; do not replace useful realm/H2 data. Follow the deployment admin procedure instead.
+
+The exact local callback below is still a starting placeholder; the isolated acceptance overrides it with its exact test HTTPS callback and ephemeral users/credentials, never wildcards. Historical descriptions of missing browser implementation below are superseded by the new handoff/evidence, not proof of E final-stack readiness.
+
 ## Outstanding integration
 
 - The realm export allows only the exact local callback `http://localhost:3000/api/auth/keycloak/callback`; replace it with the reviewed exact HTTPS callback URI before deploying. Wildcard redirects must not be introduced.

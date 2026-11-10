@@ -1,3 +1,5 @@
+import {getIdentityAccess} from "#lib/http/identity-access.js";
+import {ConflictError} from "#lib/errors.js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ const schema = z.object({
 });
 
 export const POST = handle(async (req) => {
+  if(getIdentityAccess())throw new ConflictError("Use Keycloak registration to create a profile");
   const input = parse(schema, await readJson(req));
   const provider = identity.registerProvider(input);
   return json(

@@ -1,8 +1,11 @@
+import {getIdentityAccess} from "#lib/http/identity-access.js";
+import {redirect} from "next/navigation";
 export const dynamic = "force-dynamic";
 
 import { Form } from "../../../_ui/client.js";
 
 export default function ProviderRegisterPage() {
+  if(getIdentityAccess())redirect("/api/auth/keycloak/start?signup=1");
   return (
     <div style={{ maxWidth: 420 }}>
       <h1>Register as a provider</h1>
