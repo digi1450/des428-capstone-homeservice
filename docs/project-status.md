@@ -1,5 +1,10 @@
 # Shared project status and handoff
 
+## E Task 3 CI and contracts — 10 November 2026
+
+[Task 3 handoff](e-task3-ci-handoff.md) adds sequential tracing/lifecycle/outbox CI, PR/main/manual triggers, isolated cleanup and five consumer/provider Pact interactions. [Local act validation](validation/e-task3-ci-2026-11-10.md) records passing trace1/lifecycle5/outbox9, consumer5/provider2 and separate schema30 tests, with exact limits. Local act is not a GitHub CI or merge claim. No application/auth/data cutover or completion of the other E tasks.
+
+
 ## E authenticated Compose preparation — 10 November 2026
 
 [Deployment handoff](e-authenticated-compose-handoff.md) adds a wallet-consumer process, three real worker readiness probes, migration ordering, and an explicit Keycloak/PostgreSQL/TLS overlay with persistent B sidecars and PR53 startup configuration. Default auth/cutover flags remain false. [Validation](validation/e-authenticated-compose-2026-11-10.md) distinguishes observed infrastructure/machine-token tests from pending human/browser/data/final-stack acceptance. No useful-data cutover or shared activation.

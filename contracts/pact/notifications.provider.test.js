@@ -68,6 +68,9 @@ test("Notifications provider satisfies Monolith Pact contract", async () => {
       providerBaseUrl,
       pactUrls: [pactFile],
       stateHandlers: {
+        'customer has an unread notification': async()=>{
+          await db.query('INSERT INTO notifications (id,recipient_role,recipient_id,type,title,body,order_id,read_at) VALUES ($1,$2,$3,$4,$5,$6,$7,NULL) ON CONFLICT (id) DO UPDATE SET recipient_role=EXCLUDED.recipient_role,recipient_id=EXCLUDED.recipient_id,read_at=NULL', [100000113,'customer',userId,'booking_status','Booking awaiting','Booking #42 is now awaiting.',42]);
+        },
         "customer has notifications": async () => {
           // Clear only test data belonging to this fixed test actor.
           await db.query(
