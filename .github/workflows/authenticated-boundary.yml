@@ -1,0 +1,54 @@
+name: Authenticated service composition
+on:
+  pull_request:
+jobs:
+  authenticated-boundary:
+    name: OIDC session, JWT and financial service boundary
+    runs-on: ubuntu-latest
+    services:
+      payments-postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: auth_payments
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d auth_payments"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      notifications-postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: auth_notifications
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d auth_notifications"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_AUTH_PAYMENTS_DATABASE_URL: postgres://test_user:test_password@localhost:5432/auth_payments
+      TEST_AUTH_NOTIFICATIONS_DATABASE_URL: postgres://test_user:test_password@localhost:5433/auth_notifications
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            bangkok-homeservice/package-lock.json
+            services/payments-wallet/package-lock.json
+            services/notifications/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          npm ci --prefix bangkok-homeservice
+          npm ci --prefix services/payments-wallet
+          npm ci --prefix services/notifications
+      - name: Actual verifiers, clients, workflows and owning databases with fixture issuer
+        run: node --test tests/integration/authenticated-services-boundary.test.mjs

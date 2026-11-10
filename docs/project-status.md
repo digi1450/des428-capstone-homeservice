@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A authenticated A/B/C composition — 10 November 2026
+
+[Authenticated runtime handoff](authenticated-runtime-handoff.md) connects merged B sessions/current identity mapping, A clients/API and page identities, C provisioning/financial recovery and event-only provider/notification ownership in one explicit lifecycle. It adds shared browser OIDC identity selection and original-bearer webhook forwarding without a privileged gateway credential fallback. Default instrumentation/routing/flags remain unchanged. Local monolith273, authenticated HTTP/two-PG boundary7 and production build passed ([evidence](validation/a-authenticated-runtime-2026-11-10.md)). Current staging proves real HTTP/owning PG with signed issuer fixtures; actual Keycloak/browser/page context, broker/paid-event/notification delivery, TLS/volumes, legacy cutover and final D/E acceptance remain open. It is not production activation or completion of A steps4–5.
+
 ## B staged authentication and A session review fix — 10 November 2026
 
 [PR #51](https://github.com/digi1450/des428-capstone-homeservice/pull/51) supplies Keycloak realm/roles, RS256/JWKS user and separate Booking/gateway verifiers, trusted monolith-owned identity mapping/resolver, and opt-in OIDC/credential/read-proxy interfaces. A's reviewed correction persists encrypted tokens server-side and uses fixed-size opaque browser session IDs, with atomic refresh rotation and server logout invalidation. Monolith266, OIDC18 and production build passed; the fixed code head passed all12 PR checks including all4 Area B jobs. [B handoff](b-authentication-handoff.md) separates prior developer-reported live service-token evidence from independently tested fixtures.

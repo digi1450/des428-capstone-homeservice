@@ -1,8 +1,11 @@
 export const dynamic = "force-dynamic";
+import {redirect} from "next/navigation";
+import {getIdentityAccess} from "#lib/http/identity-access.js";
 
 import { Form } from "../../_ui/client.js";
 
 export default function LoginPage() {
+  if(getIdentityAccess())redirect("/api/auth/keycloak/start");
   return (
     <div style={{ maxWidth: 420 }}>
       <h1>Customer log in</h1>
