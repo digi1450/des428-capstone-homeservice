@@ -52,3 +52,24 @@ jobs:
           npm ci --prefix services/notifications
       - name: Actual verifiers, clients, workflows and owning databases with fixture issuer
         run: node --test tests/integration/authenticated-services-boundary.test.mjs
+  next-startup:
+    name: Compiled Next authenticated startup and RSC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bangkok-homeservice/package-lock.json
+      - run: npm ci --prefix bangkok-homeservice
+      - name: Build production Next server
+        run: npm run build --prefix bangkok-homeservice
+      - name: Generate disposable fixture TLS certificate
+        run: >-
+          openssl req -x509 -newkey rsa:2048 -nodes
+          -keyout "$RUNNER_TEMP/fixture-key.pem" -out "$RUNNER_TEMP/fixture-cert.pem"
+          -days 1 -subj /CN=localhost -addext 'subjectAltName=IP:127.0.0.1,DNS:localhost'
+      - name: Actual boot, API and Server Component with fixture session and HTTPS service
+        working-directory: bangkok-homeservice
+        run: node ../scripts/verify-next-authenticated-startup.mjs "$RUNNER_TEMP/fixture-key.pem" "$RUNNER_TEMP/fixture-cert.pem"

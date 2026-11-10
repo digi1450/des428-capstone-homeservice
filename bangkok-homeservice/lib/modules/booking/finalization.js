@@ -1,3 +1,4 @@
+import {processState} from '../../runtime/process-state.js';
 // Area C — Booking financial finalization (step 5C): durable completion/cancellation work,
 // the synchronous local transition guard and recovery. Implements the four callbacks A's caller
 // seam requires (configureBookingFinancialAccess({ bookingFinalization })).
@@ -35,8 +36,8 @@ const workFor = (orderId, kind) => db().prepare("SELECT * FROM booking_financial
 const workById = (operationId) => db().prepare("SELECT * FROM booking_financial_work WHERE operation_id = ?").get(operationId);
 const sagaFor = (orderId) => db().prepare("SELECT saga_id, state, create_command_id FROM booking_sagas WHERE order_id = ?").get(orderId);
 
-let runtime = null;
-export const getBookingFinalizationRuntime = () => runtime;
+const selection=processState('modules/booking/finalization.js');
+export const getBookingFinalizationRuntime = () => selection.value;
 
 // financial = A's createFinancialClient(...) (complete/cancel with the saved work).
 // credentials() = B's service-credential callback ({ token, requestId?, traceparent? }).
@@ -45,10 +46,10 @@ export function createBookingFinalization({ financial, credentials, baseBackoffM
   leaseMs = 15000, escalateAfter = 5, random = Math.random, owner = `finalization-${process.pid}-${randomUUID().slice(0, 8)}` } = {}) {
   if (typeof financial?.complete !== "function" || typeof financial?.cancel !== "function") throw new TypeError("finalization requires A's financial client");
   if (typeof credentials !== "function") throw new TypeError("finalization requires a service credential callback");
-  runtime = { financial, credentials, baseBackoffMs, maxBackoffMs, leaseMs, escalateAfter, random, owner };
+  selection.value = { financial, credentials, baseBackoffMs, maxBackoffMs, leaseMs, escalateAfter, random, owner };
   return { complete, cancel, status, assertTransitionAllowed };
 }
-export function resetBookingFinalization() { runtime = null; } // tests / drained shutdown only
+export function resetBookingFinalization() { selection.value = null; } // tests / drained shutdown only
 
 // ------------------------------------------------------------------ snapshots
 function snapshot(order, kind, operationId) {
@@ -202,7 +203,7 @@ function finalizeCancellation(work, token, result) {
 }
 
 async function deliver(operationId) {
-  const rt = runtime;
+  const rt = selection.value;
   if (!rt) return workById(operationId);
   const token = `${rt.owner}:${randomUUID()}`;
   const claimed = db().prepare(
@@ -256,7 +257,7 @@ async function deliver(operationId) {
 
 // Delivers due pending work (restart, lost replies, awaiting settlement). Same saved key each time.
 export async function recoverFinalizationOnce({ batchSize = 25 } = {}) {
-  if (!runtime) return 0;
+  if (!selection.value) return 0;
   const due = db().prepare(
     `SELECT operation_id FROM booking_financial_work WHERE state = 'pending' AND next_attempt_at <= ?
       AND (locked_until IS NULL OR locked_until < ?) ORDER BY next_attempt_at LIMIT ?`,

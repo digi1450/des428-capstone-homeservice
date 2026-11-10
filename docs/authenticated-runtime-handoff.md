@@ -23,7 +23,7 @@ await runtime.recoverNow();   // optional one round, coalesces with this runtime
 await runtime.stop();
 ```
 
-There is deliberately no environment auto-enable and no call in instrumentation.
+PR52 originally had no call in instrumentation. The subsequent [startup handoff](authenticated-startup-handoff.md) adds an explicitly gated call; both gates remain false by default. The lifecycle below still applies.
 A/E must wire this **after successful SQLite bootstrap but before legacy relay or
 other recovery timers start**, after the gates below. Starting the legacy relay
 or C standalone saga-recovery timer first makes construction fail rather than
