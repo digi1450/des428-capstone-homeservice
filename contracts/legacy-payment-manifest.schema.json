@@ -1,0 +1,258 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://homeservice.invalid/contracts/legacy-payment-manifest-v1",
+  "title": "Approved legacy payment manifest envelope v1 (contract only)",
+  "description": "Requires schema + unique/sorted identity + canonical hash + artifact checks. Does not prove source eligibility, consistent backup, DB state, operator approval or atomic distributed cutover.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest",
+    "manifest_sha256"
+  ],
+  "properties": {
+    "manifest": {
+      "$ref": "#/definitions/ManifestCore"
+    },
+    "manifest_sha256": {
+      "$ref": "#/definitions/Sha256"
+    }
+  },
+  "definitions": {
+    "DomainId": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483646
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "OpenUnpaid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order_id",
+        "intent_id",
+        "customer_id",
+        "provider_id",
+        "amount_cents",
+        "currency",
+        "payment_method",
+        "eligibility",
+        "order_status",
+        "payment_status",
+        "intent_status"
+      ],
+      "properties": {
+        "order_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "intent_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "customer_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "provider_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483646
+        },
+        "currency": {
+          "const": "THB"
+        },
+        "payment_method": {
+          "const": "gateway"
+        },
+        "eligibility": {
+          "const": "open_unpaid"
+        },
+        "order_status": {
+          "const": "awaiting"
+        },
+        "payment_status": {
+          "const": "pending"
+        },
+        "intent_status": {
+          "const": "requires_payment"
+        }
+      }
+    },
+    "OpenPaid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order_id",
+        "intent_id",
+        "customer_id",
+        "provider_id",
+        "amount_cents",
+        "currency",
+        "payment_method",
+        "eligibility",
+        "order_status",
+        "payment_status",
+        "intent_status",
+        "charge_transaction_id"
+      ],
+      "properties": {
+        "order_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "intent_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "customer_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "provider_id": {
+          "$ref": "#/definitions/DomainId"
+        },
+        "amount_cents": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483646
+        },
+        "currency": {
+          "const": "THB"
+        },
+        "payment_method": {
+          "const": "gateway"
+        },
+        "eligibility": {
+          "const": "open_paid"
+        },
+        "order_status": {
+          "const": "confirmed"
+        },
+        "payment_status": {
+          "const": "paid"
+        },
+        "intent_status": {
+          "const": "succeeded"
+        },
+        "charge_transaction_id": {
+          "$ref": "#/definitions/DomainId"
+        }
+      }
+    },
+    "ManifestCore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format_version",
+        "snapshot_id",
+        "source",
+        "legacy_event_watermark",
+        "bundles",
+        "bindings"
+      ],
+      "properties": {
+        "format_version": {
+          "const": 1
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+          "minLength": 36,
+          "maxLength": 36
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sqlite_backup_sha256",
+            "schema_fingerprint"
+          ],
+          "properties": {
+            "sqlite_backup_sha256": {
+              "$ref": "#/definitions/Sha256"
+            },
+            "schema_fingerprint": {
+              "$ref": "#/definitions/Sha256"
+            }
+          }
+        },
+        "legacy_event_watermark": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "bundles": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "service",
+                  "file",
+                  "sha256"
+                ],
+                "properties": {
+                  "service": {
+                    "const": "notifications"
+                  },
+                  "file": {
+                    "const": "notifications.json"
+                  },
+                  "sha256": {
+                    "$ref": "#/definitions/Sha256"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "service",
+                  "file",
+                  "sha256"
+                ],
+                "properties": {
+                  "service": {
+                    "const": "payments-wallet"
+                  },
+                  "file": {
+                    "const": "payments-wallet.json"
+                  },
+                  "sha256": {
+                    "$ref": "#/definitions/Sha256"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/definitions/OpenUnpaid"
+              },
+              {
+                "$ref": "#/definitions/OpenPaid"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "x-canonicalization": {
+    "encoding": "UTF8 without BOM",
+    "core": "sorted ASCII keys, integer-only safe JSON numbers, no whitespace; preserve arrays already sorted by service/order_id",
+    "digest": "full lowercase SHA256 of core only",
+    "binding_id": "derived after hashing; never part of core",
+    "envelopeFile": "canonical envelope JSON with optional single trailing LF; strict parser rejects duplicates/noncanonical or invalid UTF8"
+  }
+}

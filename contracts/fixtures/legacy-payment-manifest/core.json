@@ -1,0 +1,50 @@
+{
+  "format_version": 1,
+  "snapshot_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "source": {
+    "sqlite_backup_sha256": "ba82aa40a31a5929e7c532eb9741caf2d10b6dd6bdc808684057835144097018",
+    "schema_fingerprint": "48ce1cb4d9572561067cc99d9b0c2fb491bfa80c57211295323c41fe3818bdf7"
+  },
+  "legacy_event_watermark": 80,
+  "bundles": [
+    {
+      "service": "notifications",
+      "file": "notifications.json",
+      "sha256": "555d591dc7cb6b1472dfdcd731538e6ff077bf45d656e59a04195f4fbdfd5560"
+    },
+    {
+      "service": "payments-wallet",
+      "file": "payments-wallet.json",
+      "sha256": "f10f5b1a85360020e57a9a6adc1e6dc1b15052d77f2653c564ede94b01d469c9"
+    }
+  ],
+  "bindings": [
+    {
+      "order_id": 13,
+      "intent_id": 45,
+      "customer_id": 5,
+      "provider_id": 7,
+      "amount_cents": 4000,
+      "currency": "THB",
+      "payment_method": "gateway",
+      "eligibility": "open_unpaid",
+      "order_status": "awaiting",
+      "payment_status": "pending",
+      "intent_status": "requires_payment"
+    },
+    {
+      "order_id": 14,
+      "intent_id": 46,
+      "customer_id": 5,
+      "provider_id": 7,
+      "amount_cents": 5000,
+      "currency": "THB",
+      "payment_method": "gateway",
+      "eligibility": "open_paid",
+      "order_status": "confirmed",
+      "payment_status": "paid",
+      "intent_status": "succeeded",
+      "charge_transaction_id": 140
+    }
+  ]
+}

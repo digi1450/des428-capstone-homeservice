@@ -1,0 +1,38 @@
+{
+  "booking": [
+    {
+      "order_id": 13,
+      "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+      "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+    },
+    {
+      "order_id": 14,
+      "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+      "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02"
+    }
+  ],
+  "payments-wallet": [
+    {
+      "order_id": 13,
+      "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:13",
+      "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02",
+      "intent_id": 45,
+      "customer_id": 5,
+      "provider_id": 7,
+      "amount_cents": 4000,
+      "currency": "THB",
+      "eligibility": "open_unpaid"
+    },
+    {
+      "order_id": 14,
+      "binding_id": "legacy:49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02:14",
+      "manifest_sha256": "49236959cee09686d145b001e22b715e0787f6ffd69dd3000c3d49829e37ba02",
+      "intent_id": 46,
+      "customer_id": 5,
+      "provider_id": 7,
+      "amount_cents": 5000,
+      "currency": "THB",
+      "eligibility": "open_paid"
+    }
+  ]
+}

@@ -12,6 +12,9 @@ This addresses item1 of [legacy rehearsal](legacy-cutover-rehearsal-handoff.md#w
 already extracted Payments & Wallet service, not another service extraction.
 No runtime flags, actual contracts, database schemas or useful data change here.
 
+Exact artifact follow-up: [manifest/v1.1 handoff](legacy-manifest-contract-handoff.md)
+publishes A's schema/hash/owner-row/wire fixtures. Runtime and writers remain pending.
+
 ## Selected decisions
 
 | Decision | Implementation baseline |
@@ -63,7 +66,8 @@ by editing metadata. Existing exporter mixed-source/attention guards still apply
 
 The current exporter emits two owner bundles with a `snapshot_id` and watermark;
 it does **not** yet emit this reviewed eligibility manifest. Implement that artifact
-before either binding writer. Current contracts remain v1.0.0 until the code PR.
+before either binding writer. The deployed/runtime contract remains v1.0.0; target v1.1 and manifest artifacts
+are now published separately in the linked handoff. Neither writer is implemented.
 
 The v1 manifest envelope contains `manifest` (the hashed core) and
 `manifest_sha256` (the full64 lowercase hexadecimal SHA256 of canonical core bytes).

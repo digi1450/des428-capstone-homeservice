@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A manifest v1 and financial target v1.1 artifacts — 10 November2026
+
+[Exact handoff](legacy-manifest-contract-handoff.md) supplies strict manifest/schema, canonical full-SHA256 rules, independent JS/Python golden vectors, deterministic owner binding rows and target financial1.1 requests/results with legacy references. Retained provisioning/COD v1 contracts remain unchanged. [Static conformance evidence](validation/a-legacy-manifest-contract-2026-11-10.md):46 tests passed including all30 previous tests. This completes A interface-artifact step1 only; exporter/importer,006/Booking CLI, runtime validation/client/UI and real eligibility/checkpoint/cutover remain pending.
+
 ## Lead-selected legacy binding direction — 10 November 2026
 
 [PR60 baseline](c-legacy-binding-proposal.md) is selected by the lead: audited bindings for eligible old open gateway bookings; full-hash manifest shared by Booking/Payments; Payments binding written in its import transaction; v1.1 mutually exclusive legacy/provisioning reference; existing pending/ready UI. A exact manifest/contract fixtures come first, followed by A/C implementation and B operator-access work. Both owners must reconcile while ingress remains closed; append schema upgrades after E metadata and preserve existing guards. This is an accepted plan, not implemented006/binding support, another service extraction or historical cutover.
