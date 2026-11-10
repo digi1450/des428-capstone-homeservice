@@ -11,13 +11,12 @@ export async function POST(request){
  if(process.env.OIDC_LOGIN_ENABLED!=="true"||!issuer||!secret||!path)return Response.json({error:"unavailable"},{status:503});
  if(request.headers.get("origin")!==url.origin)return Response.json({error:"origin required"},{status:403});
  const secure=url.protocol==="https:";
- const clear=cookie("homeservice_oidc_session","",{maxAge:0,secure});
  const sessionId=readCookie(request,"homeservice_oidc_session");
  if(!isOidcSessionId(sessionId))return Response.json({error:"invalid session"},{status:401});
  let previous,sessionStore;
  try{sessionStore=createOidcSessionStore();previous=sessionStore.get(sessionId);}catch{return Response.json({error:"session unavailable"},{status:503});}finally{sessionStore?.close();}
  if(previous?.issuer!==issuer||typeof previous.sub!=="string"||!previous.sub||typeof previous.refreshToken!=="string"||!previous.refreshToken||
- typeof previous.nonce!=="string"||!previous.nonce)return Response.json({error:"refresh unavailable"},{status:401,headers:{"Set-Cookie":clear}});
+ typeof previous.nonce!=="string"||!previous.nonce)return Response.json({error:"refresh unavailable"},{status:401,headers:{"Cache-Control":"no-store"}});
  try{
   const endpoint=new URL(issuer);
   if(endpoint.protocol!=="https:"||endpoint.username||endpoint.password||endpoint.search||endpoint.hash||!/^\/realms\/[^/]+$/.test(endpoint.pathname)||endpoint.href!==issuer)throw Error("issuer");
@@ -41,9 +40,10 @@ export async function POST(request){
   if(!value)return Response.json({error:"session changed; refresh not applied"},{status:409});
   return Response.json({ok:true},{headers:{"Cache-Control":"no-store","Set-Cookie":cookie("homeservice_oidc_session",value,{maxAge:Math.max(1,exp-now),secure})}});
  }catch{
-  // Invalidate only the original ID, never a replacement installed by another request.
+  // Invalidate only the original ID. Never clear the browser cookie here: this
+  // response may arrive after another tab installed a newer session cookie.
   let store;
-  try{store=createOidcSessionStore();store.remove(sessionId);}catch{return Response.json({error:"session unavailable"},{status:503,headers:{"Set-Cookie":clear}});}finally{store?.close();}
-  return Response.json({error:"refresh failed"},{status:401,headers:{"Set-Cookie":clear}});
+  try{store=createOidcSessionStore();store.remove(sessionId);}catch{return Response.json({error:"session unavailable"},{status:503,headers:{"Cache-Control":"no-store"}});}finally{store?.close();}
+  return Response.json({error:"refresh failed"},{status:401,headers:{"Cache-Control":"no-store"}});
  }
 }

@@ -73,6 +73,7 @@ email-based linking or creating a second profile.
 - Initial authorization-code login still requires the original nonce. Refresh may
   omit nonce; if present it must equal the original. This follows
   [OIDC Core12.2](https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokenResponse).
+  Late/replayed refresh failures invalidate only their original server ID and emit no cookie-clear header, so they cannot overwrite a newer cookie installed by another tab. Explicit logout still clears cookies.
   Subject changes remain forbidden; application session invalidation is not general
   Keycloak access-token/global-session revocation.
 

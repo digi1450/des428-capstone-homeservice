@@ -9,6 +9,10 @@ compose=(docker compose -p "$project" -f "$root/tests/live-keycloak/compose.yml"
 cleanup(){
   status=$?
   "${compose[@]}" logs --no-color > "$LIVE_OIDC_FIXTURES/infrastructure.log" 2>&1 || true
+  if [[ "$status" != 0 ]]; then
+    "${compose[@]}" ps -a || true
+    "${compose[@]}" logs --no-color --tail 60 keycloak || true
+  fi
   "${compose[@]}" down --volumes --remove-orphans > "$LIVE_OIDC_FIXTURES/cleanup.log" 2>&1 || true
   echo "Disposable acceptance logs: $LIVE_OIDC_FIXTURES"
   exit "$status"

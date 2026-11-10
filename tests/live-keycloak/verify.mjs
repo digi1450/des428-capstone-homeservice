@@ -96,7 +96,8 @@ async function serviceToken(client){const r=await fetch(issuer+'/protocol/openid
 const api=async(cookies,path,body,extra={})=>{const r=await browse(cookies,base+path,{method:body===undefined?'GET':'POST',headers:{...(body===undefined?{}:{'Content-Type':'application/json'}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:r.status,body:await r.json()};};
 const direct=async(url,token,body,extra={})=>{const r=await fetch(url,{method:body===undefined?'GET':'POST',headers:{Authorization:'Bearer '+token,...extra,...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:r.status,body:await r.json()};};
 try{
- await until(async()=>{try{return (await fetch(issuer+'/.well-known/openid-configuration')).ok;}catch{return false;}},'Keycloak TLS/realm import',150);
+ let discovery='not attempted';
+ await until(async()=>{try{const r=await fetch(issuer+'/.well-known/openid-configuration',{signal:AbortSignal.timeout(5000)});discovery='HTTP '+r.status;return r.ok;}catch(error){discovery=String(error.cause?.code||error.name);return false;}},'Keycloak TLS/realm import (last state is logged on failure)',450).catch(error=>{console.error('Keycloak discovery last state:',discovery);throw error;});
  pass('real Keycloak26 discovery over verified TLS');
  await migratePay(pay);await migrateNotes(notes);
  const resolveIdentity=createIdentityResolver({url:base+'/api/internal/identity/resolve',token:resolverSecret});
@@ -146,7 +147,7 @@ try{
  assert.notEqual(alice.cookies.get('127.0.0.1').get('homeservice_oidc_session'),oldId);
  const reused=await fetch(issuer+'/protocol/openid-connect/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',client_id:'homeservice-web',refresh_token:aliceSession.refreshToken})});assert.equal(reused.status,400,'realm rejects reuse of rotated refresh credential');
  const stale=jar();stale.set('127.0.0.1',new Map([['homeservice_oidc_session',oldId]]));
- assert.equal((await api(stale,'/api/auth/keycloak/refresh',{}, {Origin:base})).status,401);
+ const staleReply=await browse(stale,base+'/api/auth/keycloak/refresh',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:'{}'});assert.equal(staleReply.status,401);assert.equal(staleReply.headers.getSetCookie().length,0);
  assert.equal((await api(alice.cookies,'/api/me')).status,200);
  pass('real refresh ID-token/nonce verification, atomic opaque-session rotation and stale-session replay rejection');
  await registerProvider();pass('real Keycloak self-registration, provider-only onboarding and durable RabbitMQ wallet provisioning');

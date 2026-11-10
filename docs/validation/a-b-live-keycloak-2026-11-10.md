@@ -94,3 +94,20 @@ A separate temporary preparation/config check passed, retaining explicit basic/
 profile/email/roles scopes and disabled signup. The signup startup gate tests
 passed9/9 after adding invalid/mixed-mode validation. The final PR CI runs the
 combined source, including E's optional worker-readiness callbacks.
+
+## Refresh response review regression
+
+A consumed-ID refresh originally returned401 plus a cookie-clear header. If its
+response arrived after another tab's successful rotation, it could erase the new
+browser cookie. The new assertion failed before the fix (`stale-cookie-before.log`).
+Failure responses now revoke only their original server record and never clear a
+possibly newer browser cookie; explicit logout still clears it. Large-session
+rotation/replay and signed subject-switch rejection tests passed2/2 afterward
+(`stale-cookie-after.log`). This is a session-consistency fix, not global Keycloak
+revocation. The actual live CI test also checks that stale response header.
+
+The first GitHub run passed the other14 checks but timed out on fresh Keycloak
+discovery before application assertions. Its cold-start wait is bounded at90s
+with5s individual discovery attempts and sanitized status/cause diagnostics;
+business request deadlines are unchanged. Final exact-head CI determines whether
+the repeatable deployment passes.
