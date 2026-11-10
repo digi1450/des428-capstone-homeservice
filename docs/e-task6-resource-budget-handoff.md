@@ -28,6 +28,12 @@ The harness never changes Docker/WSL settings or stops unrelated stacks.
 
 ## Workload declared before the run
 
+Keycloak stays inside its existing1GiB cap with explicit heap128→512MiB,
+reserving space for native/JIT/first-boot augmentation. The first hosted run
+detected a real startup OOM with the percentage-based default on a2CPU/~8.3GB
+runner; no-swap or OOM gates were not relaxed to make it pass. See
+[Keycloak heap configuration](https://www.keycloak.org/server/containers).
+
 Use the actual fresh authenticated16-service runner with
 `FINAL_STACK_TELEMETRY=true`, `FINAL_STACK_FAULTS=true`, and
 `FINAL_STACK_RESOURCES=true`. Its existing real Keycloak provisioning/login,

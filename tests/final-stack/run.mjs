@@ -25,7 +25,7 @@ else{
 }
 const args=['compose','--env-file','.env.authenticated','-p',project,'-f','docker-compose.yml','-f','docker-compose.resources.yml','-f','docker-compose.authenticated.yml','-f','docker-compose.authenticated-resources.yml'];
 function docker(extra,input){const r=spawnSync('docker',[...args,...extra],{cwd:directory,input,encoding:'utf8',maxBuffer:16*1024**2});if(r.status!==0){writeFileSync(join(directory,'last-command-error.log'),r.stderr,{mode:0o600});throw Error('Compose command failed: '+extra.slice(0,2).join(' ')+' (inspect task-only logs in '+directory+')');}return r.stdout;}
-function logged(extra,name){const r=spawnSync('docker',[...args,...extra],{cwd:directory,encoding:'utf8',maxBuffer:32*1024**2});writeFileSync(join(directory,name),r.stdout+'\n'+r.stderr,{mode:0o600});assert.equal(r.status,0,'Compose '+extra[0]+' failed; see '+name);}
+function logged(extra,name){const r=spawnSync('docker',[...args,...extra],{cwd:directory,encoding:'utf8',maxBuffer:32*1024**2});writeFileSync(join(directory,name),r.stdout+'\n'+r.stderr,{mode:0o600});if(r.status!==0){try{const rows=docker(['ps','-a','--format','json']).split('\n').filter(Boolean).map(l=>{const x=JSON.parse(l);return{service:x.Service,state:x.State,health:x.Health,exitCode:x.ExitCode};});console.error(JSON.stringify({taskOnlyFailure:name,services:rows}));}catch{}}assert.equal(r.status,0,'Compose '+extra[0]+' failed; see '+name);}
 const js=(service,code)=>docker(['exec','-T',service,'node','--input-type=module'],code).trim();
 const crash=(service,name,code)=>{
  const env=Object.fromEntries(readFileSync(join(directory,'.env.authenticated'),'utf8').trim().split('\n').map(l=>{const i=l.indexOf('=');return[l.slice(0,i),l.slice(i+1)];}));
@@ -153,6 +153,6 @@ try{
 }finally{
  // Ownership marker checked before all destructive cleanup; shared projects never selected.
  assert.equal(JSON.parse(readFileSync(marker)).project,project);
- try{if(resource)await resource.stop();}finally{copyTask6Evidence();if(process.env.FINAL_STACK_KEEP!=='true')logged(['down','--volumes','--remove-orphans'],'cleanup.log');}
+ try{if(resource){const report=await resource.stop();console.error(JSON.stringify({task6Incomplete:{host:report.host,issues:report.issues,sampledAggregatePeakBytes:report.sampledAggregatePeakBytes}}));}}finally{copyTask6Evidence();if(process.env.FINAL_STACK_KEEP!=='true')logged(['down','--volumes','--remove-orphans'],'cleanup.log');}
  console.log('Task-only evidence directory: '+directory+(active?' (disposable auth enabled during test only)':''));
 }
