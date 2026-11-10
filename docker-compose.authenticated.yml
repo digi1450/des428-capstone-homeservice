@@ -1,0 +1,130 @@
+# Explicit local integration overlay; use a NEW project and reviewed cutover gates.
+# Preparation: node scripts/prepare-authenticated-compose.mjs
+services:
+  edemand:
+    environment:
+      AUTHENTICATED_SERVICES_ENABLED: ${AUTHENTICATED_SERVICES_ENABLED:-false}
+      AUTHENTICATED_CUTOVER_APPROVED: ${AUTHENTICATED_CUTOVER_APPROVED:-false}
+      OIDC_LOGIN_ENABLED: ${OIDC_LOGIN_ENABLED:-false}
+      AREA_B_NOTIFICATIONS_PROXY: "false"
+      AREA_B_PAYMENTS_PROXY: "false"
+      KEYCLOAK_ISSUER: https://id.homeservice.test:18443/realms/homeservice
+      OIDC_REDIRECT_URI: https://app.homeservice.test:18444/api/auth/keycloak/callback
+      PAYMENTS_WALLET_SERVICE_URL: https://payments.homeservice.test:18446
+      NOTIFICATIONS_SERVICE_URL: https://notifications.homeservice.test:18444
+      BOOKING_SERVICE_CLIENT_SECRET: ${BOOKING_SERVICE_CLIENT_SECRET:?Prepare integration secrets}
+      OIDC_SESSION_SECRET: ${OIDC_SESSION_SECRET:?Prepare integration secrets}
+      IDENTITY_MAPPING_DB_PATH: /app/data/identity-bindings.sqlite
+      OIDC_SESSION_DB_PATH: /app/data/oidc-sessions.sqlite
+      IDENTITY_RESOLVER_TOKEN: ${IDENTITY_RESOLVER_TOKEN:?Prepare integration secrets}
+      AMQP_URL: ${AUTHENTICATED_AMQP_URL:-}
+      NODE_EXTRA_CA_CERTS: /run/secrets/local_ca
+    secrets: [local_ca]
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      notifications-event-consumer:
+        condition: service_healthy
+      payments-wallet-consumer:
+        condition: service_healthy
+      payments-outbox-relay:
+        condition: service_healthy
+      tls:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+
+  notifications:
+    environment:
+      AREA_B_AUTH_ENABLED: ${AREA_B_AUTH_ENABLED:-false}
+      KEYCLOAK_ISSUER: https://id.homeservice.test:18443/realms/homeservice
+      IDENTITY_RESOLVER_URL: https://identity.homeservice.test:18445/api/internal/identity/resolve
+      IDENTITY_RESOLVER_TOKEN: ${IDENTITY_RESOLVER_TOKEN:?Prepare integration secrets}
+      NODE_EXTRA_CA_CERTS: /run/secrets/local_ca
+    secrets: [local_ca]
+
+  payments-wallet:
+    environment:
+      AREA_B_AUTH_ENABLED: ${AREA_B_AUTH_ENABLED:-false}
+      KEYCLOAK_ISSUER: https://id.homeservice.test:18443/realms/homeservice
+      IDENTITY_RESOLVER_URL: https://identity.homeservice.test:18445/api/internal/identity/resolve
+      IDENTITY_RESOLVER_TOKEN: ${IDENTITY_RESOLVER_TOKEN:?Prepare integration secrets}
+      NODE_EXTRA_CA_CERTS: /run/secrets/local_ca
+    secrets: [local_ca]
+
+  keycloak-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Prepare integration secrets}
+    volumes:
+      - keycloak-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.0
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Prepare integration secrets}
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Prepare integration secrets}
+      KC_HOSTNAME: https://id.homeservice.test:18443
+      KC_HTTPS_PORT: "18443"
+      KC_HTTPS_CERTIFICATE_FILE: /run/secrets/local_cert
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /run/secrets/local_key
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_MANAGEMENT_SCHEME: http
+      KC_CACHE: local
+    secrets: [local_cert, local_key]
+    volumes:
+      - ./.local/authenticated/realm:/opt/keycloak/data/import:ro
+    ports:
+      - "127.0.0.1:18443:18443"
+    networks:
+      default:
+        aliases: [id.homeservice.test]
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "{ printf 'HEAD /health/ready HTTP/1.0\r\n\r\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000"]
+      interval: 5s
+      timeout: 5s
+      start_period: 90s
+      retries: 30
+
+  # Starts without application dependencies to avoid issuer/resolver startup cycles.
+  # Dynamic DNS upstreams return 502 until the owning application becomes available.
+  tls:
+    image: nginx:1.28-alpine
+    volumes:
+      - ./infra/nginx/authenticated.conf:/etc/nginx/nginx.conf:ro
+    secrets: [local_cert, local_key]
+    ports:
+      - "127.0.0.1:18444:18444"
+    networks:
+      default:
+        aliases: [app.homeservice.test, payments.homeservice.test, notifications.homeservice.test, identity.homeservice.test]
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+secrets:
+  local_ca:
+    file: ./.local/authenticated/tls/ca.pem
+  local_cert:
+    file: ./.local/authenticated/tls/server.pem
+  local_key:
+    file: ./.local/authenticated/tls/server.key
+volumes:
+  keycloak-data:

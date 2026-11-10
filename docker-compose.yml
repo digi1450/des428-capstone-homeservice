@@ -74,9 +74,12 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     command: ["node", "--import", "./src/tracing.js", "src/event-consumer.js"]
     healthcheck:
-      disable: true
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
     depends_on:
-      notifications-db:
+      notifications:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -137,9 +140,32 @@ services:
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     command: ["node", "--import", "./src/tracing.js", "src/outbox-relay.js"]
     healthcheck:
-      disable: true
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
     depends_on:
-      payments-db:
+      payments-wallet:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  payments-wallet-consumer:
+    build:
+      context: ./services/payments-wallet
+    environment:
+      DATABASE_URL: postgresql://payments_wallet:${PAYMENTS_DB_PASSWORD:?Set PAYMENTS_DB_PASSWORD}@payments-db:5432/payments_wallet
+      AMQP_URL: amqp://homeservice:${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}@rabbitmq:5672?frameMax=131072
+      OTEL_SERVICE_NAME: payments-wallet-consumer
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    command: ["node", "--import", "./src/tracing.js", "src/wallet-consumer.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+    depends_on:
+      payments-wallet:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy

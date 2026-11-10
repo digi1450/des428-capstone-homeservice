@@ -82,3 +82,5 @@ See [service setup](services/README.md), [caller inventory](docs/extraction-inve
 The final submission must include a root Compose command that starts the full migration stack, two extracted services with their own databases, Keycloak, messaging/outbox/saga, resilience tests, observability, Pact/act, the four required demo scripts, a dossier, ownership evidence and the recording. The shared status map distinguishes merged preparation from the integrated requirements that remain unfinished.
 
 Each member must understand their code and use evidence from actual runs in the dossier. Record AI assistance in the final dossier according to the assignment.
+
+E authenticated deployment: [local Compose/TLS/Keycloak/worker integration](docs/e-authenticated-compose-handoff.md). Base Compose has13 services; the explicit authenticated overlay has16. Activation remains opt-in; follow the runbook and recorded validation.

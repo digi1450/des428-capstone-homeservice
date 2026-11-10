@@ -1,3 +1,4 @@
+import {startWorkerHealth} from './worker-health.js';
 // Area C — wallet provisioning consumer process for Payments & Wallet.
 //   node src/wallet-consumer.js   (DATABASE_URL, AMQP_URL; optional CONSUMER_PREFETCH, CONSUMER_DELIVERY_LIMIT, CONSUMER_RETRY_DELAY_MS)
 // Separate from the HTTP server: while it (or the database) is down, provider.registered events
@@ -22,6 +23,7 @@ const log = (fields) => console.log(JSON.stringify({ service: "payments-wallet",
 const database = createDatabase(process.env.DATABASE_URL);
 const inbox = createWalletInbox(database, createPaymentsService(database));
 const supervisor = superviseWalletConsumer({ amqpUrl: process.env.AMQP_URL, inbox, log, ...options });
+const health=startWorkerHealth({database,isConnected:()=>supervisor.ready});
 let stopping = false;
 
 async function stop() {
@@ -29,7 +31,7 @@ async function stop() {
   stopping = true;
   const deadline = setTimeout(() => process.exit(1), 10000);
   deadline.unref();
-  try { await supervisor.stop(); await database.close(); } finally { clearTimeout(deadline); }
+  try { await health.close(); await supervisor.stop(); await database.close(); } finally { clearTimeout(deadline); }
 }
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);
