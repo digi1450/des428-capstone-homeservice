@@ -30,7 +30,8 @@ ENV NODE_ENV=test
 CMD ["npm", "test"]
 
 # ---------------------------------------------------------------------------------------------
-# runtime: slim, non-root, standalone output only. The native addon + its runtime deps come
+# runtime: slim, non-root, standalone server plus the trusted identity-provisioning CLI.
+# The native addon + its runtime deps come
 # along inside the traced standalone node_modules.
 # ---------------------------------------------------------------------------------------------
 FROM node:20-slim AS runtime
@@ -38,8 +39,15 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 RUN groupadd --system --gid 1001 edemand \
   && useradd --system --uid 1001 --gid edemand edemand
 WORKDIR /app
+# The owner CLI imports source modules, including pino which Next bundles in the
+# server. Its production dependencies must therefore exist outside the bundles.
+# package.json currently contains production dependencies only.
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
+# Offline owner-only identity provisioning must also work in the deployed image.
+COPY --from=build /app/lib ./lib
+COPY --from=build /app/scripts/provision-keycloak-identity.js ./scripts/provision-keycloak-identity.js
 RUN mkdir -p /app/data && chown -R edemand:edemand /app
 USER edemand
 EXPOSE 3000
