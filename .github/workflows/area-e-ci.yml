@@ -11,7 +11,7 @@ on:
 jobs:
   service-tests:
     name: Test ${{ matrix.service }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
 
     strategy:
       fail-fast: false

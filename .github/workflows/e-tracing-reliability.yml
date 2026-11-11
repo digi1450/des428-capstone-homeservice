@@ -7,7 +7,7 @@ on:
 jobs:
   tracing-reliability:
     name: HTTP AMQP trace, consumer lifecycle and outbox
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
     timeout-minutes: 20
     env:
       COMPOSE_PROJECT_NAME: homeservice-e-ci-${{ github.run_id }}-${{ github.run_attempt }}
