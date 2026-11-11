@@ -3,7 +3,7 @@ on:
   pull_request:
 jobs:
   compose-config:
-    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
