@@ -52,6 +52,21 @@ try{
  const initial=JSON.parse(docker(['config','--format','json']));assert.equal(Object.keys(initial.services).length,16);assert.equal(initial.services.edemand.environment.AUTHENTICATED_SERVICES_ENABLED,'false');
  execFileSync(process.execPath,['scripts/verify-authenticated-compose.mjs','--full-stack'],{cwd:directory,env:{...process.env,COMPOSE_PROJECT_NAME:project},stdio:'inherit'});
  const envPath=join(directory,'.env.authenticated');const env=Object.fromEntries(readFileSync(envPath,'utf8').trim().split('\n').map(line=>{const i=line.indexOf('=');return [line.slice(0,i),line.slice(i+1)];}));
+ // Real issuer/JWKS check for the offline cutover operator. Tokens and secrets
+ // travel over stdin/private Compose logs only; no runtime business permissions.
+ console.log(js('payments-wallet', `
+ import assert from 'node:assert/strict';
+ import {createServiceVerifier,createBookingServiceVerifier} from './src/security/booking-verifier.js';
+ const issuer=process.env.KEYCLOAK_ISSUER;
+ async function token(client,secret){const r=await fetch(issuer+'/protocol/openid-connect/token',{method:'POST',redirect:'error',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'client_credentials',client_id:client,client_secret:secret})});assert.equal(r.status,200);return(await r.json()).access_token;}
+ const operator=await token('homeservice-cutover-operator',${JSON.stringify(env.CUTOVER_OPERATOR_CLIENT_SECRET)});
+ const booking=await token('booking-service',${JSON.stringify(env.BOOKING_SERVICE_CLIENT_SECRET)});
+ const req=t=>({get:n=>n.toLowerCase()==='authorization'?'Bearer '+t:undefined});
+ const verify=createServiceVerifier({issuer,audience:'homeservice-cutover',clientId:'homeservice-cutover-operator',service:'cutover',operations:['approve_checkpoint','revoke_checkpoint']});
+ for(const operation of ['approve_checkpoint','revoke_checkpoint'])assert.equal((await verify(req(operator),{operation})).service,'cutover');
+ await assert.rejects(verify(req(booking),{operation:'approve_checkpoint'}));
+ await assert.rejects(createBookingServiceVerifier({issuer,audience:'payments-wallet-service'})(req(operator),{operation:'create'}));
+ console.log('PASS actual Keycloak cutover operator audience/roles and business-token separation');`));
  for(const key of ['AUTHENTICATED_SERVICES_ENABLED','AUTHENTICATED_CUTOVER_APPROVED','OIDC_LOGIN_ENABLED','OIDC_SELF_REGISTRATION_ENABLED','AREA_B_AUTH_ENABLED'])env[key]='true';
  env.AUTHENTICATED_AMQP_URL='amqp://homeservice:'+env.RABBITMQ_PASSWORD+'@rabbitmq:5672?frameMax=131072';
  writeFileSync(envPath,Object.entries(env).map(([k,v])=>k+'='+v).join('\n')+'\n',{mode:0o600});

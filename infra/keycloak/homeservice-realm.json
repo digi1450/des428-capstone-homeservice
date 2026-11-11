@@ -105,6 +105,71 @@
         "basic"
       ],
       "optionalClientScopes": []
+    },
+    {
+      "clientId": "homeservice-cutover",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "homeservice-cutover-operator",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": [
+        "basic"
+      ],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "cutover-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "homeservice-cutover",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "cutover-assigned-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "config": {
+            "usermodel.clientRoleMapping.clientId": "homeservice-cutover",
+            "claim.name": "resource_access.homeservice-cutover.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        },
+        {
+          "name": "grant-approve_checkpoint",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-role-mapper",
+          "config": {
+            "role": "homeservice-cutover.cutover:approve_checkpoint"
+          }
+        },
+        {
+          "name": "grant-revoke_checkpoint",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-role-mapper",
+          "config": {
+            "role": "homeservice-cutover.cutover:revoke_checkpoint"
+          }
+        }
+      ]
     }
   ],
   "clientScopes": [
@@ -321,6 +386,14 @@
         },
         {
           "name": "mock-gateway:settle_webhook"
+        }
+      ],
+      "homeservice-cutover": [
+        {
+          "name": "cutover:approve_checkpoint"
+        },
+        {
+          "name": "cutover:revoke_checkpoint"
         }
       ]
     }

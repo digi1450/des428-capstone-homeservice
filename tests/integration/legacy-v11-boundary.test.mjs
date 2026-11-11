@@ -1,3 +1,4 @@
+import {configureLegacyBookingApproval,resetLegacyBookingApproval} from '../../bangkok-homeservice/lib/modules/booking/legacy-binding.js';
 // Synthetic checkpoint ONLY: real operator/two-owner approval belongs to step2.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -48,6 +49,7 @@ test('approved old Bookings use real HTTP/PostgreSQL without invented sagas; par
   assert.equal(sqlite.prepare('SELECT count(*) n FROM booking_financial_work').get().n,0);
   // Represents the coordinated operator checkpoint; never performed by application HTTP.
   sqlite.prepare("UPDATE booking_legacy_payment_checkpoints SET state='approved'").run();
+  configureLegacyBookingApproval(envelope.manifest_sha256);
   assert.equal((await getBookingView(13,customer)).payment_setup,'ready');
   const oldLedger=sqlite.prepare('SELECT * FROM transactions ORDER BY id').all();
   await simulateBookingPayment(13,customer);
@@ -83,7 +85,7 @@ test('approved old Bookings use real HTTP/PostgreSQL without invented sagas; par
   assert.equal((await db.query('SELECT count(*)::int n FROM payment_provisioning')).rows[0].n,0);
   assert.deepEqual(sqlite.prepare('SELECT * FROM transactions ORDER BY id').all(),oldLedger);
  }finally{
-  resetBookingFinancialAccess();resetBookingFinalization();resetPaymentsAccess();closeDb();delete process.env.DB_PATH;
+  resetLegacyBookingApproval();resetBookingFinancialAccess();resetBookingFinalization();resetPaymentsAccess();closeDb();delete process.env.DB_PATH;
   if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}await db?.close();rmSync(root,{recursive:true,force:true});
  }
 });

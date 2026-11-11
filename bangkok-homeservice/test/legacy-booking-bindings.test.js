@@ -1,3 +1,4 @@
+import {configureLegacyBookingApproval,resetLegacyBookingApproval} from '../lib/modules/booking/legacy-binding.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,copyFileSync,rmSync,readFileSync} from 'node:fs';
@@ -27,10 +28,12 @@ test('offline Booking binding dry-run/replay/source conflicts and checkpoint rea
   db.close();
   process.env.DB_PATH=file;closeDb();
   assert.equal(paymentSetupFor(13),null);assert.equal(legacyBookingReference(13),null);
+  assert.throws(()=>configureLegacyBookingApproval(manifest.manifest_sha256));
   // Synthetic operator checkpoint only. Production approval belongs to step2.
   getDb().prepare("UPDATE booking_legacy_payment_checkpoints SET state='approved'").run();
+  configureLegacyBookingApproval(manifest.manifest_sha256);
   assert.equal(paymentSetupFor(13),'ready');assert.equal(legacyBookingReference(13).manifest_sha256,manifest.manifest_sha256);
   getDb().prepare('UPDATE orders SET total_cents=total_cents+1 WHERE id=13').run();
   assert.equal(paymentSetupFor(13),null);closeDb();delete process.env.DB_PATH;
- }finally{closeDb();delete process.env.DB_PATH;rmSync(root,{recursive:true,force:true});}
+ }finally{resetLegacyBookingApproval();closeDb();delete process.env.DB_PATH;rmSync(root,{recursive:true,force:true});}
 });

@@ -117,8 +117,16 @@ function validatePayments(tables) {
   const events = new Set();
   for (const receipt of tables.webhook_events) {
     require(receipt.gateway_event_id && !events.has(receipt.gateway_event_id), 'DUPLICATE_WEBHOOK'); events.add(receipt.gateway_event_id);
-    require(receipt.type === 'payment_intent.succeeded' && receipt.payload_json.type === receipt.type
+    // The instructor's original seed/history used payment.succeeded as a
+    // gateway receipt type. Preserve that audit payload; never rewrite it to
+    // the current HTTP callback contract or replay its financial effects.
+    require(['payment_intent.succeeded','payment.succeeded'].includes(receipt.type)
+      && receipt.payload_json.type === receipt.type
       && receipt.payload_json.gateway_event_id === receipt.gateway_event_id && refs.has(receipt.payload_json.gateway_ref), 'WEBHOOK_CONTEXT');
+    if(receipt.type==='payment.succeeded'){
+      const intent=[...intents.values()].find(x=>x.gateway_ref===receipt.payload_json.gateway_ref);
+      require(receipt.processed_at && intent?.status==='succeeded' && effects.has(`${intent.order_id}:charge`),'HISTORICAL_WEBHOOK_UNSETTLED');
+    }
   }
 }
 class DryRun extends Error { constructor(report) { super('DRY_RUN'); this.report = report; } }

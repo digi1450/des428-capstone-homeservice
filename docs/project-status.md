@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A operator/checkpoint step2 preparation — 11 November2026
+
+Step1 PR73–75 are merged. [Step2 handoff](legacy-operator-checkpoint-handoff.md) adds dedicated Keycloak operator authorization, signed deployment receipts, full-source checker reconciliation, and isolated backup/rollback rehearsal. Local checkpoint7, standalone checker11, monolith303, migration28+44 and actual16-service operator/auth/fault acceptance passed. Selected-source private-copy rehearsal found an old Booking schema: both PG phases work, but Booking correctly refuses the original36-object baseline. An exact-schema offline history/watermark upgrade, CI review, useful-source frozen import, identity mapping/backup and final deployment approval remain. No useful-data cutover has occurred. Older entries below are dated snapshots, not the latest pending state.
+
 ## A legacy runtime step1 stacked preparation — 11 November2026
 
 Payments eligibility PR73 and Booking binding/caller PR74 are followed by [cross-service acceptance](legacy-v11-integration-handoff.md). Local monolith303, financialPG21, integration1 (new-process recovery), Python28/importerPG44 pass. Hosted CI/merge review pending; default gates closed. Real operator/two-owner checkpoint approval, checker reconciliation and historical cutover rehearsals remain step2.
