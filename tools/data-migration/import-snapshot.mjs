@@ -12,12 +12,12 @@ export const columns = {
 // Reviewed C migrations add consumer-dedupe/outbox tables, not imported business columns.
 // Offline import requires those tables to be empty and keeps them empty; never clear
 // existing delivery state or replay historical events to make an import succeed.
-const expectedMigrations = {notifications:['001_initial.sql','002_processed_events.sql'], 'payments-wallet':['001_initial.sql','002_ledger_invariants.sql','003_outbox.sql','004_payment_participant.sql','005_financial_operations.sql']};
+const expectedMigrations = {notifications:['001_initial.sql','002_processed_events.sql'], 'payments-wallet':['001_initial.sql','002_ledger_invariants.sql','003_outbox.sql','004_payment_participant.sql','005_financial_operations.sql','006_legacy_payment_bindings.sql']};
 const owned = { notifications: ['notifications'], 'payments-wallet': ['payment_intents','transactions','provider_wallets','webhook_events'] };
 // C (feat/c-payment-participant, pending A review): participant command/provisioning state and
 // Payments consumer dedupe must also be EMPTY at import. Legacy bookings are not replayed as new
 // commands, and imported intents stay non-settleable until the separate legacy-eligibility gate.
-const messageTables = {notifications:['processed_events'], 'payments-wallet':['outbox_events','payment_commands','payment_provisioning','processed_events','financial_commands','financial_fences']};
+const messageTables = {notifications:['processed_events'], 'payments-wallet':['outbox_events','payment_commands','payment_provisioning','processed_events','financial_commands','financial_fences','legacy_payment_bindings']};
 const jsonColumns = new Set(['context_json','payload_json']);
 const timestamps = new Set(['read_at','created_at','updated_at','received_at','processed_at']);
 const integers = new Set(['id','recipient_id','order_id','customer_id','provider_id','amount_cents','balance_cents','commission_owed_cents']);

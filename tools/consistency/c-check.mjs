@@ -36,7 +36,7 @@ const migrationDirectory = path.join(root, "services/payments-wallet/migrations"
 const expectedMigrations = readdirSync(migrationDirectory).filter(n => /^\d+_[a-z0-9_]+\.sql$/.test(n)).sort().map(version => ({
   version, sha256: createHash("sha256").update(readFileSync(path.join(migrationDirectory, version))).digest("hex"),
 }));
-const PAYMENT_TABLES = ["schema_migrations", "payment_intents", "transactions", "provider_wallets", "webhook_events", "outbox_events", "payment_commands", "payment_provisioning", "processed_events", "financial_commands", "financial_fences"];
+const PAYMENT_TABLES = ["schema_migrations", "payment_intents", "transactions", "provider_wallets", "webhook_events", "outbox_events", "payment_commands", "payment_provisioning", "processed_events", "financial_commands", "financial_fences", "legacy_payment_bindings"];
 
 class Report {
   constructor() { this.findings = []; this.info = {}; }
@@ -116,6 +116,7 @@ export async function checkPayments(url, report) {
     const applied = await q("SELECT version, sha256 FROM schema_migrations ORDER BY version");
     if (!isDeepStrictEqual(applied, expectedMigrations)) throw new Error("PAYMENTS_SCHEMA_REVIEW_REQUIRED: migration versions/checksums differ");
     report.info.payments_migrations = applied.map(row => row.version);
+    report.add("attention", "payments.legacy_bindings.pending_checkpoint", await q("SELECT order_id FROM legacy_payment_bindings ORDER BY order_id"), "legacy bindings require the future two-owner manifest/checkpoint reconciliation; schema006 alone is not cutover approval");
     if (tables.has("outbox_events")) {
       report.add("pending", "payments.outbox.unpublished", await q("SELECT event_id, event_type FROM outbox_events WHERE published_at IS NULL ORDER BY seq"), "Payments events not yet published");
     }
