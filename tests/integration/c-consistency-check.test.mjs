@@ -113,6 +113,12 @@ test("C consistency checker", { skip: !pgUrl }, async (t) => {
     assert.equal((await cli("--mode", "quiescent")).code, 0);
   });
 
+  await t.test("completed booking occupancy remains valid even for a future service date", async () => {
+    const id=sql(db=>{const id=order(db,{status:'completed',method:'cod'});db.prepare('INSERT INTO slot_holds(provider_id,service_date,slot_time,order_id) VALUES (?,?,?,?)').run(provider,'2027-06-02','10:00',id);return id;});
+    try{const before={hash:sha(),mtime:statSync(file).mtimeMs};const report=await cli('--mode','quiescent');assert.equal(report.code,0,JSON.stringify(report.findings));assert.ok(!ids(report).includes('violation:sqlite.holds.on_terminal_order'));assert.deepEqual({hash:sha(),mtime:statSync(file).mtimeMs},before);}
+    finally{sql(db=>{db.prepare('DELETE FROM slot_holds WHERE order_id=?').run(id);db.prepare('DELETE FROM orders WHERE id=?').run(id);});}
+  });
+
   await t.test("violations fail in any mode (one injected at a time)", async () => {
     const cases = [
       ["sqlite.holds.on_terminal_order", async () => sql((db) => {
