@@ -5,7 +5,7 @@ import {createPaymentsService} from './service.js';
 import {createPaymentParticipant} from './participant/index.js';
 import {createOutbox} from './messaging/outbox.js';
 import {paymentEventContext} from './request-context.js';
-export function createPaymentsRuntime({database,authenticate,authenticateService,authenticateWebhook,createFinancialOperations}={}){
+export function createPaymentsRuntime({database,authenticate,authenticateService,authenticateWebhook,createFinancialOperations,legacyManifestSha256}={}){
   if(!database || typeof database.query!=='function' || typeof database.withTransaction!=='function') throw new TypeError('Payments runtime requires its owning database');
   const provided=authenticate!==undefined || authenticateService!==undefined;
   if(provided && (typeof authenticate!=='function' || typeof authenticateService!=='function')) throw new TypeError('Payments runtime requires both user and service verifiers');
@@ -18,8 +18,8 @@ export function createPaymentsRuntime({database,authenticate,authenticateService
     stageEvent:(client,event)=>outbox.stage(client,event,paymentEventContext()),
   };
   const business=createPaymentsService(database,paymentHooks);
-  participant=createPaymentParticipant({database,business});
-  const financialOperations=createFinancialOperations?.({database,business,participant,outbox});
+  participant=createPaymentParticipant({database,business,legacyManifestSha256});
+  const financialOperations=createFinancialOperations?.({database,business,participant,outbox,legacyManifestSha256});
   if(createFinancialOperations&&(!financialOperations||['complete','cancel','get'].some(k=>typeof financialOperations[k]!=='function')))throw new TypeError('Incomplete financial participant');
   const app=createApp({database,authenticate,authenticateService,paymentCommands:participant,paymentHooks,financialOperations,authenticateWebhook});
   return {app,business,participant,financialOperations};

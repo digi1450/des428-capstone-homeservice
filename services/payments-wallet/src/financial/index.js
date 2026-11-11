@@ -16,6 +16,7 @@
 //   attention  durable reconciliation needed; replayed, never retried into success
 //   coded 409  the command was NOT accepted (nothing stored): changed request for a key, another
 //              key for the same order operation, or an operation blocked by in-flight work
+import {legacyApproval,legacyBindingProblem} from '../legacy-eligibility.js';
 import { createHash } from "node:crypto";
 import { HttpError } from "../errors.js";
 
@@ -41,7 +42,8 @@ const matches = (row, request) => row.order_id === request.order_id && row.custo
   && row.provider_id === request.provider_id && row.amount_cents === request.amount_cents;
 const SETTLED_LEDGER = ["payout_credit", "commission_owed"];
 
-export function createFinancialOperations({ database, business }) {
+export function createFinancialOperations({ database, business, legacyManifestSha256 }) {
+  legacyApproval(legacyManifestSha256);
   if (!database || typeof database.withTransaction !== "function") throw new TypeError("financial operations require the Payments database");
   for (const name of ["applyCompletion", "applyRefund", "voidUnpaidIntent"]) {
     if (typeof business?.[name] !== "function") throw new TypeError(`financial operations require A's ${name}`);
@@ -104,7 +106,9 @@ export function createFinancialOperations({ database, business }) {
     const accounted = entries.find((row) => SETTLED_LEDGER.includes(row.kind));
 
     if (request.payment_method === "gateway") {
-      const problem = provisioningProblem(request, callerId, await provisioningFor(tx, request.order_id), intent);
+      const problem = request.legacy_binding
+        ? await legacyBindingProblem(tx,intent,request,legacyManifestSha256)
+        : provisioningProblem(request, callerId, await provisioningFor(tx, request.order_id), intent);
       if (problem) return attention(problem);
       if (!intent) return attention("context_mismatch");
       if (intent.status === "failed") return attention("cancellation_fenced");
@@ -151,7 +155,7 @@ export function createFinancialOperations({ database, business }) {
       result = ready("no_payment");
     } else {
       const provisioning = await provisioningFor(tx, request.order_id);
-      if (!provisioning) {
+      if (!provisioning && !request.legacy_binding) {
         if (intent) return attention("legacy_reconciliation_required");
         const sameKey = await one(tx, "SELECT * FROM payment_provisioning WHERE caller_id=$1 AND create_command_id=$2",
           [callerId, request.provisioning.create_command_id]);
@@ -181,7 +185,9 @@ export function createFinancialOperations({ database, business }) {
         }
         result = ready("no_payment");
       } else {
-        const problem = provisioningProblem(request, callerId, provisioning, intent);
+        const problem = request.legacy_binding
+          ? await legacyBindingProblem(tx,intent,request,legacyManifestSha256)
+          : provisioningProblem(request, callerId, provisioning, intent);
         if (problem) return attention(problem);
         const charge = entries.find((row) => row.kind === "charge");
         if (intent?.status === "succeeded") {
@@ -203,7 +209,7 @@ export function createFinancialOperations({ database, business }) {
         } else {
           result = ready("no_payment");
         }
-        if (provisioning.state !== "fenced" && result.outcome !== "refunded") {
+        if (provisioning && provisioning.state !== "fenced" && result.outcome !== "refunded") {
           await tx.query(
             `UPDATE payment_provisioning SET state='fenced', cancel_command_id=$2, cancel_reason='financial_cancellation', updated_at=now()
              WHERE order_id=$1`, [request.order_id, commandId]);
@@ -228,12 +234,7 @@ export function createFinancialOperations({ database, business }) {
       await lockOrder(tx, request.order_id);
       const elsewhere = await other(tx, kind, request.order_id, callerId, commandId);
       if (elsewhere) throw coded(CODES.COMMAND_CONFLICT, `order already has a different ${kind} command`);
-      // v1.1 transport preparation: a supplied reference never grants DB eligibility.
-      // Until the locked binding lookup is implemented, retain a durable attention
-      // result and do not create provisioning, settlement, fences or money effects.
-      const result = request.legacy_binding
-        ? {...base(kind,commandId,request),state:"attention",reason:"legacy_reconciliation_required"}
-        : kind === "completion"
+      const result = kind === "completion"
         ? await evaluateCompletion(tx, callerId, commandId, request)
         : await evaluateCancellation(tx, callerId, commandId, request);
       await save(tx, { callerId, commandId, kind, request, requestDigest, existing }, result);

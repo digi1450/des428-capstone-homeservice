@@ -1,3 +1,4 @@
+import {legacyApproval,legacyBindingProblem} from '../legacy-eligibility.js';
 // Area C — Payments participant in the Booking-orchestrated saga.
 // Interface agreed in docs/c-payment-participant-interface.md (PRs #24/#25); A's router
 // (src/command-router.js) injects this object as `paymentCommands`.
@@ -25,7 +26,8 @@ const digest = (kind, request) => createHash("sha256").update(kind + "\n" + cano
 const publicIntent = row => ({ id: row.id, order_id: row.order_id, amount_cents: row.amount_cents, gateway_ref: row.gateway_ref, status: row.status });
 const cancelled = row => ({ create_command_id: row.create_command_id, saga_id: row.saga_id, outcome: "cancelled" });
 
-export function createPaymentParticipant({ database, business }) {
+export function createPaymentParticipant({ database, business, legacyManifestSha256 }) {
+  legacyApproval(legacyManifestSha256);
   if (!database || typeof database.withTransaction !== "function") throw new TypeError("participant requires the Payments database");
   if (!business || typeof business.prepareIntent !== "function" || typeof business.voidUnpaidIntent !== "function") {
     throw new TypeError("participant requires A's business primitives");
@@ -159,7 +161,8 @@ export function createPaymentParticipant({ database, business }) {
     async assertSettlementAllowed(client, intent) {
       const state = await one(client, "SELECT state, intent_id FROM payment_provisioning WHERE order_id=$1", [intent.order_id]);
       if (await orderFenced(client, intent.order_id)) return false; // step 5C financial cancellation fence
-      return state?.state === "activated" && state.intent_id === intent.id;
+      if(state)return state.state === "activated" && state.intent_id === intent.id;
+      return !(await legacyBindingProblem(client,intent,intent,legacyManifestSha256));
     },
   };
 }
