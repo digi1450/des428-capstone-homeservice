@@ -2,12 +2,12 @@
 
 ## เริ่มครั้งแรก
 
-1. Clone private repository จาก URL จริงของทีม แล้วเข้าโฟลเดอร์ repository
+1. Clone repository จาก URL จริงของทีม แล้วเข้าโฟลเดอร์ repository
 2. รัน monolith และ tests ตาม README ให้ได้ก่อน
-3. อ่าน OWNERS.md, docs/team-plan.md และ [migration handoff](docs/migration-handoff.md) แล้วรับงานกับเจ้าของ area
+3. อ่าน [สถานะ A–E ปัจจุบัน](docs/current-area-status.md), OWNERS.md, docs/team-plan.md และ [migration handoff](docs/migration-handoff.md) แล้วรับงานกับเจ้าของ area
 4. ตกลง API/event/auth contracts กับผู้ใช้ interface นั้นก่อนเริ่มแก้
 
-Private repository: https://github.com/digi1450/des428-capstone-homeservice ใช้บัญชี GitHub ของตัวเองเมื่อได้รับเชิญ ห้ามแชร์บัญชีหรือ token
+Public repository: https://github.com/digi1450/des428-capstone-homeservice อ่านได้สาธารณะ ส่วนการ push/merge ต้องมีสิทธิ์ ใช้บัญชี GitHub ของตัวเอง ห้ามแชร์บัญชีหรือ token
 
 ## Branch ต่อชิ้นงาน
 
@@ -56,7 +56,7 @@ git push -u origin feat/a-notifications-extraction
 - เจ้าของ repo @digi1450 มี admin bypass ตามที่ทีมผู้ดูแลเลือก จึง merge PR ของตัวเองได้โดยไม่ต้อง approve ตัวเอง สิทธิ์นี้ยังอนุญาตให้ Owner ข้ามข้อบังคับ PR/review ของ main ได้; สมาชิกทั่วไปไม่มีข้อยกเว้นนี้ ใช้ branch/PR เป็น workflow ปกติแม้เป็น Owner
 - สมาชิกที่มี write access merge PR ของตัวเองหรือของสมาชิกคนอื่นได้โดยไม่ต้องรอ approval; ยังคงต้องแก้ conflicts และ resolve conversations รวมถึงผ่าน required checks หากทีมเพิ่มภายหลัง
 - ต้อง resolve conversations ก่อน merge สำหรับสมาชิกทั่วไป และไม่อนุญาต force push/delete main ตาม protection rule; Owner มี admin bypass จึงไม่ถือว่ากฎเหล่านี้บังคับกับ Owner
-- ยังไม่มี automated CI/required status checks ใน baseline นี้ E จะเพิ่ม workflow และตั้ง required checks หลังมีชื่อ check ที่รันจริง
+- มี automated CI แล้วใน `.github/workflows/` รวม service, auth, contracts, migration และ consistency checks ตรวจผลบน exact head ปัจจุบันก่อน merge; การมี workflow ไม่ได้แปลว่าทุก job เป็น required branch-protection check
 
 ## อัปเดต branch ที่กำลังทำ
 

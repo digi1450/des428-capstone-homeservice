@@ -1,6 +1,8 @@
 # Initial team plan — Homeservice
 
-Status: the lead selected the scope, PostgreSQL deployment, saga and work split on 5 November 2026. See [migration-handoff.md](migration-handoff.md) for selected decisions and draft implementation interfaces. Interfaces still need implementation review; this is not a completed architecture dossier or defence. No individual deadlines are assigned.
+This retains the original boundary/coordination plan. For current completion and remaining tasks, use [current A–E status](current-area-status.md), reviewed12 November2026 through PR78. The two-service local milestone is complete; further extraction after lecturer feedback is a separate scope decision.
+
+Historical plan selected5 November2026: the lead chose the scope, PostgreSQL deployment, saga and work split. [Migration handoff](migration-handoff.md) retains the original decisions and then-draft interfaces; the selected implementation is now integrated. This plan is not the completed architecture dossier or defence. No individual deadlines are assigned.
 
 ## Scope
 
@@ -22,7 +24,7 @@ A and C lead a short meeting with B/D/E to record:
 
 The source-grounded first evidence pair is booking.status_changed and payment.succeeded; see migration-handoff.md for draft schemas, durable provisioning saga and compensation rules. Do not equate payment-intent creation with charging money, or a timeout with a failed write.
 
-## First tasks (starter branches published to the private GitHub repository)
+## Historical first tasks (starter branches)
 
 | Area | First branch | Start now | Dependency for real integration |
 |---|---|---|---|
@@ -43,5 +45,5 @@ Within the team's agreed schedule, demonstrate one real authenticated operation 
 - The assignment allows a different seam when defended in the dossier. Document why these two boundaries are chosen; its summary table and the detailed Homeservice README differ.
 - B and D must identify real inherited BOLA/race candidates. Existing guards already cover several examples in this source. If no matching candidate is found, clarify acceptable evidence with the lecturer; do not introduce a defect and claim it was inherited.
 - Baseline tests are historical evidence only. New measurements, traces and tests must come from the team's actual implementation runs.
-- The private GitHub remote and starter branches are published. Main requires one approving review from a reviewer with write access other than the PR author, with the repository owner's explicitly chosen admin bypass. Code-owner approval is not mandatory; see CONTRIBUTING.md.
-- The root full-stack Compose, four final demo scripts, dossier, recording and CI remain future tasks, not completed scaffolding.
+- Current repository visibility is public. Main uses PRs with zero mandatory approvals; any writer may merge when applicable checks/conversations pass. Admin bypass is not standing agent authorization. See CONTRIBUTING.md.
+- Root full-stack Compose and CI now have integrated evidence. Four final demos, dossier, recording and other delivery acceptance must be checked separately; do not infer completion from passing CI.

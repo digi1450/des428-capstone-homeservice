@@ -1,5 +1,13 @@
 # Legacy cutover operator and checkpoint — 11 November 2026
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 This implements the **pre-traffic** checkpoint for the step1 legacy v1.1 code
 merged in PR73–75. It does not migrate useful data or enable deployment flags.
 The selected eventual source is the project's local `bangkok-homeservice/data/edemand.db`.

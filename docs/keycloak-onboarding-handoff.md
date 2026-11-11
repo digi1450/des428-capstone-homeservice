@@ -1,5 +1,13 @@
 # A-led B authentication completion and user onboarding
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 10 November 2026. The lead authorized A to complete the remaining B implementation
 and evidence using B's existing interfaces. B remains the academic area owner;
 these follow-up fixes/tests are A-led AI-assisted integration work, not a claim

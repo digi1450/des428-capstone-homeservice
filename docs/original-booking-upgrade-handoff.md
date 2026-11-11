@@ -1,5 +1,13 @@
 # Exact original Booking offline preparation — 11 November2026
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 This follows the source-schema blocker found during [operator/checkpoint work](legacy-operator-checkpoint-handoff.md).
 It prepares a **separate copy** of the approved instructor-era source for current
 Booking; it does not modify the selected local source or open traffic.

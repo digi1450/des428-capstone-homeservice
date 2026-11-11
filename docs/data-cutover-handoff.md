@@ -1,5 +1,13 @@
 # Offline data migration and caller cutover preparation — A → B/C/D/E
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 > 9 November step 5D update: [legacy-only rehearsal and source guard](legacy-cutover-rehearsal-handoff.md) documents the new distributed-source/attention rejection, eight legacy cohorts, actual C eligibility boundaries, WAL backup example and CI. A SQLite-only export is not a mixed-ownership checkpoint. Do not clear C state to make it pass.
 
 > 9 November step 5C update: [financial runtime preparation](financial-finalization-runtime-handoff.md) supersedes older statements below that financial HTTP/client/callers are absent. A transport is prepared; actual C durable financial work, B auth and production cutover are still pending.

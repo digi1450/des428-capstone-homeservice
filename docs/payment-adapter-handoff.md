@@ -1,5 +1,13 @@
 # Prepared monolith Payments client and Booking adapter
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 7 November HTTP preparation update: [create/query/cancel shell and B/C adapter proposal](payment-command-http-handoff.md) is implemented and tested with explicit doubles. Production remains unwired/fail-closed; the activation route is reserved and settlement/cutover are still pending. Earlier unmounted-route wording below describes the previous business slice.
 
 Status: transport and mapping code implemented/tested; existing monolith handlers, pages, Booking service and financial writers remain unchanged and do not import these adapters. Real auth, C mutation endpoints/command persistence/fences and coordinated cutover remain pending. This is not a completed service migration or a working public gateway payment flow.

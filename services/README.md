@@ -1,6 +1,15 @@
-# A's first service scaffold
+# Notifications and Payments & Wallet development
 
-> 8 November caller update: [Payment setup and caller handoff](../docs/payment-setup-callers-handoff.md) supersedes the historical unchanged-caller/unmounted-simulation statements below. Explicit remote intent/simulate/wallet/history paths and pending UI are prepared; default production composition and the remaining writers/cutover are still gated.
+> Current status — 12 November2026: both services, auth, messaging, callers and
+> actual authorized local data cutover are integrated. See [current A–E status](../docs/current-area-status.md)
+> and [acceptance](../docs/validation/a-local-cutover-2026-11-12.md).
+> The scaffold-era descriptions below record earlier slices, not current missing
+> implementation. The dev stack remains isolated and is not the approved persistent
+> deployment; its owner credentials must not replace that deployment's runtime roles.
+
+> Historical 8 November caller update: [Payment setup and caller handoff](../docs/payment-setup-callers-handoff.md) supersedes the historical unchanged-caller/unmounted-simulation statements below. Explicit remote intent/simulate/wallet/history paths and pending UI are prepared; default production composition and the remaining writers/cutover are still gated.
+
+## Historical scaffold slice
 
 Recorded checks: [first scaffold validation](../docs/validation/a-scaffold-2026-11-05.md).
 

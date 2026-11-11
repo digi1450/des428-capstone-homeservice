@@ -1,5 +1,7 @@
 # Shared project status and handoff
 
+Read [current A–E status](current-area-status.md) for present closure work. Entries below are dated history; old pending/CI/activation statements are superseded only by newer scoped acceptance, not silently rewritten. PR78 is merged; its12 checks passed.
+
 ## Actual local cutover — 12 November2026
 
 [Local acceptance](validation/a-local-cutover-2026-11-12.md): user-authorized signed operator approval, both owner imports and prepared Booking copy are now live in the persistent local16-container stack. Nine real Keycloak logins, migrated read comparisons, restart/session persistence and HTTPS readiness passed. Source/restore backups and retired read-only original are retained privately. A checker false positive for completed-booking occupancy is corrected in this follow-up; no source holds were deleted. Tracked deployment defaults remain gated; final dossier/browser QA and broader team scope are separate. Older preparation-only entries below are historical.
