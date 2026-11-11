@@ -58,4 +58,3 @@ export async function checkBroker(url, report, { managementUrl, mode = "report" 
   }
   report.add("attention", "broker.queue.missing", Object.entries(queues).filter(([,q]) => q.missing).map(([id]) => ({ id })), "expected consumer/dead-letter queue not declared");
 }
-
