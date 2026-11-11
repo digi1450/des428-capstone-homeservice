@@ -25,7 +25,7 @@ on:
 jobs:
   full-flow:
     name: Actual 16-service traces, logs, dashboard and recovery
-    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       FINAL_STACK_PROJECT: homeservice-e-auth-ci-${{ github.run_id }}-${{ github.run_attempt }}
