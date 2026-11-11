@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## Actual local cutover — 12 November2026
+
+[Local acceptance](validation/a-local-cutover-2026-11-12.md): user-authorized signed operator approval, both owner imports and prepared Booking copy are now live in the persistent local16-container stack. Nine real Keycloak logins, migrated read comparisons, restart/session persistence and HTTPS readiness passed. Source/restore backups and retired read-only original are retained privately. A checker false positive for completed-booking occupancy is corrected in this follow-up; no source holds were deleted. Tracked deployment defaults remain gated; final dossier/browser QA and broader team scope are separate. Older preparation-only entries below are historical.
+
 ## A exact original-source follow-up — 11 November2026
 
 [Offline preparation](original-booking-upgrade-handoff.md) addresses the original36-object source rejected during checkpoint work. A separate-copy transaction archives processed event rows verbatim, preserves counters and starts new event IDs above the archived watermark; normal startup fingerprints stay strict. Selected local-source COPY upgrade/owner+Booking reconciliation passed, with no real source modification or activation. This is a follow-up to checkpoint PR76; hosted CI/review and final source/identity/deployment go/no-go remain.

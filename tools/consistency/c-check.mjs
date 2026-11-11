@@ -87,9 +87,11 @@ export function checkSqlite(file, report) {
       report.add("violation", "sqlite.financial.cancel_ready_not_cancelled", s.work.filter((r) => r.kind === "cancellation" && r.state === "ready" && r.order_status !== "cancelled"), "Payments confirmed cancellation but the booking is not cancelled");
       report.add("violation", "sqlite.financial.cancel_pending_but_cancelled", s.work.filter((r) => r.kind === "cancellation" && r.state === "pending" && r.order_status === "cancelled"), "booking cancelled before Payments confirmed the cancellation");
     }
+    // Completed work keeps its booked occupancy in both original and current
+    // Booking flows. Only confirmed cancellation releases these holds.
     report.add("violation", "sqlite.holds.on_terminal_order",
-      all("SELECT DISTINCT o.id FROM slot_holds h JOIN orders o ON o.id = h.order_id WHERE o.status IN ('cancelled','completed')"),
-      "slot holds kept for a cancelled/completed booking");
+      all("SELECT DISTINCT o.id FROM slot_holds h JOIN orders o ON o.id = h.order_id WHERE o.status = 'cancelled'"),
+      "slot holds kept after confirmed cancellation");
     if (has("consistency_attention")) {
       report.add("attention", "sqlite.attention.open", all("SELECT id, consumer_name, reason FROM consistency_attention WHERE resolved_at IS NULL ORDER BY id"),
         "open consistency_attention rows (record a decision before cutover)");

@@ -78,7 +78,7 @@ or logs. No automatic repair, migration, writer freeze or cutover is performed.
   - a missing consumer queue or dead-letter queue;
   - unavailable unacknowledged-message coverage.
 - **Violation** (a C invariant is broken):
-  - holds kept on a cancelled or completed booking;
+  - holds kept after confirmed cancellation (completed bookings retain booked occupancy);
   - completion work on a booking that is not completed;
   - a ready cancellation on a booking that is not cancelled, or a cancelled booking whose cancellation is still pending;
   - an activated setup without a COMPLETED saga;
