@@ -18,3 +18,5 @@ unnecessary tests for an exclusively Markdown documentation PR.
 Trial: compare an actual Markdown-only PR against a mixed code/Markdown PR using
 the VM runner; record checks and time. Automated workflow-filter behavior must be
 verified on GitHub, not inferred from YAML parsing alone. AI assisted this trial.
+
+Trial note: documentation-only workflow filter probe.
