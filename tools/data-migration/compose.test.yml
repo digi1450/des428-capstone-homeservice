@@ -19,7 +19,9 @@ services:
       timeout: 2s
       retries: 30
   test:
-    image: node:22-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.test
     profiles: [test]
     environment:
       NOTIFICATIONS_TEST_URL: postgresql://notifications:migration-fixture-only@notifications-db:5432/notifications
@@ -31,4 +33,4 @@ services:
       - ../../services/payments-wallet:/workspace/services/payments-wallet:ro
       - ${SNAPSHOT_FIXTURE_DIR:?Create synthetic snapshots first}:/fixtures:ro
     working_dir: /workspace/tools/data-migration
-    command: [node, --test, import.test.mjs]
+    command: [node, --test, import.test.mjs, approved-import.test.mjs]

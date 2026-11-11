@@ -1,6 +1,7 @@
 // Offline administration only; never called by a live service request.
 import { isDeepStrictEqual } from 'node:util';
 import { createHash } from 'node:crypto';
+import { approvedPayload } from './approved-snapshot.mjs';
 
 export const columns = {
   notifications: ['id','recipient_role','recipient_id','type','title','body','order_id','read_at','created_at'],
@@ -121,11 +122,27 @@ function validatePayments(tables) {
   }
 }
 class DryRun extends Error { constructor(report) { super('DRY_RUN'); this.report = report; } }
-export async function importSnapshot(database, service, bundle, { apply = false } = {}) {
+const bindingColumns = ['order_id','binding_id','manifest_sha256','intent_id','customer_id','provider_id','amount_cents','currency','eligibility'];
+export async function importApprovedSnapshot(database, service, approved, {apply=false}={}) {
+  const payload = approvedPayload(approved);
+  return importSnapshot(database,service,payload.bundles[service],{apply,approved});
+}
+export async function importSnapshot(database, service, bundle, { apply = false, approved } = {}) {
+  let bindings = null, digest;
+  if (approved !== undefined) {
+    const payload = approvedPayload(approved);
+    require(isDeepStrictEqual(bundle,payload.bundles[service]), 'APPROVED_BUNDLE_MISMATCH');
+    digest = payload.envelope.manifest_sha256;
+    if (service === 'payments-wallet') bindings = payload.envelope.manifest.bindings.map(entry => ({
+      order_id:entry.order_id, binding_id:`legacy:${digest}:${entry.order_id}`, manifest_sha256:digest,
+      ...Object.fromEntries(['intent_id','customer_id','provider_id','amount_cents','currency','eligibility'].map(k=>[k,entry[k]]))
+    }));
+  }
   const tables = validateSnapshot(service,bundle);
   const report = { service, snapshot_id: bundle.snapshot_id, mode: apply ? 'apply' : 'dry-run',
     sha256: createHash('sha256').update(JSON.stringify(tables)).digest('hex'),
     counts: Object.fromEntries(Object.entries(tables).map(([name,rows]) => [name,rows.length])) };
+  if (digest) Object.assign(report,{manifest_sha256:digest,bindings:bindings?.length ?? 0});
   await database.checkReady();
   try {
     return await database.withTransaction(async client => {
@@ -135,13 +152,18 @@ export async function importSnapshot(database, service, bundle, { apply = false 
       await client.query(`LOCK TABLE ${[...owned[service],...messageTables[service]].join(',')} IN ACCESS EXCLUSIVE MODE`);
       const versions = (await client.query('SELECT version FROM schema_migrations ORDER BY version')).rows.map(row => row.version);
       require(isDeepStrictEqual(versions,expectedMigrations[service]), 'SCHEMA_REVIEW_REQUIRED');
-      for (const table of messageTables[service]) {
+      for (const table of messageTables[service].filter(table => !(bindings !== null && table === 'legacy_payment_bindings'))) {
         require((await client.query(`SELECT 1 FROM ${table} LIMIT 1`)).rowCount === 0, 'MESSAGE_STATE_NOT_EMPTY');
       }
       const read = async table => (await client.query(`SELECT ${columns[table].join(',')} FROM ${table} ORDER BY ${key(table)}`)).rows.map(row => normalize(table,row));
       const current = {};
       for (const table of owned[service]) current[table] = await read(table);
       const empty = Object.values(current).every(rows => rows.length === 0);
+      const readBindings = async () => (await client.query(`SELECT ${bindingColumns.join(',')} FROM legacy_payment_bindings ORDER BY order_id`)).rows;
+      if (bindings !== null) {
+        const existing = await readBindings();
+        require(empty ? existing.length === 0 : isDeepStrictEqual(existing,bindings), 'BINDING_TARGET_NOT_EMPTY_OR_IDENTICAL');
+      }
       require(empty || isDeepStrictEqual(current,tables), 'TARGET_NOT_EMPTY_OR_IDENTICAL');
       if (empty) {
         for (const table of owned[service]) {
@@ -151,6 +173,12 @@ export async function importSnapshot(database, service, bundle, { apply = false 
             await client.query(`INSERT INTO ${table} (${cols.join(',')}) VALUES (${cols.map((_,i) => '$'+(i+1)).join(',')})`, values);
           }
         }
+      }
+      if (bindings !== null) {
+        if (empty) for (const row of bindings) {
+          await client.query(`INSERT INTO legacy_payment_bindings (${bindingColumns.join(',')}) VALUES (${bindingColumns.map((_,i)=>'$'+(i+1)).join(',')})`,bindingColumns.map(k=>row[k]));
+        }
+        require(isDeepStrictEqual(await readBindings(),bindings),'BINDING_IMPORT_VERIFICATION_FAILED');
       }
       for (const table of owned[service]) {
         require(isDeepStrictEqual(await read(table),tables[table]), 'IMPORT_VERIFICATION_FAILED');
