@@ -47,6 +47,8 @@ git push -u origin feat/a-notifications-extraction
 
 ## เกณฑ์ merge
 
+CI สำหรับ PR ที่แก้เฉพาะ Markdown บางตำแหน่งใช้ [docs-only fast path](docs/ci-docs-fast-path.md); ไม่มี check เพราะถูกข้ามไม่เท่ากับ test ผ่าน หากมีโค้ด/config/workflow ปนอยู่ยังต้องรันตาม filters เดิม
+
 - PR ทำงานหนึ่งชิ้นที่ตรวจได้ และไม่ทำให้ main เปิดระบบไม่ได้
 - แจ้งว่าเปลี่ยนอะไร กระทบใคร และทดสอบอะไรจริง รวมผลและสิ่งที่ยังไม่ทดสอบ
 - รัน inherited tests เมื่อแก้ business logic หรือส่วนเชื่อมต่อที่กระทบ monolith และรัน tests ของส่วนที่แก้
