@@ -1,6 +1,12 @@
 name: E tracing and reliability
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**/*.md'
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'OWNERS.md'
+      - 'CONTRIBUTING.md'
   push:
     branches: [main]
   workflow_dispatch:
