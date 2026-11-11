@@ -6,6 +6,12 @@ on:
     branches:
       - main
   pull_request:
+    paths-ignore:
+      - 'docs/**/*.md'
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'OWNERS.md'
+      - 'CONTRIBUTING.md'
   workflow_dispatch:
 
 jobs:
