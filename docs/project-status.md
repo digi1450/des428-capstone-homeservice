@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A-led C schema006 — 11 November2026
+
+[Schema handoff](legacy-binding-schema-handoff.md): Payments legacy binding table and local intent-context constraints prepared. Importer accepts006 only with EMPTY bindings; checker flags bindings as attention pending checkpoint support. Actual binding writer/replay, runtime eligibility and Booking owner work remain pending. CI validation required before merge.
+
 ## A legacy manifest exporter — 11 November2026
 
 [Export handoff](legacy-manifest-export-handoff.md): one read-only SQLite snapshot now publishes both owner bundles, a private consistent backup and exact v1 manifest. Eligibility is state/ledger-based, unknown combinations fail closed. Python20 and contract47 local tests passed; PG regression awaits PR CI. C006/importer/runtime1.1/actual historical checkpoint and cutover remain pending.
