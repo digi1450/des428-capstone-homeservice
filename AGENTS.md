@@ -112,3 +112,5 @@ docker compose -f bangkok-homeservice/docker-compose.yml run --rm test
 Exporter implementation: [A legacy manifest export](docs/legacy-manifest-export-handoff.md). It publishes a private consistent backup and manifest; importer/runtime/bindings/cutover remain pending.
 
 For importer manifest preflight, read `docs/import-manifest-preflight-handoff.md`. Verification alone does not implement006 bindings or make the existing importer a cutover procedure.
+
+For A-led Payments schema006 preparation, read `docs/legacy-binding-schema-handoff.md`. Table presence alone does not implement runtime eligibility, binding import or Booking checkpoint reconciliation.

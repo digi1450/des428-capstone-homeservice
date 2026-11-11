@@ -209,7 +209,7 @@ for (const [service,createDatabase,migrate,env] of [
           await assert.rejects(db.query('TRUNCATE payment_intents'), error => error.code === '0A000',
             'referencing table must be named even when its rows are empty');
         }
-        const resetTables = service === 'payments-wallet' ? [...tables,'payment_provisioning'] : tables;
+        const resetTables = service === 'payments-wallet' ? [...tables,'payment_provisioning','legacy_payment_bindings'] : tables;
         await db.query(`TRUNCATE ${resetTables.join(',')}`);
         const failing = {checkReady:() => db.checkReady(), withTransaction: work => db.withTransaction(async client => {
           let inserts = 0;

@@ -4,7 +4,7 @@ on:
 jobs:
   authenticated-boundary:
     name: OIDC session, JWT and financial service boundary
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
     services:
       payments-postgres:
         image: postgres:16-alpine
@@ -54,7 +54,7 @@ jobs:
         run: node --test tests/integration/authenticated-services-boundary.test.mjs
   next-startup:
     name: Compiled Next authenticated startup and RSC
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
