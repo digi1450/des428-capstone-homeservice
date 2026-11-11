@@ -1,5 +1,13 @@
 # Notifications business slice — A handoff
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 Status: PostgreSQL repository/service and read/mark-read HTTP router implemented. The monolith HTTP client is prepared and tested, but existing monolith routes/pages/relay still use SQLite. Authentication, broker delivery/dedupe, cutover/backfill and final gateway remain pending. This is progress toward extraction, not a completed migration.
 
 ## A: implemented entry points

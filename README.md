@@ -4,22 +4,34 @@ University team capstone repository for migrating the supplied Homeservice monol
 
 ## Current status
 
-Start with the [shared project status and handoff](docs/project-status.md): merged PRs #5–11, what is prepared versus active, and B/C/D/E integration entry points. This snapshot does not claim completed extraction.
+The two selected business services, Notifications and Payments & Wallet, are
+implemented and integrated with separately owned PostgreSQL databases. Keycloak,
+monolith callers, messaging/saga/recovery, nginx, telemetry and CI are integrated.
+User-authorized **local data cutover completed on 12 November 2026**, including
+backup/restore, signed checkpoint approval, migrated read comparisons and restart
+checks. See [actual local acceptance](docs/validation/a-local-cutover-2026-11-12.md).
 
-- Original monolith is preserved in `bangkok-homeservice/`.
-- The initial Docker baseline passed 61 tests and HTTP smoke checks on 4 November 2026. See [recorded evidence](docs/baseline/2026-11-04/README.md).
-- Notifications and Payments & Wallet are the selected extraction boundaries. Their Express/PostgreSQL scaffold is in [services/](services/README.md). [Notifications business logic/read API and a prepared monolith client](docs/notifications-handoff.md) are implemented; real auth, event delivery and monolith cutover remain pending. [Payments financial primitives and wallet/history reads](docs/payments-business-handoff.md) are implemented with C/B integration pending. Live gateway wiring, full business cutover, Keycloak, saga and observability are pending.
-- Prepared [Payments client/Booking adapters](docs/payment-adapter-handoff.md) are tested; active monolith callers and service command/auth integration remain pending.
-- Prepared [Notifications event mappings](docs/notification-mappings-handoff.md) preserve inherited recipients/messages; broker delivery and active cutover remain pending.
-- Prepared [nginx routing](docs/nginx-handoff.md) includes baseline/candidate modes and isolated real-nginx tests; live gateway wiring/cutover remains pending with B/C/D/E.
-- Prepared [offline data migration and caller cutover plan](docs/data-cutover-handoff.md) includes read-only export, rollback-only dry-run and service-owned import tests; no real data or active callers have been switched.
-- Team ownership: [OWNERS.md](OWNERS.md). Branch/PR instructions: [CONTRIBUTING.md](CONTRIBUTING.md).
+Start with [current A–E status and remaining work](docs/current-area-status.md),
+then the [dated implementation history](docs/project-status.md). Remaining work
+includes D/C's final race/fault evidence review and shared browser/offline/demo/
+dossier/defence deliverables. Further extraction after lecturer feedback needs a
+separate scope decision; this milestone does not claim whole-project completion.
 
-E integration: [logging/metrics/tracing/CI and initial root Compose](docs/e-observability-handoff.md) now coexist with C's merged messaging/saga modules. Final business activation, broker/IdP wiring and full-stack evidence remain pending. Normal SQLite startup now preserves data; review [startup and persistence](docs/sqlite-startup-handoff.md) before using an existing database. Full cutover remains pending.
-
-This branch adds [RabbitMQ workers and messaging-trace continuity](docs/e-cross-service-tracing-handoff.md), plus Pact consumer/provider checks. Root `.env.example` includes the new broker password/UI-port settings. Final auth, remaining workers, live business traces and cutover are still integration gates.
+- [Area ownership and evidence](OWNERS.md); [Git workflow](CONTRIBUTING.md).
+- [Service setup](services/README.md); [E's six-task evidence](docs/e-task-checklist.md).
+- The original monolith remains in `bangkok-homeservice/`; its61-test baseline
+  from4 November is [historical evidence](docs/baseline/2026-11-04/README.md).
+- Deployment remains opt-in: tracked flags are false. The approved persistent
+  local deployment uses private config, receipts and credentials, not default
+  Compose or seeded passwords. No secrets or live source data belong in this repo.
 
 ## Run the original system
+
+These commands are for a separate disposable baseline environment. Do not run
+them against the retired local source or the approved migrated deployment. Use
+that deployment's private wrapper/configuration to manage it; never fall back to
+SQLite-only mode after distributed effects. Seeded logins below belong only to
+the baseline demo, not the actual Keycloak deployment.
 
 Install and start Docker with Docker Compose. From the repository root:
 
@@ -75,7 +87,7 @@ OWNERS.md                 owners A–E and contribution evidence
 CONTRIBUTING.md            branch, review and integration workflow
 ```
 
-See [service setup](services/README.md), [caller inventory](docs/extraction-inventory.md) and the [shared status map](docs/project-status.md). Still pending: final root full-stack Compose and telemetry infrastructure, integrated resilience/Pact/CI evidence, real data/caller cutover, final demo scripts and dossier. Existing schemas/fixtures/prepared configs do not complete those requirements.
+See [service setup](services/README.md), the historical [caller inventory](docs/extraction-inventory.md) and [current remaining work](docs/current-area-status.md). Full-stack Compose, telemetry, Pact/CI and actual local cutover now have evidence; final submission and uncovered D/C acceptance remain separate.
 
 ## Capstone completion work
 
@@ -87,7 +99,7 @@ E authenticated deployment: [local Compose/TLS/Keycloak/worker integration](docs
 
 Area E Task 3: [Pact coverage, tracing/reliability CI and act commands](docs/e-task3-ci-handoff.md), with [dated local results](docs/validation/e-task3-ci-2026-11-10.md).
 
-Area E Task 5: [selected actual full-flow trace/log/dashboard acceptance](docs/e-task5-full-flow-handoff.md), with [dated local evidence](docs/validation/e-task5-full-flow-2026-11-10.md). Extends the merged Task4 runner; broader fault/load/offline/cutover gates remain.
+Area E Task 5: [selected actual full-flow trace/log/dashboard acceptance](docs/e-task5-full-flow-handoff.md), with [dated local evidence](docs/validation/e-task5-full-flow-2026-11-10.md). Extends the merged Task4 runner; broader D race and offline/submission gates remain; load and local cutover have newer evidence linked in the current status.
 
 Task5 follow-up: [process-crash/redelivery and durable financial recovery tracing](docs/e-task5-fault-recovery-handoff.md), with [dated local results](docs/validation/e-task5-fault-recovery-2026-11-10.md). Run the same fresh-stack runner with FINAL_STACK_TELEMETRY=true and FINAL_STACK_FAULTS=true.
 

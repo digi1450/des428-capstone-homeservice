@@ -2,20 +2,22 @@
 
 ## Project and scope
 
-This private DES428 team project migrates the supplied Bangkok Homeservice monolith into two business services. Do not expand the task into splitting every context or rewriting the product.
+This public DES428 team project migrates the supplied Bangkok Homeservice monolith into two business services. Do not expand the task into splitting every context or rewriting the product.
 
-- Read `README.md` for setup, `CONTRIBUTING.md` for Git/review workflow, `OWNERS.md` for A–E accountability, and `docs/team-plan.md` for the proposed boundaries and dependencies.
+- Read `README.md` for setup, `CONTRIBUTING.md` for Git/review workflow, `OWNERS.md` for A–E accountability, and `docs/team-plan.md` for the original selected boundaries and coordination dependencies.
 - The supplied Next.js/SQLite monolith is in `bangkok-homeservice/` and still uses `edemand` internally. Do not rename its internals merely to match the project title.
 - Selected extractions are Notifications and Payments & Wallet, using Express and separately owned PostgreSQL databases in two PostgreSQL containers. Read `docs/migration-handoff.md` for the lead-selected decisions and draft interfaces. Selected scope is not proof of implementation; inspect current code before making claims.
 - Use the course stack described in the team plan. Keep unrelated capabilities in the monolith and avoid unrelated dependency upgrades, formatting sweeps or infrastructure additions.
 
 ## Read the shared handoffs before implementation
 
+- Start with `docs/current-area-status.md` (12 November2026, through merged PR78). Actual local two-service cutover is complete; A/B/C integration, E's six tracking tasks and their acceptance must not be assigned again from old pending statements. D/C coverage review and shared browser/offline/dossier/defence remain. Dated handoffs and validation retain their original scope; current status supersedes their old completion labels, not contracts/safety rules. Tracked flags stay false; another environment needs its own authorization/checkpoint. Further extraction after lecturer feedback is a separate scope decision.
+
 - For E Task6's8GB runtime budget, use `docs/e-task6-resource-budget-handoff.md`: all16 services need no-swap caps, raw cgroup-v2 peaks during the declared load/recovery, and explicit observer/host reserve allowances. Do not replace kernel peaks with cache-adjusted stats or call a larger-host run a full8GB-machine test. Upload only the three allowlisted sanitized outputs; do not change Docker/WSL settings or unrelated stacks. E's six-task titles are in `docs/e-task-checklist.md`; browser/offline/dossier work is separate from Task6.
 
 - For exact legacy manifest v1/hash/owner-row and financial target v1.1 fixtures, read `docs/legacy-manifest-contract-handoff.md`. Keep the retained runtime v1 spec strict until coordinated receiver/caller implementation. Dev references/static tests do not create bindings, authorize import or prove frozen source/DB eligibility. C/A use the shared vectors before implementing006/importer/Booking CLI.
 
-- For the lead-selected old open gateway booking path, read `docs/c-legacy-binding-proposal.md` (accepted baseline despite its stable filename). A publishes exact manifest/hash and v1.1 reference fixtures first; C/A implement against them. Payments bindings are atomic with its import; both owners/checkpoint must reconcile before traffic opens. Append Booking upgrades after E's existing steps. Acceptance of this plan is not implemented legacy eligibility or cutover approval.
+- For the lead-selected old open gateway booking path, read `docs/c-legacy-binding-proposal.md` (accepted baseline despite its stable filename). A publishes exact manifest/hash and v1.1 reference fixtures first; C/A implement against them. Payments bindings are atomic with its import; both owners/checkpoint must reconcile before traffic opens. Append Booking upgrades after E's existing steps. Acceptance of this plan alone is not cutover approval; later PR73–78 implement the selected runtime and record authorized local acceptance.
 
 - Before using the read-only C consistency checker for cutover/rollback, read `docs/c-consistency-check.md`: validate current owner schemas, stable command/request/result identity and broker ready/unacknowledged coverage. Quiescent checks require frozen writers and drained/disconnected consumers; missing counters or sources are not cutover approval.
 
@@ -51,7 +53,7 @@ This private DES428 team project migrates the supplied Bangkok Homeservice monol
 
 - For Notifications API/page readers and the explicit credential/client seam, read `docs/notifications-callers-handoff.md`; remote reader preparation does not retire SQLite writers or activate cutover.
 
-- For A step 5 remaining SQLite callers/writers, existing C producers, implementation order and data/routing gates, read `docs/a-step5-caller-audit.md`; its source snapshot is explicit and it does not activate cutover.
+- For A step 5 remaining SQLite callers/writers, existing C producers, implementation order and data/routing gates, read `docs/a-step5-caller-audit.md`; its source snapshot is explicit and it does not itself activate cutover.
 
 - For A step 4 runtime assembly, real C participant/readiness/recovery and the B auth activation gate, read `docs/payment-runtime-composition-handoff.md` before changing bootstrap/composition.
 - For E messaging tracing, C lifecycle preservation, durable parent-context propagation and the tested/remaining integration boundaries, read `docs/e-cross-service-tracing-handoff.md`.
@@ -100,7 +102,7 @@ docker compose -f bangkok-homeservice/docker-compose.yml run --rm test
 - Stage only reviewed files for the task. Keep commits and PRs small; document interface changes, validation and remaining limitations.
 - Follow `CONTRIBUTING.md`: changes to `main` still go through a PR, but zero approving reviews are required. Any collaborator with write access may merge their own or another member's PR when other applicable requirements pass. GitHub does not allow authors to approve their own PR; this policy removes the approval requirement instead. `.github/CODEOWNERS` suggests an optional review contact. `OWNERS.md` describes academic responsibilities, not GitHub access control.
 - The repository owner has explicitly enabled admin bypass, but that is not standing authorization for an agent to use it. A request to commit/push does not authorize merging a PR, bypassing review or pushing directly to `main`; do those only when explicitly requested for the task.
-- Do not change repository visibility, branch protection or collaborator access without user direction. Keep this repository private.
+- Do not change repository visibility, branch protection or collaborator access without user direction. The repository is public; keep secrets, useful data and private deployment artifacts untracked.
 
 ## Data and evidence
 
@@ -109,13 +111,13 @@ docker compose -f bangkok-homeservice/docker-compose.yml run --rm test
 - Only claim timings, effects, traces, concurrency behavior and test outcomes observed in actual runs. Do not introduce an unsafe race or authorization flaw merely to claim an inherited defect was fixed.
 - Team members must understand their implementations and produce their own architecture-defence reasoning from evidence. Track real contributions in `OWNERS.md` and disclose AI assistance in the final dossier as required by the assignment.
 
-Exporter implementation: [A legacy manifest export](docs/legacy-manifest-export-handoff.md). It publishes a private consistent backup and manifest; importer/runtime/bindings/cutover remain pending.
+Exporter implementation: [A legacy manifest export](docs/legacy-manifest-export-handoff.md). It publishes a private consistent backup and manifest; importer/runtime/bindings and authorized local cutover are now completed through PR65–78. See current status for remaining work.
 
 For importer manifest preflight, read `docs/import-manifest-preflight-handoff.md`. Approved-directory mode verifies captured source artifacts and imports Payments bindings atomically; it does not implement runtime eligibility, Booking checkpoint reconciliation or authorize cutover.
 
 For A-led Payments schema006 preparation, read `docs/legacy-binding-schema-handoff.md`. Table presence alone does not implement runtime eligibility, binding import or Booking checkpoint reconciliation.
 
-For staged runtime v1.1 transport and remaining eligibility/caller gates, read `docs/financial-v11-runtime-handoff.md`. Legacy references currently produce durable reconciliation attention; do not send traffic before eligibility/checkpoint integration.
+For staged runtime v1.1 transport and remaining eligibility/caller gates, read `docs/financial-v11-runtime-handoff.md`. Its original transport-only limitation is superseded by merged PR73–78 eligibility/checkpoint integration and authorized local acceptance; do not activate another deployment without its own checkpoint.
 
 For the additive Booking binding CLI and bound-versus-approved readiness gate, read `docs/legacy-booking-runtime-handoff.md`. Offline binding import never approves the checkpoint; real two-owner/operator approval remains in step2.
 

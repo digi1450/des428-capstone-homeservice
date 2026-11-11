@@ -1,5 +1,13 @@
 # Prepared nginx routing — A → B/C/D/E
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 Status: routing preparation, not active migration. The original application and `services/compose.dev.yml` are unchanged. The fixture stack is not the final course stack. See [recorded validation](validation/nginx-routing-2026-11-06.md).
 
 ## Files and activation

@@ -1,5 +1,13 @@
 # Area E observability integration — 7 November 2026
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 Status: E's logging, HTTP metrics, Grafana provisioning, per-service tracing and service-test CI have been integrated with main through C PRs #14–18 on this branch. This remains a partial final stack, not completed Area E or live business cutover. See [validation](validation/e-main-sync-2026-11-07.md), [C messaging handoff](c-messaging-handoff.md), [shared status](project-status.md), [gateway](nginx-handoff.md) and [data/caller runbook](data-cutover-handoff.md).
 
 > 8 November branch update: [messaging tracing and worker integration](e-cross-service-tracing-handoff.md) adds RabbitMQ and two event workers, preserves C lifecycle fixes and records context/Pact checks. This supersedes the historical no-broker/Pact statements below for this branch, without claiming final-stack completion.

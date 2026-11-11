@@ -1,5 +1,13 @@
 # Area B — staged authentication implementation handoff
 
+> Current-status note — 12 November2026: [A–E status](current-area-status.md)
+> and [actual local cutover](validation/a-local-cutover-2026-11-12.md) supersede
+> earlier pending/unmounted/unwired/no-cutover labels in this historical handoff.
+> PR73–78 are merged; auth/callers/owners and approved local deployment are integrated.
+> Keep the contracts, safety requirements and original test limits below. Shared
+> defaults remain gated; this local result does not approve another deployment
+> or close D's broader races/browser/offline/submission work.
+
 ## A-led real Keycloak and signup follow-up — 10 November 2026
 
 The lead authorized A to complete B follow-up using the existing B seams. Read [the new auth/onboarding handoff](keycloak-onboarding-handoff.md) and [dated actual acceptance evidence](validation/a-b-live-keycloak-2026-11-10.md) first. It supersedes historical “real user/browser/webhook not tested” statements only for the isolated acceptance deployment described there. E final deployment, historical migration/cutover, dependency advisories and complete D/E acceptance remain open; default deployment/self-registration flags are still false.
