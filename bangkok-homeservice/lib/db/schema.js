@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS processed_events;
 DROP TABLE IF EXISTS idempotency_keys;
 DROP TABLE IF EXISTS event_trace_context;
 DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS legacy_event_archive;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS webhook_events;
@@ -276,6 +277,19 @@ CREATE TABLE events (
 );
 CREATE INDEX idx_events_unprocessed ON events(processed_at) WHERE processed_at IS NULL;
 CREATE INDEX idx_events_unpublished ON events(next_publish_at, id) WHERE published_at IS NULL;
+
+-- Audit with no runtime writer, populated only by the OFFLINE original-schema upgrade.
+-- These are retired local relay records, never new broker events or published receipts.
+CREATE TABLE legacy_event_archive (
+  id INTEGER PRIMARY KEY,
+  type TEXT NOT NULL,
+  aggregate_type TEXT NOT NULL,
+  aggregate_id INTEGER NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  processed_at TEXT
+);
+
 
 -- Allow-listed transport metadata, atomically committed with the owning outbox row.
 -- Separate from domain payloads and never part of a public event's data.

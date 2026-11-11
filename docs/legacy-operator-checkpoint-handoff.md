@@ -170,13 +170,16 @@ recognizing the historical processed gateway receipt type `payment.succeeded`
 with matching settled intent/charge. It is preserved verbatim; the public callback
 API still accepts only its current type. Unprocessed historical receipts fail.
 
-**Source-specific Booking preparation is blocked:** the retained local file uses
+**Blocker recorded during checkpoint preparation:** the retained local file uses
 36 original schema objects. Current Booking adds14 objects and broker columns
 on `events`; the current strict migration correctly refuses this old baseline.
 Do not bypass the fingerprint or seed/reset it. A separate exact-schema offline
 upgrade must preserve the9 processed legacy events as historical audit, retain
 its watermark and prevent replay as fresh broker effects, then reconcile again.
-This source-copy finding is not a reason to relax runtime schema acceptance.
+This source-copy finding is not a reason to relax runtime schema acceptance. Subsequent
+[original-schema offline preparation](original-booking-upgrade-handoff.md) resolves
+this on a separate copy; follow that procedure BEFORE the Booking binding CLI.
+Its successful rehearsal is still not actual source cutover approval.
 
 The private-copy preflight does not prove
 its final frozen migration or that all historical identities have Keycloak

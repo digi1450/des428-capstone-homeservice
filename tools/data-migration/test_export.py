@@ -158,6 +158,10 @@ class ExportTests(unittest.TestCase):
         self.change("UPDATE events SET publish_attempts=1,published_at=NULL")
         self.assert_source_rejected_without_changes('SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')
 
+    def test_retired_original_event_archive_cannot_be_reexported_as_legacy_only(self):
+        self.change("INSERT INTO legacy_event_archive SELECT id,type,aggregate_type,aggregate_id,payload_json,created_at,processed_at FROM events")
+        self.assert_source_rejected_without_changes('SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')
+
     def test_consumer_inbox_history_is_not_discarded_by_source_export(self):
         self.change("INSERT INTO processed_events (consumer_name,event_id,event_type,producer,outcome) VALUES ('fixture','fixture-event','payment.succeeded','payments-wallet','applied')")
         self.assert_source_rejected_without_changes('SOURCE_DISTRIBUTED_STATE_REQUIRES_REVIEW')

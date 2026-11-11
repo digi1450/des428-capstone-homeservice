@@ -56,9 +56,11 @@ def verify_manifest(directory, expected_digest, *, capture=False):
                                   for name in ('notifications','payments-wallet')]
         require(canonical_bytes(regenerated) == canonical_bytes(core), 'SOURCE_MANIFEST_MISMATCH')
         source_rows = {}
+        source_schema = []
         if capture:
             with sqlite3.connect(copied) as db:
                 db.row_factory = sqlite3.Row
+                source_schema = [dict(row) for row in db.execute("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT GLOB 'sqlite_*' ORDER BY type,name")]
                 names = [row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT IN ('app_schema_version','booking_legacy_payment_bindings','booking_legacy_payment_checkpoints') ORDER BY name")]
                 for name in names:
                     require(all(c in 'abcdefghijklmnopqrstuvwxyz_' for c in name), 'SOURCE_TABLE_NAME')
@@ -68,7 +70,7 @@ def verify_manifest(directory, expected_digest, *, capture=False):
                   snapshot_id=core['snapshot_id'], bindings=len(core['bindings']))
     if capture:
         # Private IPC only: return the SAME bytes already verified, never reread paths.
-        return dict(report=report, envelope=envelope, source_rows=source_rows,
+        return dict(report=report, envelope=envelope, source_rows=source_rows, source_schema=source_schema,
                     bundles={name: value[1] for name, value in bundles.items()})
     return report
 
