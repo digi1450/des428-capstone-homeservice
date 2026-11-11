@@ -4,7 +4,7 @@ on:
 jobs:
   financial-boundary:
     name: Booking callers and financial HTTP boundary
-    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16-alpine

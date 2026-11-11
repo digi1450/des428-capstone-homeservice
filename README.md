@@ -1,6 +1,6 @@
 # DES428 Capstone — Bangkok Homeservice
 
-Private team repository for migrating the supplied Homeservice monolith into two business services. Keep this repository private and share it with the lecturer and team.
+University team capstone repository for migrating the supplied Homeservice monolith into two business services. See [public readiness checklist](docs/public-readiness.md) before changing repository visibility.
 
 ## Current status
 
