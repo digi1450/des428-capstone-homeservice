@@ -34,17 +34,18 @@ jobs:
       FINAL_STACK_RESOURCES: 'true'
       COMPOSE_PARALLEL_LIMIT: '2'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
+          package-manager-cache: false
       - name: Validate sanitized Compose diagnostics
         run: node --test tests/final-stack/compose-diagnostic.test.mjs
       - name: Actual authenticated flows, telemetry and scoped recovery
         run: node tests/final-stack/run.mjs
       - name: Save only sanitized resource evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: task6-resource-evidence
           path: output/task6-*/*.json*

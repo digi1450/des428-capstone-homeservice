@@ -12,7 +12,7 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: homeservice-e-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run isolated tracing and reliability suites
         shell: bash
         run: bash scripts/run-e-tracing-reliability.sh

@@ -5,10 +5,11 @@ jobs:
   compose-config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
+          package-manager-cache: false
       - name: Prepare disposable local CA, realm and secrets
         run: node scripts/prepare-authenticated-compose.mjs
       - name: Validate baseline and authenticated service configuration
