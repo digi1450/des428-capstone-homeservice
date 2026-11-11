@@ -114,3 +114,5 @@ Exporter implementation: [A legacy manifest export](docs/legacy-manifest-export-
 For importer manifest preflight, read `docs/import-manifest-preflight-handoff.md`. Approved-directory mode verifies captured source artifacts and imports Payments bindings atomically; it does not implement runtime eligibility, Booking checkpoint reconciliation or authorize cutover.
 
 For A-led Payments schema006 preparation, read `docs/legacy-binding-schema-handoff.md`. Table presence alone does not implement runtime eligibility, binding import or Booking checkpoint reconciliation.
+
+For staged runtime v1.1 transport and remaining eligibility/caller gates, read `docs/financial-v11-runtime-handoff.md`. Legacy references currently produce durable reconciliation attention; do not send traffic before eligibility/checkpoint integration.

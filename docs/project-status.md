@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A v1.1 runtime transport preparation — 11 November2026
+
+[Handoff](financial-v11-runtime-handoff.md): service/client validators accept strict legacy references. Receiver remains durable reconciliation attention with no money/provisioning effects. Local monolith302 and PG financial16 pass; CI pending. Locked eligibility, Booking bindings/callers and checkpoint remain next; not full v1.1 integration.
+
 ## A importer preflight — 11 November2026
 
 [Preflight handoff](import-manifest-preflight-handoff.md): offline verification ties the approved manifest digest and complete eligible set/owner rows to the actual consistent SQLite backup. Python28 tests pass. Resumed after merged PR66: approved-directory CLI now integrates verification and atomic Payments business/binding insertion, exact replay and dry-run. Booking bindings/checkpoint, runtime eligibility/v1.1 and historical cutover remain pending.
