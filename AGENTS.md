@@ -108,3 +108,5 @@ docker compose -f bangkok-homeservice/docker-compose.yml run --rm test
 - `docs/baseline/2026-11-04/` records the original 61-test run and smoke checks. It is historical evidence, not proof that later changes or migration requirements pass. Do not rewrite old observations to imply a new run.
 - Only claim timings, effects, traces, concurrency behavior and test outcomes observed in actual runs. Do not introduce an unsafe race or authorization flaw merely to claim an inherited defect was fixed.
 - Team members must understand their implementations and produce their own architecture-defence reasoning from evidence. Track real contributions in `OWNERS.md` and disclose AI assistance in the final dossier as required by the assignment.
+
+Exporter implementation: [A legacy manifest export](docs/legacy-manifest-export-handoff.md). It publishes a private consistent backup and manifest; importer/runtime/bindings/cutover remain pending.
