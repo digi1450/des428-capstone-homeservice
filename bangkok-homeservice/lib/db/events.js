@@ -14,7 +14,11 @@ export function insertEvent(type, aggregateType, aggregateId, payload) {
   return db.transaction(()=>{
   const id=db
     .prepare(
-      "INSERT INTO events (type, aggregate_type, aggregate_id, payload_json, event_uuid) VALUES (?, ?, ?, ?, ?)"
+      `INSERT INTO events (id, type, aggregate_type, aggregate_id, payload_json, event_uuid)
+       VALUES ((SELECT max(n)+1 FROM (
+         SELECT coalesce(max(id),0) n FROM events
+         UNION ALL SELECT coalesce(max(id),0) n FROM legacy_event_archive
+       )), ?, ?, ?, ?, ?)`
     )
     .run(type, aggregateType, aggregateId, JSON.stringify(payload), randomUUID()).lastInsertRowid;
   const headers=currentCarrier();

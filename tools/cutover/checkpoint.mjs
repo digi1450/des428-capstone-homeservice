@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {isDeepStrictEqual as same} from 'node:util';
 import {readFileSync,readdirSync,writeFileSync,existsSync,unlinkSync} from 'node:fs';
 import {join} from 'node:path';
+import {assertRetainedSource} from '../data-migration/original-booking-schema.mjs';
 import {approvedPayload} from '../data-migration/approved-snapshot.mjs';
 import {columns,validateSnapshot} from '../data-migration/import-snapshot.mjs';
 import {canonical,privateFile,trustedFile,sealCheckpoint,verifyCheckpoint,readCheckpoint} from '../../services/payments-wallet/src/legacy-checkpoint.js';
@@ -35,9 +36,7 @@ export async function ownerState(client,service,bundle,expectedBindings){
 }
 export function bookingState(db,payload){
  const {manifest:core,manifest_sha256:hash}=payload.envelope;
- for(const [table,expected] of Object.entries(payload.source_rows)){
-  need(/^[a-z_]+$/.test(table));need(same(db.prepare(`SELECT * FROM "${table}" ORDER BY rowid`).all(),expected),'CHECKPOINT_BOOKING_CHANGED');
- }
+ assertRetainedSource(db,payload);
  for(const table of ['booking_sagas','booking_saga_activations','booking_saga_transitions','booking_financial_work','processed_events','consistency_attention'])need(db.prepare(`SELECT count(*) n FROM ${table}`).get().n===0,'CHECKPOINT_NEW_WORK_PRESENT');
  const expected=core.bindings.map(x=>({order_id:x.order_id,binding_id:`legacy:${hash}:${x.order_id}`,manifest_sha256:hash}));
  const actual=db.prepare('SELECT * FROM booking_legacy_payment_bindings ORDER BY order_id').all();need(same(actual,expected));

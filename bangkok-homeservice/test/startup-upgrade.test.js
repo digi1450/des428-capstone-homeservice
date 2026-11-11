@@ -21,7 +21,7 @@ const STEP_OBJECTS = [
   "DROP INDEX idx_booking_saga_activations_due; DROP TABLE booking_saga_activations", // step 1
 ];
 
-const rows = (db) => db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('app_schema_version','booking_saga_activations','booking_financial_work','event_trace_context','booking_work_trace_context','booking_legacy_payment_bindings','booking_legacy_payment_checkpoints') ORDER BY name").all()
+const rows = (db) => db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('app_schema_version','booking_saga_activations','booking_financial_work','event_trace_context','booking_work_trace_context','booking_legacy_payment_bindings','booking_legacy_payment_checkpoints','legacy_event_archive') ORDER BY name").all()
   .map(({ name }) => [name, db.prepare(`SELECT * FROM "${name}" ORDER BY rowid`).all()]);
 
 // from = 0: the b4d0b46 schema (both steps missing); from = 1: the a23b98e schema (step 2 missing).
@@ -30,6 +30,7 @@ function withOldDatabase(run, { marker = true, from = 0 } = {}) {
   const db = new Database(join(directory, "old.sqlite"));
   try {
     migrate(db);
+    db.exec('DROP TABLE legacy_event_archive');
     db.exec('DROP TABLE booking_legacy_payment_bindings; DROP TABLE booking_legacy_payment_checkpoints');
     db.exec('DROP TABLE booking_work_trace_context');
     if(from<3)db.exec('DROP TABLE event_trace_context');
@@ -57,7 +58,7 @@ function withOldDatabase(run, { marker = true, from = 0 } = {}) {
 }
 
 test("the previous fingerprint is exactly main's, so real old files are recognised", () => {
-  assert.deepEqual(PREVIOUS_FINGERPRINTS, [MAIN_B4D0B46, MAIN_A23B98E,MAIN_9AD496A,MAIN_8494AA2,"c8bc03044e824076c84e6c1b99343ec7512f084dc4a02329c538b4bca2f2d846"]);
+  assert.deepEqual(PREVIOUS_FINGERPRINTS, [MAIN_B4D0B46, MAIN_A23B98E,MAIN_9AD496A,MAIN_8494AA2,"c8bc03044e824076c84e6c1b99343ec7512f084dc4a02329c538b4bca2f2d846","4240ccb2bfcd0dad91265725876872b73250012b59081523e94c6db301654cc0"]);
 });
 test('Task5 main gains only an empty recovery carrier table without changing durable work',()=>withOldDatabase(db=>{
  const orderId=db.prepare('SELECT id FROM orders ORDER BY id LIMIT 1').get().id;
@@ -142,3 +143,15 @@ test("a failing backfill rolls the whole upgrade back (no table, old marker kept
   assert.deepEqual(rows(db), before);
   assert.equal(migrate(db), "upgraded", "the next start retries the same upgrade");
 }));
+
+// Pinned independently from migrate/schema at actual merged main a1fa7d5 (PR75).
+test('PR75 main gains only an empty original-event archive, preserving existing active event identity',()=>{
+ const db=new Database(':memory:');
+ try{
+  migrate(db);db.exec('DROP TABLE legacy_event_archive');
+  db.prepare('UPDATE app_schema_version SET fingerprint=?').run('4240ccb2bfcd0dad91265725876872b73250012b59081523e94c6db301654cc0');
+  db.exec("INSERT INTO events (id,type,aggregate_type,aggregate_id,payload_json,event_uuid,publish_attempts) VALUES (80,'fixture','order',1,'{}','existing-stable-id',3)");
+  const before=rows(db);assert.equal(migrate(db),'upgraded');assert.deepEqual(rows(db),before);
+  assert.equal(db.prepare('SELECT count(*) n FROM legacy_event_archive').get().n,0);assert.equal(migrate(db),'preserved');
+ }finally{db.close();}
+});

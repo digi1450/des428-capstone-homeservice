@@ -1,6 +1,7 @@
 // Offline owner tool only; never imported by application routes.
 import {isDeepStrictEqual as same} from 'node:util';
 import {approvedPayload} from './approved-snapshot.mjs';
+import {assertRetainedSource} from './original-booking-schema.mjs';
 import {migrate} from '../../bangkok-homeservice/lib/db/migrate.js';
 const need=(v)=>{if(!v)throw new Error('BOOKING_BINDING_RECONCILIATION_REQUIRED');};
 class DryRun extends Error{constructor(report){super('DRY_RUN');this.report=report;}}
@@ -12,9 +13,7 @@ export function importBookingBindings(db,approved,{apply=false}={}){
   need(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='orders'").get());
   migrate(db); // nested savepoint; entire upgrade rolls back with failed import/dry-run
   need(source&&typeof source==='object');
-  for(const [table,expected] of Object.entries(source)){
-   need(/^[a-z_]+$/.test(table));need(same(db.prepare(`SELECT * FROM "${table}" ORDER BY rowid`).all(),expected));
-  }
+  assertRetainedSource(db,approvedPayload(approved));
   for(const table of ['booking_sagas','booking_financial_work','booking_saga_activations','processed_events','consistency_attention'])need(db.prepare(`SELECT count(*) n FROM ${table}`).get().n===0);
   const current=db.prepare('SELECT * FROM booking_legacy_payment_bindings ORDER BY order_id').all();
   const checkpoints=db.prepare('SELECT * FROM booking_legacy_payment_checkpoints').all();
