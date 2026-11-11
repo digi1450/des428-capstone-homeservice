@@ -7,7 +7,7 @@ export SNAPSHOT_FIXTURE_DIR="$migration_fixture_root/snapshot"
 compose() { docker compose -p homeservice-migration-test -f tools/data-migration/compose.test.yml "$@"; }
 cleanup() { compose down --remove-orphans; rm -rf "$migration_fixture_root"; }
 trap cleanup EXIT
-python3 -m unittest discover -s tools/data-migration -p test_export.py -v
+python3 -m unittest discover -s tools/data-migration -p 'test_*.py' -v
 python3 - "$migration_fixture_root" <<'PY'
 import importlib.util
 from pathlib import Path

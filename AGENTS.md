@@ -110,3 +110,5 @@ docker compose -f bangkok-homeservice/docker-compose.yml run --rm test
 - Team members must understand their implementations and produce their own architecture-defence reasoning from evidence. Track real contributions in `OWNERS.md` and disclose AI assistance in the final dossier as required by the assignment.
 
 Exporter implementation: [A legacy manifest export](docs/legacy-manifest-export-handoff.md). It publishes a private consistent backup and manifest; importer/runtime/bindings/cutover remain pending.
+
+For importer manifest preflight, read `docs/import-manifest-preflight-handoff.md`. Verification alone does not implement006 bindings or make the existing importer a cutover procedure.

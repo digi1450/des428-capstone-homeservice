@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A importer preflight — 11 November2026
+
+[Preflight handoff](import-manifest-preflight-handoff.md): offline verification ties the approved manifest digest and complete eligible set/owner rows to the actual consistent SQLite backup. Python28 tests pass. This is importer preparation only: schema006 is not present, binding insertion/replay and automatic importer integration remain pending C/A work.
+
 ## A legacy manifest exporter — 11 November2026
 
 [Export handoff](legacy-manifest-export-handoff.md): one read-only SQLite snapshot now publishes both owner bundles, a private consistent backup and exact v1 manifest. Eligibility is state/ledger-based, unknown combinations fail closed. Python20 and contract47 local tests passed; PG regression awaits PR CI. C006/importer/runtime1.1/actual historical checkpoint and cutover remain pending.
