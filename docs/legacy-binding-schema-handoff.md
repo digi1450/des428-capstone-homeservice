@@ -38,3 +38,14 @@ Next A: use PR65 preflight, implement approved artifacts and atomic binding
 insertion/identical replay/dry-run. C/A: eligibility logic and Booking additive
 upgrade/CLI/checker with exact shared fields. B: operator authority. Only after
 receiver/client/UI and historical checkpoint/rehearsal may cutover be considered.
+
+## Local validation and hosted limitation
+
+GitHub Actions rejected all PR66 jobs before checkout due account billing/spending
+limits; these are not code-test failures and no hosted pass is claimed. Docker
+was started locally for isolated PG16/tmpfs fixtures. Schema/migration repeat and
+constraint/rollback tests passed2/2. Payments suite:130 passed,0 failed,2 skipped
+(the MQ-dependent opt-in cases). Two-owner importer regression:36 passed,0 skipped;
+Python exporter20 passed. Local tests do not establish full16-service/Keycloak
+acceptance for006; restore hosted CI before final merge review.
+Read-only checker integration also passed11/11 with isolated PostgreSQL/RabbitMQ.
