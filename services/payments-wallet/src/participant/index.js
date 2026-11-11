@@ -161,7 +161,8 @@ export function createPaymentParticipant({ database, business, legacyManifestSha
     async assertSettlementAllowed(client, intent) {
       const state = await one(client, "SELECT state, intent_id FROM payment_provisioning WHERE order_id=$1", [intent.order_id]);
       if (await orderFenced(client, intent.order_id)) return false; // step 5C financial cancellation fence
-      if(state)return state.state === "activated" && state.intent_id === intent.id;
+      if(state)return state.state === "activated" && state.intent_id === intent.id
+        && !(await one(client,'SELECT 1 FROM legacy_payment_bindings WHERE order_id=$1',[intent.order_id]));
       return !(await legacyBindingProblem(client,intent,intent,legacyManifestSha256));
     },
   };

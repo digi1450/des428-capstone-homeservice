@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A legacy runtime step1 stacked preparation — 11 November2026
+
+Payments eligibility PR73 and Booking binding/caller PR74 are followed by [cross-service acceptance](legacy-v11-integration-handoff.md). Local monolith303, financialPG21, integration1 (new-process recovery), Python28/importerPG44 pass. Hosted CI/merge review pending; default gates closed. Real operator/two-owner checkpoint approval, checker reconciliation and historical cutover rehearsals remain step2.
+
 ## A v1.1 runtime transport preparation — 11 November2026
 
 [Handoff](financial-v11-runtime-handoff.md): service/client validators accept strict legacy references. Receiver remains durable reconciliation attention with no money/provisioning effects. Local monolith302 and PG financial16 pass; CI pending. Locked eligibility, Booking bindings/callers and checkpoint remain next; not full v1.1 integration.

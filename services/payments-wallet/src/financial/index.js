@@ -234,7 +234,8 @@ export function createFinancialOperations({ database, business, legacyManifestSh
       await lockOrder(tx, request.order_id);
       const elsewhere = await other(tx, kind, request.order_id, callerId, commandId);
       if (elsewhere) throw coded(CODES.COMMAND_CONFLICT, `order already has a different ${kind} command`);
-      const result = kind === "completion"
+      const ambiguous = request.provisioning && await one(tx,'SELECT 1 FROM legacy_payment_bindings WHERE order_id=$1',[request.order_id]);
+      const result = ambiguous ? {...base(kind,commandId,request),state:'attention',reason:'context_mismatch'} : kind === "completion"
         ? await evaluateCompletion(tx, callerId, commandId, request)
         : await evaluateCancellation(tx, callerId, commandId, request);
       await save(tx, { callerId, commandId, kind, request, requestDigest, existing }, result);

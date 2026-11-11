@@ -118,3 +118,5 @@ For A-led Payments schema006 preparation, read `docs/legacy-binding-schema-hando
 For staged runtime v1.1 transport and remaining eligibility/caller gates, read `docs/financial-v11-runtime-handoff.md`. Legacy references currently produce durable reconciliation attention; do not send traffic before eligibility/checkpoint integration.
 
 For the additive Booking binding CLI and bound-versus-approved readiness gate, read `docs/legacy-booking-runtime-handoff.md`. Offline binding import never approves the checkpoint; real two-owner/operator approval remains in step2.
+
+For the stacked legacy v1.1 HTTP/PG/new-process recovery acceptance and its synthetic-approval limits, read `docs/legacy-v11-integration-handoff.md`. Step2 operator/checkpoint/cutover gates remain mandatory; do not use fixture approval SQL on useful data.
