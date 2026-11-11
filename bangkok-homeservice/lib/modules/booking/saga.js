@@ -188,6 +188,7 @@ export function paymentSetupFor(orderId) {
     "SELECT a.state FROM booking_saga_activations a JOIN booking_sagas s ON s.saga_id = a.saga_id WHERE s.order_id = ?",
   ).get(orderId);
   if (!row) return legacyBookingReference(orderId)?"ready":null;
+  if(getDb().prepare('SELECT 1 FROM booking_legacy_payment_bindings WHERE order_id=?').get(orderId))return null;
   return row.state === ACTIVATION.ACTIVATED ? "ready" : row.state === ACTIVATION.PENDING ? "pending" : row.state;
 }
 
