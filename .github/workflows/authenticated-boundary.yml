@@ -36,10 +36,11 @@ jobs:
       TEST_AUTH_PAYMENTS_DATABASE_URL: postgres://test_user:test_password@localhost:5432/auth_payments
       TEST_AUTH_NOTIFICATIONS_DATABASE_URL: postgres://test_user:test_password@localhost:5433/auth_notifications
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
+          package-manager-cache: false
           cache: npm
           cache-dependency-path: |
             bangkok-homeservice/package-lock.json
@@ -56,10 +57,11 @@ jobs:
     name: Compiled Next authenticated startup and RSC
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
+          package-manager-cache: false
           cache: npm
           cache-dependency-path: bangkok-homeservice/package-lock.json
       - run: npm ci --prefix bangkok-homeservice

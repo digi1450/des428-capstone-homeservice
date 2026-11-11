@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run Pact contract tests
         run: docker compose -f docker-compose.pact.yml run --rm --build pact-tests
@@ -30,11 +30,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
+          package-manager-cache: false
           cache: npm
           cache-dependency-path: contracts/package-lock.json
       - name: Install locked contract dependencies
