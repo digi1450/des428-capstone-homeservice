@@ -1,3 +1,4 @@
+import {legacyBookingReference} from './legacy-binding.js';
 import {processState} from '../../runtime/process-state.js';
 import {currentCarrier,traced,traceFields} from '../../telemetry/context.js';
 // Area C — Booking financial finalization (step 5C): durable completion/cancellation work,
@@ -62,7 +63,13 @@ function snapshot(order, kind, operationId) {
   if (order.payment_method === "gateway") {
     const saga = sagaFor(order.id);
     // Never fabricate provisioning references for legacy gateway bookings (A/C legacy gate).
-    if (!saga) throw new ConflictError("legacy gateway booking requires financial reconciliation");
+    if (!saga) {
+      const ref=legacyBookingReference(order.id);
+      if(!ref)throw new ConflictError("legacy gateway booking requires financial reconciliation");
+      request.legacy_binding=ref;
+      return request;
+    }
+    if (db().prepare('SELECT 1 FROM booking_legacy_payment_bindings WHERE order_id=?').get(order.id))throw new ConflictError('ambiguous financial reference');
     if (kind === "completion" && saga.state !== "COMPLETED") throw new ConflictError("payment setup for this booking is still in progress");
     request.provisioning = { create_command_id: saga.create_command_id, saga_id: saga.saga_id };
   }

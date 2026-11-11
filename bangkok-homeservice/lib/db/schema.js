@@ -8,6 +8,8 @@
 export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
+DROP TABLE IF EXISTS booking_legacy_payment_bindings;
+DROP TABLE IF EXISTS booking_legacy_payment_checkpoints;
 DROP TABLE IF EXISTS booking_saga_transitions;
 DROP TABLE IF EXISTS booking_work_trace_context;
 DROP TABLE IF EXISTS booking_financial_work;
@@ -401,5 +403,18 @@ CREATE INDEX idx_booking_financial_work_due ON booking_financial_work(next_attem
 CREATE TABLE booking_work_trace_context (
   operation_id TEXT PRIMARY KEY REFERENCES booking_financial_work(operation_id) ON DELETE CASCADE,
   headers_json TEXT NOT NULL
+);
+
+CREATE TABLE booking_legacy_payment_bindings (
+  order_id INTEGER PRIMARY KEY REFERENCES orders(id),
+  binding_id TEXT NOT NULL UNIQUE,
+  manifest_sha256 TEXT NOT NULL CHECK(length(manifest_sha256)=64 AND manifest_sha256 NOT GLOB '*[^0-9a-f]*'),
+  CHECK(binding_id='legacy:'||manifest_sha256||':'||order_id)
+);
+CREATE TABLE booking_legacy_payment_checkpoints (
+  manifest_sha256 TEXT PRIMARY KEY,
+  snapshot_id TEXT NOT NULL UNIQUE,
+  bindings_json TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'bound' CHECK(state IN ('bound','approved'))
 );
 `;

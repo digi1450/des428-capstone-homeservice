@@ -1,3 +1,4 @@
+import {legacyBookingReference} from './legacy-binding.js';
 import {processState} from '../../runtime/process-state.js';
 // Area C — Booking-orchestrated provisioning saga for gateway bookings (Week 8 slides 20–23,
 // Week 10 orchestration; decisions in docs/migration-handoff.md §5).
@@ -186,7 +187,7 @@ export function paymentSetupFor(orderId) {
   const row = getDb().prepare(
     "SELECT a.state FROM booking_saga_activations a JOIN booking_sagas s ON s.saga_id = a.saga_id WHERE s.order_id = ?",
   ).get(orderId);
-  if (!row) return null;
+  if (!row) return legacyBookingReference(orderId)?"ready":null;
   return row.state === ACTIVATION.ACTIVATED ? "ready" : row.state === ACTIVATION.PENDING ? "pending" : row.state;
 }
 

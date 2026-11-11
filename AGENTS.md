@@ -116,3 +116,5 @@ For importer manifest preflight, read `docs/import-manifest-preflight-handoff.md
 For A-led Payments schema006 preparation, read `docs/legacy-binding-schema-handoff.md`. Table presence alone does not implement runtime eligibility, binding import or Booking checkpoint reconciliation.
 
 For staged runtime v1.1 transport and remaining eligibility/caller gates, read `docs/financial-v11-runtime-handoff.md`. Legacy references currently produce durable reconciliation attention; do not send traffic before eligibility/checkpoint integration.
+
+For the additive Booking binding CLI and bound-versus-approved readiness gate, read `docs/legacy-booking-runtime-handoff.md`. Offline binding import never approves the checkpoint; real two-owner/operator approval remains in step2.
