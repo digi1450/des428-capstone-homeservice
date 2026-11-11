@@ -120,3 +120,5 @@ For staged runtime v1.1 transport and remaining eligibility/caller gates, read `
 For the additive Booking binding CLI and bound-versus-approved readiness gate, read `docs/legacy-booking-runtime-handoff.md`. Offline binding import never approves the checkpoint; real two-owner/operator approval remains in step2.
 
 For the stacked legacy v1.1 HTTP/PG/new-process recovery acceptance and its synthetic-approval limits, read `docs/legacy-v11-integration-handoff.md`. Step2 operator/checkpoint/cutover gates remain mandatory; do not use fixture approval SQL on useful data.
+
+For the offline operator/signed checkpoint and rollback boundary, read `docs/legacy-operator-checkpoint-handoff.md`. Neither a raw approved SQLite flag, an operator JWT alone, private-copy preflight nor CI authorizes useful-data cutover. Keep the freeze external and explicit, private signing authority outside runtime, all owner/broker sources mandatory, and refuse stale-backup rollback after new effects.

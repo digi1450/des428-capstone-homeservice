@@ -21,6 +21,8 @@ test('startup gates, ordering, shared ownership and failure behavior',async t=>{
   for(const invalid of [{AUTHENTICATED_CUTOVER_APPROVED:'false'},{OIDC_SELF_REGISTRATION_ENABLED:'typo'},{OIDC_LOGIN_ENABLED:'false'},{AREA_B_PAYMENTS_PROXY:'true'},{AMQP_URL:''},{DB_PATH:env.IDENTITY_MAPPING_DB_PATH},{OIDC_REDIRECT_URI:'http://app.example.test/api/auth/keycloak/callback'}]){
    const f=fixture();await assert.rejects(startApplication({env:{...env,...invalid},load:f.load}));assert.deepEqual(f.calls,[]);
   }
+  assert.throws(()=>startupConfiguration({LEGACY_CHECKPOINT_FILE:'/fixture/receipt'}));
+  assert.throws(()=>startupConfiguration({...env,LEGACY_CHECKPOINT_FILE:'/fixture/receipt'}));
   assert.throws(()=>startupConfiguration({AUTHENTICATED_SERVICES_ENABLED:'yes'}));assert.throws(()=>startupConfiguration({OIDC_SELF_REGISTRATION_ENABLED:'true'}));
  });
  await t.test('authenticated boot selects clients before workers, no legacy relay, one recovery',async()=>{

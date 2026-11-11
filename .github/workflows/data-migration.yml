@@ -21,3 +21,5 @@ jobs:
           npm ci --prefix services/payments-wallet
       - name: Synthetic SQLite to isolated PostgreSQL rehearsal
         run: sh tools/data-migration/run-tests.sh
+      - name: Signed operator checkpoint and actual backup restore rehearsal
+        run: sh tools/cutover/run-rehearsal.sh

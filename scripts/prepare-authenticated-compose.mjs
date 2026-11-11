@@ -15,7 +15,7 @@ mkdirSync(resolve(local,'tls'),{recursive:true,mode:0o700});
 // by Keycloak UID1000 on Linux (Compose file secrets preserve source ownership).
 mkdirSync(resolve(local,'realm'),{mode:0o755});
 const secret=()=>randomBytes(32).toString('hex');
-const values={NOTIFICATIONS_DB_PASSWORD:secret(),PAYMENTS_DB_PASSWORD:secret(),RABBITMQ_PASSWORD:secret(),GRAFANA_ADMIN_PASSWORD:secret(),KEYCLOAK_DB_PASSWORD:secret(),KEYCLOAK_ADMIN_PASSWORD:secret(),BOOKING_SERVICE_CLIENT_SECRET:secret(),KEYCLOAK_GATEWAY_CLIENT_SECRET:secret(),OIDC_SESSION_SECRET:secret(),IDENTITY_RESOLVER_TOKEN:secret()};
+const values={CUTOVER_OPERATOR_CLIENT_SECRET:secret(),NOTIFICATIONS_DB_PASSWORD:secret(),PAYMENTS_DB_PASSWORD:secret(),RABBITMQ_PASSWORD:secret(),GRAFANA_ADMIN_PASSWORD:secret(),KEYCLOAK_DB_PASSWORD:secret(),KEYCLOAK_ADMIN_PASSWORD:secret(),BOOKING_SERVICE_CLIENT_SECRET:secret(),KEYCLOAK_GATEWAY_CLIENT_SECRET:secret(),OIDC_SESSION_SECRET:secret(),IDENTITY_RESOLVER_TOKEN:secret()};
 const tls=resolve(local,'tls');
 const run=args=>execFileSync(openssl,args,{cwd:tls,stdio:'ignore'});
 run(['req','-x509','-newkey','rsa:2048','-nodes','-keyout','ca.key','-out','ca.pem','-days','30','-subj','/CN=Homeservice local integration CA','-addext','basicConstraints=critical,CA:TRUE','-addext','keyUsage=critical,keyCertSign,cRLSign']);
@@ -33,9 +33,10 @@ for(const client of realm.clients.filter(c=>['homeservice-web','booking-service'
  const audiences=client.clientId==='homeservice-web'?['notifications-service','payments-wallet-service']:['payments-wallet-service'];
  client.protocolMappers=[...(client.protocolMappers||[]),...audiences.map(audience=>({name:audience+'-assigned-roles',protocol:'openid-connect',protocolMapper:'oidc-usermodel-client-role-mapper',consentRequired:false,config:{'usermodel.clientRoleMapping.clientId':audience,'claim.name':'resource_access.'+audience+'.roles','jsonType.label':'String',multivalued:'true','access.token.claim':'true','id.token.claim':'false','userinfo.token.claim':'false'}}))];
 }
-for(const [id,key]of [['booking-service','BOOKING_SERVICE_CLIENT_SECRET'],['mock-gateway-service','KEYCLOAK_GATEWAY_CLIENT_SECRET']])realm.clients.find(c=>c.clientId===id).secret=values[key];
+for(const [id,key]of [['booking-service','BOOKING_SERVICE_CLIENT_SECRET'],['mock-gateway-service','KEYCLOAK_GATEWAY_CLIENT_SECRET'],['homeservice-cutover-operator','CUTOVER_OPERATOR_CLIENT_SECRET']])realm.clients.find(c=>c.clientId===id).secret=values[key];
 const allRoles=realm.roles.client['payments-wallet-service'].map(r=>r.name);
 realm.users=[['booking-service',allRoles.filter(r=>r.startsWith('booking:'))],['mock-gateway-service',['mock-gateway:settle_webhook']]].map(([clientId,roles])=>({username:'service-account-'+clientId,enabled:true,serviceAccountClientId:clientId,clientRoles:{'payments-wallet-service':roles}}));
+realm.users.push({username:'service-account-homeservice-cutover-operator',enabled:true,serviceAccountClientId:'homeservice-cutover-operator',clientRoles:{'homeservice-cutover':['cutover:approve_checkpoint','cutover:revoke_checkpoint']}});
 writeFileSync(resolve(local,'realm/homeservice-realm.json'),JSON.stringify(realm,null,2)+'\n',{mode:0o644,flag:'wx'});
 // Flags remain disabled until explicit disposable-demo or real cutover review.
 const config={...values,AUTHENTICATED_SERVICES_ENABLED:'false',AUTHENTICATED_CUTOVER_APPROVED:'false',OIDC_LOGIN_ENABLED:'false',OIDC_SELF_REGISTRATION_ENABLED:'false',AREA_B_AUTH_ENABLED:'false',AUTHENTICATED_AMQP_URL:'',GATEWAY_PORT:'18081',GRAFANA_PORT:'3304',PROMETHEUS_PORT:'9091',JAEGER_UI_PORT:'16687',RABBITMQ_UI_PORT:'15673'};

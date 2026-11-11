@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import {checkBroker,QUEUES} from "./broker-check.mjs";
+export {checkBroker,QUEUES};
 // Area C — read-only consistency checker for cutover rehearsal, rollback and incident review.
 //
 // It never writes, publishes, acks or repairs anything. It reads one snapshot from each owner:
@@ -26,11 +28,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const requireFrom = (dir) => createRequire(path.join(root, dir, "package.json"));
 const Database = requireFrom("bangkok-homeservice")("better-sqlite3");
 const pg = requireFrom("services/payments-wallet")("pg");
-const amqp = requireFrom("services/payments-wallet")("amqplib");
 
 // Must match bangkok-homeservice/lib/messaging/broker-relay.js PUBLISHED_TYPES (checked by the test).
 export const PUBLISHED_TYPES = ["booking.status_changed", "booking.completed", "bid.accepted", "review.created", "provider.approved", "provider.registered"];
-export const QUEUES = ["booking.events", "ratings.events", "notifications.events", "payments.events"];
 const SAMPLE = 5;
 const migrationDirectory = path.join(root, "services/payments-wallet/migrations");
 const expectedMigrations = readdirSync(migrationDirectory).filter(n => /^\d+_[a-z0-9_]+\.sql$/.test(n)).sort().map(version => ({
@@ -215,62 +215,6 @@ export async function checkNotifications(url, report) {
   } finally { await client.end(); }
 }
 
-export async function checkBroker(url, report, { managementUrl, mode = "report" } = {}) {
-  const broker = new URL(url);
-  let management;
-  if (managementUrl) {
-    management = new URL(managementUrl);
-    if (!["https:", "http:"].includes(management.protocol) || management.hostname !== broker.hostname ||
-      management.username || management.password || management.search || management.hash || management.pathname !== "/")
-      throw new Error("Broker management must be an explicit HTTP(S) origin on the AMQP broker hostname");
-  }
-  const vhost = decodeURIComponent(broker.pathname.slice(1)) || "/";
-  const authorization = "Basic " + Buffer.from(decodeURIComponent(broker.username || "guest") + ":" + decodeURIComponent(broker.password || "guest")).toString("base64");
-  const connection = await amqp.connect(url);
-  connection.on("error", () => {});
-  const queues = {};
-  try {
-    for (const name of QUEUES.flatMap((q) => [q, `${q}.dlq`])) {
-      const channel = await connection.createChannel(); // a 404 closes the channel, so one per queue
-      channel.on("error", () => {});
-      try {
-        const { messageCount, consumerCount } = await channel.checkQueue(name);
-        queues[name] = { messages: messageCount, consumers: consumerCount, unacknowledged: null };
-        if (management) {
-          const response = await fetch(new URL("/api/queues/" + encodeURIComponent(vhost) + "/" + encodeURIComponent(name), management), {
-            headers: { Authorization: authorization }, redirect: "error", signal: AbortSignal.timeout(5000),
-          });
-          if (!response.ok) throw new Error("Broker management queue read failed (HTTP " + response.status + ")");
-          const data = await response.json();
-          for (const key of ["messages_ready", "messages_unacknowledged", "consumers"])
-            if (!Number.isSafeInteger(data[key]) || data[key] < 0) throw new Error("Broker management counters unavailable; retry after statistics refresh");
-          queues[name].messages = Math.max(messageCount, data.messages_ready);
-          queues[name].consumers = Math.max(consumerCount, data.consumers);
-          queues[name].unacknowledged = data.messages_unacknowledged;
-        }
-      } catch (error) {
-        if (error?.code !== 404) throw error; // network/permission failures are unreadable, not empty
-        queues[name] = { missing: true };
-      } finally {
-        try { await channel.close(); } catch { /* closed by the broker after 404 */ }
-      }
-    }
-  } finally { await connection.close(); }
-  report.info.queues = queues;
-  report.info.broker_unacknowledged_verified = Boolean(management);
-  if (!management) report.add("attention", "broker.unacknowledged.unknown", 1,
-    "passive AMQP does not expose unacknowledged deliveries; supply --broker-management-url before declaring quiescence");
-  for (const [name, q] of Object.entries(queues)) {
-    if (q.missing) continue;
-    const outstanding = q.messages + (q.unacknowledged ?? 0);
-    if (name.endsWith(".dlq")) report.add("attention", `broker.dlq.${name}`, outstanding, `ready or unacknowledged dead letters in ${name}`);
-    else report.add("pending", `broker.queue.${name}`, outstanding, `ready or unacknowledged messages in ${name}`);
-    if (mode === "quiescent") report.add("pending", `broker.consumers.${name}`, q.consumers,
-      `consumers still attached to ${name}; stop/drain consumers before frozen-writer validation`);
-  }
-  report.add("attention", "broker.queue.missing", Object.entries(queues).filter(([,q]) => q.missing).map(([id]) => ({ id })), "expected consumer/dead-letter queue not declared");
-}
-
 // ------------------------------------------------------------------ CLI
 export async function run(argv = process.argv.slice(2), env = process.env) {
   const { values } = parseArgs({ args: argv, options: {
@@ -280,6 +224,10 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
     "amqp-url": { type: "string", default: env.C_CHECK_AMQP_URL },
     "broker-management-url": { type: "string", default: env.C_CHECK_BROKER_MANAGEMENT_URL },
     mode: { type: "string", default: "report" },
+    'legacy-directory': {type:'string'},
+    'manifest-sha256': {type:'string'},
+    'checkpoint-file': {type:'string'},
+    'checkpoint-public-key-file': {type:'string'},
     json: { type: "boolean", default: false },
   } });
   if (!["report", "quiescent"].includes(values.mode) || (!values.sqlite && !values["payments-url"]) ||
@@ -294,6 +242,28 @@ export async function run(argv = process.argv.slice(2), env = process.env) {
     checkCross(s, p, report);
     if (values["notifications-url"]) await checkNotifications(values["notifications-url"], report);
     if (values["amqp-url"]) await checkBroker(values["amqp-url"], report, { managementUrl: values["broker-management-url"], mode: values.mode });
+    const legacyKeys=['legacy-directory','manifest-sha256','checkpoint-file','checkpoint-public-key-file'];
+    if(legacyKeys.some(k=>values[k])){
+      if(!legacyKeys.every(k=>values[k])||values.mode!=='quiescent'||!values.sqlite||!values['payments-url']||!values['notifications-url']||!values['amqp-url']||!values['broker-management-url'])throw Error('complete legacy checkpoint sources required');
+      // Preserve the existing standalone checker image's dependency footprint.
+      // Complete legacy tooling is loaded only for an explicit checkpoint check.
+      const [{loadApprovedSnapshot},{inspectCheckpoint},{readCheckpoint},{createDatabase:paymentsDatabase},{createDatabase:notificationsDatabase}]=await Promise.all([
+        import('../data-migration/approved-snapshot.mjs'),import('../cutover/checkpoint.mjs'),
+        import('../../services/payments-wallet/src/legacy-checkpoint.js'),
+        import('../../services/payments-wallet/src/database.js'),import('../../services/notifications/src/database.js'),
+      ]);
+      const receipt=readCheckpoint(values['checkpoint-file'],values['checkpoint-public-key-file']);
+      const approved=await loadApprovedSnapshot(values['legacy-directory'],values['manifest-sha256']);
+      const sqlite=new Database(values.sqlite,{readonly:true,fileMustExist:true});
+      const payments=paymentsDatabase(values['payments-url']),notifications=notificationsDatabase(values['notifications-url']);
+      try{
+        const state=await inspectCheckpoint({approved,bookingDb:sqlite,paymentsDatabase:payments,notificationsDatabase:notifications,broker:{amqpUrl:values['amqp-url'],managementUrl:values['broker-management-url']}});
+        if(receipt.manifest_sha256!==state.manifest_sha256||receipt.snapshot_id!==state.snapshot_id||receipt.phase_digest!==state.phase_digest||sqlite.prepare('SELECT state FROM booking_legacy_payment_checkpoints WHERE manifest_sha256=?').get(state.manifest_sha256)?.state!=='approved')throw Error('checkpoint mismatch');
+        report.findings=report.findings.filter(x=>x.id!=='payments.legacy_bindings.pending_checkpoint');
+        report.info.legacy_checkpoint={manifest_sha256:state.manifest_sha256,snapshot_id:state.snapshot_id,state:'approved'};
+      }finally{sqlite.close();await payments.close();await notifications.close();}
+    }
+
   } catch (error) {
     return { code: 3, output: `c-check: could not read a source (${error?.code ?? error?.name ?? "error"}: ${error?.message ?? error})` };
   }

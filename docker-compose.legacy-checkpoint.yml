@@ -1,0 +1,25 @@
+# Opt-in AFTER frozen-source rehearsal, signed approval and explicit go/no-go.
+# Combine with docker-compose.authenticated.yml. Files must be absolute paths.
+# Signing keys, backups and operator JWTs are NEVER mounted into applications.
+services:
+  edemand:
+    environment:
+      LEGACY_CHECKPOINT_FILE: /run/secrets/legacy_checkpoint
+      LEGACY_CHECKPOINT_PUBLIC_KEY_FILE: /run/secrets/legacy_checkpoint_public_key
+    secrets: [legacy_checkpoint, legacy_checkpoint_public_key]
+    volumes:
+      - type: bind
+        source: ${LEGACY_BOOKING_HOST_DIRECTORY:?Provide the reviewed prepared Booking directory}
+        target: /app/data
+        bind:
+          create_host_path: false
+  payments-wallet:
+    environment:
+      LEGACY_CHECKPOINT_FILE: /run/secrets/legacy_checkpoint
+      LEGACY_CHECKPOINT_PUBLIC_KEY_FILE: /run/secrets/legacy_checkpoint_public_key
+    secrets: [legacy_checkpoint, legacy_checkpoint_public_key]
+secrets:
+  legacy_checkpoint:
+    file: ${LEGACY_CHECKPOINT_HOST_FILE:?Provide the reviewed signed receipt}
+  legacy_checkpoint_public_key:
+    file: ${LEGACY_CHECKPOINT_HOST_PUBLIC_KEY_FILE:?Provide the trusted deployment public key}

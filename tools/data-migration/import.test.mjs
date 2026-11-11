@@ -33,6 +33,10 @@ test('snapshot validation rejects wrong-owner, incomplete and inconsistent data 
   const wrongWallet = clone(p); wrongWallet.tables.provider_wallets[0].balance_cents++; assert.throws(() => validateSnapshot('payments-wallet',wrongWallet), /WALLET_LEDGER/);
   const badContext = clone(p); badContext.tables.transactions.find(row => row.kind === 'payout_credit').context_json.commission_cents++; assert.throws(() => validateSnapshot('payments-wallet',badContext), /COMPLETION_AMOUNT/);
   const lostCharge = clone(p); lostCharge.tables.transactions = lostCharge.tables.transactions.filter(row => row.kind !== 'charge'); assert.throws(() => validateSnapshot('payments-wallet',lostCharge), /CONTEXT|MISMATCH/);
+  const historical=clone(p);historical.tables.webhook_events[0].type='payment.succeeded';historical.tables.webhook_events[0].payload_json.type='payment.succeeded';
+  const historicalBefore=clone(historical);assert.doesNotThrow(()=>validateSnapshot('payments-wallet',historical));assert.deepEqual(historical,historicalBefore);
+  const unprocessed=clone(historical);unprocessed.tables.webhook_events[0].processed_at=null;assert.throws(()=>validateSnapshot('payments-wallet',unprocessed),/UNEXPECTED_NULL/);
+  const unknownReceipt=clone(historical);unknownReceipt.tables.webhook_events[0].type='unknown';unknownReceipt.tables.webhook_events[0].payload_json.type='unknown';assert.throws(()=>validateSnapshot('payments-wallet',unknownReceipt),/WEBHOOK_CONTEXT/);
   const badReceipt = clone(p); badReceipt.tables.webhook_events[0].payload_json.gateway_ref = 'missing'; assert.throws(() => validateSnapshot('payments-wallet',badReceipt), /WEBHOOK_CONTEXT/);
 });
 
