@@ -38,6 +38,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate sanitized Compose diagnostics
+        run: node --test tests/final-stack/compose-diagnostic.test.mjs
       - name: Actual authenticated flows, telemetry and scoped recovery
         run: node tests/final-stack/run.mjs
       - name: Save only sanitized resource evidence
