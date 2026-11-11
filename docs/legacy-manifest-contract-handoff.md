@@ -171,3 +171,5 @@ strict JSON, no-extra-query, auth/owner checks and terminal/OTP/slot guards rema
 Run `npm test --prefix contracts` (Node22+ and Python3 on PATH). The existing
 `API schemas and fixtures` CI job runs the new tests through `test/*.test.js`.
 See [dated static conformance evidence](validation/a-legacy-manifest-contract-2026-11-10.md).
+
+Exporter implementation: [A legacy manifest export](legacy-manifest-export-handoff.md). It publishes a private consistent backup and manifest; importer/runtime/bindings/cutover remain pending.

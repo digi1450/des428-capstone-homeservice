@@ -66,6 +66,43 @@ class ExportTests(unittest.TestCase):
         with closing(sqlite3.connect(self.source)) as db:
             db.execute(sql)
             db.commit()
+    def test_manifest_binds_exact_private_backup_and_owner_bytes(self):
+        report = self.export()
+        directory = self.root/'snapshot'
+        raw = (directory/'manifest.json').read_bytes()
+        envelope = json.loads(raw)
+        core = envelope['manifest']
+        self.assertEqual(raw, module.canonical_bytes(envelope)+b'\n')
+        self.assertEqual(report['manifest_sha256'], hashlib.sha256(module.canonical_bytes(core)).hexdigest())
+        self.assertEqual(core['source']['sqlite_backup_sha256'], hashlib.sha256((directory/'source.sqlite').read_bytes()).hexdigest())
+        self.assertEqual(sum(report['classified_orders'].values()), 8)
+        self.assertEqual([r['order_id'] for r in core['bindings']], [13,14])
+        self.assertEqual(core['bindings'][1]['charge_transaction_id'], 140)
+        for bundle in core['bundles']:
+            self.assertEqual(bundle['sha256'],hashlib.sha256((directory/bundle['file']).read_bytes()).hexdigest())
+        for filename in ['manifest.json','source.sqlite']:
+            self.assertEqual((directory/filename).stat().st_mode & 0o777,0o600)
+        with closing(sqlite3.connect(directory/'source.sqlite')) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM orders').fetchone()[0],8)
+
+    def test_open_gateway_requires_exact_state_and_ledger(self):
+        for sql,code in [
+            ("UPDATE orders SET status='confirmed' WHERE id=13", 'UNCLASSIFIED_OPEN_GATEWAY_ORDER'),
+            ("UPDATE transactions SET status='pending' WHERE id=140", 'LEGACY_OPEN_LEDGER_MISMATCH'),
+            ("UPDATE transactions SET gateway_ref='wrong' WHERE id=140", 'LEGACY_OPEN_LEDGER_MISMATCH'),
+            ("DELETE FROM transactions WHERE id=140", 'LEGACY_OPEN_LEDGER_MISMATCH'),
+            ("DELETE FROM payment_intents WHERE order_id=13", 'LEGACY_INTENT_CARDINALITY')]:
+            with self.subTest(sql=sql):
+                self.source.unlink();make_source(self.source);self.change(sql)
+                self.assert_source_rejected_without_changes(code)
+
+    def test_eligibility_uses_state_not_fixture_ids(self):
+        self.change('UPDATE orders SET id=113 WHERE id=13')
+        self.change('UPDATE payment_intents SET order_id=113 WHERE order_id=13')
+        self.export()
+        core=json.loads((self.root/'snapshot/manifest.json').read_text())['manifest']
+        self.assertEqual([r['order_id'] for r in core['bindings']],[14,113])
+
     def test_consistent_private_export_preserves_source_and_minimizes_data(self):
         before = hashlib.sha256(self.source.read_bytes()).hexdigest()
         report = self.export()

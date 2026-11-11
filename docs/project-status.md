@@ -1,5 +1,9 @@
 # Shared project status and handoff
 
+## A legacy manifest exporter — 11 November2026
+
+[Export handoff](legacy-manifest-export-handoff.md): one read-only SQLite snapshot now publishes both owner bundles, a private consistent backup and exact v1 manifest. Eligibility is state/ledger-based, unknown combinations fail closed. Python20 and contract47 local tests passed; PG regression awaits PR CI. C006/importer/runtime1.1/actual historical checkpoint and cutover remain pending.
+
 ## E Task6 measured resource budget — 10 November 2026
 
 [Declared method](e-task6-resource-budget-handoff.md) uses decimal8GB, no-swap RAM ceilings for all16 services, a64MiB read-only observer and explicit1GiB host reserve. [Local evidence](validation/e-task6-resource-budget-2026-11-10.md) records39 full-stack groups:12,132 staged reads at5/15/30 clients with0 failures,20 real financial flows, ledger/backlog/trace checks and Task5 recovery/restart. Sampled aggregate peak2.430GB; sum of service kernel peaks2.814GB; with full observer/reserve3.954GB<8GB. No swap/OOM/automatic restarts. Host was16.376GB/16CPU, not an8GB-machine simulation. Jaeger recent trace retention is bounded3000; tracing stays enabled. CI repeats and uploads only sanitized numeric evidence; local record is not a merge/hosted claim. [Six-task titles](e-task-checklist.md) separate Task6 resource budget from browser/offline/demo/dossier work. Historical eligibility/cutover and broader D races remain separate; shared flags stay false.
