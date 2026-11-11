@@ -8,7 +8,7 @@ import uuid
 from export_snapshot import export_snapshot, canonical_bytes, require, ExportError
 
 
-def verify_manifest(directory, expected_digest):
+def verify_manifest(directory, expected_digest, *, capture=False):
     directory = Path(directory)
     require(isinstance(expected_digest, str) and len(expected_digest) == 64 and
             all(c in '0123456789abcdef' for c in expected_digest), 'INVALID_APPROVED_DIGEST')
@@ -54,8 +54,13 @@ def verify_manifest(directory, expected_digest):
         regenerated['bundles'] = [dict(service=name, file=name+'.json', sha256=hashlib.sha256(bundles[name][0]).hexdigest())
                                   for name in ('notifications','payments-wallet')]
         require(canonical_bytes(regenerated) == canonical_bytes(core), 'SOURCE_MANIFEST_MISMATCH')
-    return dict(status='verified', manifest_sha256=expected_digest,
-                snapshot_id=core['snapshot_id'], bindings=len(core['bindings']))
+    report = dict(status='verified', manifest_sha256=expected_digest,
+                  snapshot_id=core['snapshot_id'], bindings=len(core['bindings']))
+    if capture:
+        # Private IPC only: return the SAME bytes already verified, never reread paths.
+        return dict(report=report, envelope=envelope,
+                    bundles={name: value[1] for name, value in bundles.items()})
+    return report
 
 
 def main():

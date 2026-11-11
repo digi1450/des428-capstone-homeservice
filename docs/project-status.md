@@ -2,7 +2,7 @@
 
 ## A importer preflight — 11 November2026
 
-[Preflight handoff](import-manifest-preflight-handoff.md): offline verification ties the approved manifest digest and complete eligible set/owner rows to the actual consistent SQLite backup. Python28 tests pass. This is importer preparation only: schema006 is not present, binding insertion/replay and automatic importer integration remain pending C/A work.
+[Preflight handoff](import-manifest-preflight-handoff.md): offline verification ties the approved manifest digest and complete eligible set/owner rows to the actual consistent SQLite backup. Python28 tests pass. Resumed after merged PR66: approved-directory CLI now integrates verification and atomic Payments business/binding insertion, exact replay and dry-run. Booking bindings/checkpoint, runtime eligibility/v1.1 and historical cutover remain pending.
 
 ## A-led C schema006 — 11 November2026
 

@@ -19,4 +19,4 @@ directory=Path(sys.argv[1]);m.make_source(directory/'source.sqlite')
 m.module.export_snapshot(directory/'source.sqlite',directory/'snapshot',writers_stopped=True)
 PY
 compose up -d --wait notifications-db payments-db
-compose run --rm test
+compose run --build --rm test
