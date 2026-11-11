@@ -338,6 +338,17 @@ test("financial operations on PostgreSQL", { skip: !process.env.TEST_DATABASE_UR
     res = await get(`cancel:${randomUUID()}`);
     assert.equal(res.status, 404);
   });
+  await t.test('legacy transport remains durable attention without binding eligibility, never creates money or provisioning',async()=>{
+    const orderId=newOrder(),operation_id=randomUUID();
+    const request={...ctx(orderId),operation_id,payment_method:'gateway',reason:'customer_cancelled',legacy_binding:{binding_id:`legacy:${'a'.repeat(64)}:${orderId}`,manifest_sha256:'a'.repeat(64)}};
+    const commandId='cancel:'+operation_id;
+    const result=await fin.cancel({callerId,commandId,request});
+    assert.equal(result.result.state,'attention');assert.equal(result.result.reason,'legacy_reconciliation_required');
+    assert.deepEqual((await fin.cancel({callerId,commandId,request})).result,result.result);
+    assert.equal((await fin.get({callerId,commandId})).state,'attention');
+    for(const table of ['payment_provisioning','payment_intents','transactions','financial_fences'])assert.equal((await db.query(`SELECT count(*)::int n FROM ${table} WHERE order_id=$1`,[orderId])).rows[0].n,0);
+  });
+
 });
 
 test("factory rejects a business without the required primitives", () => {

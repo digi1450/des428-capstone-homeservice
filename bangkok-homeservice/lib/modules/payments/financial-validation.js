@@ -1,4 +1,4 @@
-// Monolith-owned v1 schemas. Contract package is dev-only, never a runtime import.
+// Monolith-owned v1.1 schemas. Contract package is dev-only, never a runtime import.
 import {z} from 'zod';
 import {isDeepStrictEqual} from 'node:util';
 import {BadRequestError,AppError} from '../../errors.js';
@@ -8,7 +8,12 @@ const command=z.string().regex(/^(complete|cancel):[0-9a-f]{8}-[0-9a-f]{4}-[1-8]
 const key=z.string().regex(/^(?!\.{1,2}$)[A-Za-z0-9._:-]{1,128}$/);
 const provisioning=z.object({create_command_id:key,saga_id:key}).strict();
 const base={operation_id:uuid,order_id:id,customer_id:id,provider_id:id,amount_cents:money,currency:z.literal('THB')};
-const input=kind=>z.union(['gateway','cod'].map(method=>z.object({...base,payment_method:z.literal(method),...(kind==='completion'?{commission_cents:money}:{reason:z.literal('customer_cancelled')}),...(method==='gateway'?{provisioning}:{})}).strict()));
+const legacy_binding=z.object({binding_id:z.string(),manifest_sha256:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
+const input=kind=>z.union([
+ z.object({...base,payment_method:z.literal('cod'),...(kind==='completion'?{commission_cents:money}:{reason:z.literal('customer_cancelled')})}).strict(),
+ ...[{provisioning},{legacy_binding}].map(ref=>z.object({...base,payment_method:z.literal('gateway'),...(kind==='completion'?{commission_cents:money}:{reason:z.literal('customer_cancelled')}),...ref}).strict())
+]).refine(v=>!v.legacy_binding||v.legacy_binding.binding_id===`legacy:${v.legacy_binding.manifest_sha256}:${v.order_id}`);
+
 const requests={completion:input('completion'),cancellation:input('cancellation')};
 export const webhookInput=z.object({gateway_event_id:z.string().min(1).max(200).refine(v=>!!v.trim()),type:z.literal('payment_intent.succeeded'),gateway_ref:z.string().min(1).max(200).refine(v=>!!v.trim())}).strict();
 export const webhookResult=z.union([
@@ -36,6 +41,7 @@ export function financialOutput(expected,value){try{
   ]:[]),
  ]);
  const out=z.union([ready,pending,attention]).parse(value);
+ if(out.state==='ready'&&expected.request.legacy_binding&&out.outcome==='no_payment')throw Error('legacy requires intent');
  if(!isDeepStrictEqual(out.request,expected.request))throw Error('echo');
  if(out.kind==='completion'&&out.state==='ready'&&out.accounting.amount_cents!==(expected.request.payment_method==='gateway'?expected.request.amount_cents-expected.request.commission_cents:expected.request.commission_cents))throw Error('amount');
  return out;

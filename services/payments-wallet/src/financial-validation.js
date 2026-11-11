@@ -1,4 +1,4 @@
-// Service-owned v1 validation. No runtime import from the contracts/dev package.
+// Service-owned v1.1 validation. No runtime import from the contracts/dev package.
 import {isDeepStrictEqual} from 'node:util';
 import {HttpError} from './errors.js';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -10,11 +10,12 @@ function object(v,fields){yes(v&&typeof v==='object'&&!Array.isArray(v)&&Object.
 function request(kind,commandId,v){
  yes(['completion','cancellation'].includes(kind));
  const fields=['operation_id','order_id','customer_id','provider_id','amount_cents','currency','payment_method',kind==='completion'?'commission_cents':'reason'];
- if(v?.payment_method==='gateway')fields.push('provisioning');
+ if(v?.payment_method==='gateway')fields.push(Object.hasOwn(v,'legacy_binding')?'legacy_binding':'provisioning');
  object(v,fields);yes(uuid.test(v.operation_id)&&commandId===(kind==='completion'?'complete:':'cancel:')+v.operation_id);
  yes(id(v.order_id)&&id(v.customer_id)&&id(v.provider_id)&&money(v.amount_cents)&&v.currency==='THB'&&['gateway','cod'].includes(v.payment_method));
  if(kind==='completion')yes(money(v.commission_cents)&&v.commission_cents<=v.amount_cents);else yes(v.reason==='customer_cancelled');
- if(v.payment_method==='gateway'){object(v.provisioning,['create_command_id','saga_id']);yes(typeof v.provisioning.create_command_id==='string'&&typeof v.provisioning.saga_id==='string'&&key.test(v.provisioning.create_command_id)&&key.test(v.provisioning.saga_id));}
+ if(v.payment_method==='gateway'&&Object.hasOwn(v,'legacy_binding')){object(v.legacy_binding,['binding_id','manifest_sha256']);yes(typeof v.legacy_binding.manifest_sha256==='string'&&/^[0-9a-f]{64}$/.test(v.legacy_binding.manifest_sha256)&&v.legacy_binding.binding_id===`legacy:${v.legacy_binding.manifest_sha256}:${v.order_id}`);}
+ if(v.payment_method==='gateway'&&!Object.hasOwn(v,'legacy_binding')){object(v.provisioning,['create_command_id','saga_id']);yes(typeof v.provisioning.create_command_id==='string'&&typeof v.provisioning.saga_id==='string'&&key.test(v.provisioning.create_command_id)&&key.test(v.provisioning.saga_id));}
  return structuredClone(v);
 }
 export function financialRequest(kind,commandId,value){try{return request(kind,commandId,value);}catch{throw new HttpError(400,'invalid financial command');}}
@@ -39,6 +40,7 @@ export function financialResult(kind,commandId,expected,value){try{
  }else{
   yes(value.settlement_fenced===true&&['no_payment','voided','refunded'].includes(value.outcome));
   if(expected.payment_method==='cod')yes(value.outcome==='no_payment');
+  if(expected.legacy_binding)yes(value.outcome!=='no_payment');
   if(value.outcome==='voided')yes(id(value.voided_intent_id));if(value.outcome==='refunded')yes(id(value.refund_transaction_id));
  }}return structuredClone(value);
  }catch{throw new HttpError(503,'financial result not confirmed');}}

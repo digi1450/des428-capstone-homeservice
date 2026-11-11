@@ -222,13 +222,18 @@ export function createFinancialOperations({ database, business }) {
       // Serialize the one-command-per-order decision with evaluation and INSERT.
       // Different command keys hold different command locks; checking before the
       // order lock would let both see "absent" and leak UNIQUE violations as 500.
-      if (kind === "cancellation" && request.payment_method === "gateway") {
+      if (kind === "cancellation" && request.payment_method === "gateway" && !request.legacy_binding) {
         await lockProvisioning(tx, callerId, request.provisioning.create_command_id);
       }
       await lockOrder(tx, request.order_id);
       const elsewhere = await other(tx, kind, request.order_id, callerId, commandId);
       if (elsewhere) throw coded(CODES.COMMAND_CONFLICT, `order already has a different ${kind} command`);
-      const result = kind === "completion"
+      // v1.1 transport preparation: a supplied reference never grants DB eligibility.
+      // Until the locked binding lookup is implemented, retain a durable attention
+      // result and do not create provisioning, settlement, fences or money effects.
+      const result = request.legacy_binding
+        ? {...base(kind,commandId,request),state:"attention",reason:"legacy_reconciliation_required"}
+        : kind === "completion"
         ? await evaluateCompletion(tx, callerId, commandId, request)
         : await evaluateCancellation(tx, callerId, commandId, request);
       await save(tx, { callerId, commandId, kind, request, requestDigest, existing }, result);
