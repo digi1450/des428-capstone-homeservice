@@ -29,9 +29,27 @@ export function getDb() {
   }
 
   const db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.pragma("busy_timeout = 3000");
+  try {
+    // journal_mode may return BUSY immediately during concurrent first opens,
+    // even with a busy handler. Retry only this initialization lock, bounded by
+    // the same three-second budget used for normal SQLite lock waiting.
+    const deadline = Date.now() + 3000;
+    db.pragma("busy_timeout = 0");
+    const pause = new Int32Array(new SharedArrayBuffer(4));
+    for (;;) {
+      try { db.pragma("journal_mode = WAL"); break; }
+      catch (error) {
+        const remaining = deadline - Date.now();
+        if (error.code !== "SQLITE_BUSY" || remaining <= 0) throw error;
+        Atomics.wait(pause, 0, 0, Math.min(25, remaining));
+      }
+    }
+    db.pragma("busy_timeout = 3000");
+    db.pragma("foreign_keys = ON");
+  } catch (error) {
+    db.close();
+    throw error;
+  }
   globalThis[CONN] = db;
   logger.info({ dbPath }, "sqlite connection opened");
   return db;

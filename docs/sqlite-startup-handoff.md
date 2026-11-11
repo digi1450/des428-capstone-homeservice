@@ -21,3 +21,19 @@ For a fresh disposable demo, use a NEW dedicated Compose project/volume and choo
 Durability here means the bootstrap does not erase stored work. It does not prove end-to-end saga recovery, broker replay, Payments activation, B auth, a completed data migration or the full stack's 8 GB budget. Startup failure occurs before relay startup. Other background workers retain their existing behavior after a successful boot.
 
 Validation: [isolated startup/restart checks](validation/sqlite-startup-2026-11-07.md).
+
+## PR65 CI follow-up: concurrent first WAL open
+
+GitHub run43009904347 failed in startup.test.js when two real processes attempted
+journal_mode=WAL concurrently, returning SQLITE_BUSY before migration. The importer
+workflow43009904490 passed. getDb now retries only WAL initialization SQLITE_BUSY
+with a bounded3s budget, then restores the existing3s busy timeout and enables FKs.
+Any other error/expired wait closes the uncached connection and propagates failure.
+No schema/reset/bootstrap/seeding rules changed.
+
+A real separate-process held-lock regression checks waiting/data preservation.
+A deterministic immediate-BUSY fixture fails on the old initializer; the new
+initializer recovers it and closes/propagates a non-BUSY error. Final local Linux
+Node20 full monolith300/300 passed, zero failures/skips. Early container attempts
+lacked test-helper/API/contract/realm mounts; final run includes all source fixtures.
+GitHub Node22 checks for the new head must still complete; no hosted pass implied.

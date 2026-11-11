@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync, spawn } from "node:child_process";
@@ -124,4 +124,45 @@ test("concurrent new-process startup initializes one seed and preserves a usable
     assert.deepEqual(db.pragma("foreign_key_check"), []);
     db.close();
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+
+test("first WAL open waits for a separate initialization lock then preserves data", async () => {
+  const directory=mkdtempSync(join(tmpdir(),"homeservice-wal-lock-"));
+  const path=join(directory,"test.sqlite"), marker=join(directory,"opening");
+  const blocker=new Database(path);
+  blocker.exec("CREATE TABLE retained(value TEXT); INSERT INTO retained VALUES ('keep'); BEGIN EXCLUSIVE");
+  const attempt=child(path,`import fs from 'node:fs'; import {getDb} from './lib/db/index.js';
+    fs.writeFileSync(${JSON.stringify(marker)},'ready');
+    const db=getDb(); if(db.prepare('SELECT value FROM retained').get().value!=='keep')throw new Error('data lost'); closeDb();`,{asynchronous:true});
+  // Observe failure immediately without an unhandled rejection while parent holds lock.
+  let failure; const settled=attempt.catch(error=>{failure=error;});
+  try {
+    const deadline=Date.now()+5000;
+    while(!existsSync(marker)&&!failure&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,10));
+    assert.ok(existsSync(marker),failure?.message ?? 'child did not start');
+    await new Promise(resolve=>setTimeout(resolve,150));
+    assert.equal(failure,undefined,'child must wait for the transient initialization lock');
+    blocker.exec('COMMIT');
+    await settled;if(failure)throw failure;
+    assert.equal(blocker.prepare('SELECT value FROM retained').get().value,'keep');
+  }finally{if(blocker.inTransaction)blocker.exec('ROLLBACK');await settled;blocker.close();rmSync(directory,{recursive:true,force:true});}
+});
+
+test("WAL initialization recovers an immediate SQLITE_BUSY but propagates other errors", () => {
+  child(":memory:", `import assert from 'node:assert/strict'; import Database from 'better-sqlite3';
+    import {getDb} from './lib/db/index.js';
+    const pragma=Database.prototype.pragma; let busy=true;
+    Database.prototype.pragma=function(sql,...args){
+      if(sql==='journal_mode = WAL'&&busy){busy=false;throw Object.assign(new Error('fixture busy'),{code:'SQLITE_BUSY'});}
+      return pragma.call(this,sql,...args);
+    };
+    const db=getDb(); assert.equal(busy,false); assert.equal(db.pragma('foreign_keys',{simple:true}),1);
+    assert.equal(db.pragma('busy_timeout',{simple:true}),3000);closeDb();
+    const close=Database.prototype.close;let closed=false;
+    Database.prototype.close=function(){closed=true;return close.call(this);};
+    Database.prototype.pragma=function(sql,...args){if(sql==='journal_mode = WAL')throw Object.assign(new Error('fixture corrupt'),{code:'SQLITE_CORRUPT'});return pragma.call(this,sql,...args);};
+    assert.throws(()=>getDb(),error=>error.code==='SQLITE_CORRUPT');assert.equal(closed,true);
+    Database.prototype.pragma=pragma;Database.prototype.close=close;
+    getDb();closeDb();`, {env:{NODE_ENV:'test'}});
 });
