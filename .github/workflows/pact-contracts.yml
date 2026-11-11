@@ -10,7 +10,7 @@ on:
 jobs:
   pact-contracts:
     name: Consumer and Provider Verification
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
     timeout-minutes: 15
     env:
       COMPOSE_PROJECT_NAME: homeservice-e-pact-ci-${{ github.run_id }}-${{ github.run_attempt }}
@@ -27,7 +27,7 @@ jobs:
 
   api-contracts:
     name: API schemas and fixtures
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.actor == 'digi1450' && vars.HOMESERVICE_VM_CI == 'true' && fromJSON('["self-hosted","Linux","ARM64","homeservice-ci"]') || 'ubuntu-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
