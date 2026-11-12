@@ -29,7 +29,27 @@ Team-level evidence that includes C paths: [authenticated 16-service stack](vali
 | Relay kill | `sh tests/integration/c-relay-kill-demo.sh` | Kill the relay mid-stream; nothing is lost, and restart drains to zero pending |
 | Saga compensation | `node tests/integration/c-saga-demo.mjs` | Payment setup fails → booking cancelled, holds released, idempotent retry |
 | Consistency check | `node tools/consistency/c-check.mjs --sqlite … --payments-url … --mode quiescent` | Invariants across owners; exit codes 0/1/2/3 |
-| Race acceptance | `C_RACE_ROUNDS=20 node --test tests/integration/c-financial-race-acceptance.test.mjs` | Concurrent webhook/complete/cancel never pays and refunds the same booking |
+| Race acceptance | `TEST_PAYMENTS_DATABASE_URL="${TEST_PAYMENTS_DATABASE_URL:?Set a disposable PG URL first}" C_RACE_ROUNDS=20 node --test tests/integration/c-financial-race-acceptance.test.mjs` | Concurrent webhook/complete/cancel never pays and refunds the same booking |
+
+Before the race command, install the locked monolith and Payments dependencies
+and set `TEST_PAYMENTS_DATABASE_URL` to a **fresh disposable PostgreSQL database**
+with schema-creation permission. Never use the live owner database. Fail explicitly
+if the variable is absent, then run the suite:
+
+```sh
+npm ci --prefix bangkok-homeservice
+npm ci --prefix services/payments-wallet
+: "${TEST_PAYMENTS_DATABASE_URL:?Set a fresh disposable PostgreSQL URL first}"
+C_RACE_ROUNDS=20 node --test tests/integration/c-financial-race-acceptance.test.mjs
+```
+
+Without that variable, the integration suite is opt-in and skips; a green process
+exit alone is not race evidence. After PR81's review correction, a complete local
+run has14 passing tests, including the negative cancellation-evidence regression,
+and zero skips. The original13-test records remain historical. CI now invokes the
+suite explicitly after the earlier financial boundaries; check the new head's
+GitHub result separately. Merge this evidence index after PR81 so its two new file
+references exist. These tests do not close all D faults/retry budgets or defence.
 
 ## 3. Questions to prepare (owner answers from the evidence above)
 
