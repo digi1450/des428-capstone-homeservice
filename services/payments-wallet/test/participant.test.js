@@ -67,8 +67,13 @@ test("payment participant on PostgreSQL", { skip: !process.env.TEST_DATABASE_URL
     await t.test("provisioning cannot reference a missing intent or lose its referenced intent", async () => {
       const p = next();
       const first = await create(p);
-      const missing = await db.query("SELECT max(id)+1 AS id FROM payment_intents");
-      await assert.rejects(db.query("UPDATE payment_provisioning SET intent_id=$1 WHERE caller_id=$2 AND create_command_id=$3", [missing.rows[0].id,caller,p.create]), error => error.code === "23503");
+      await assert.rejects(db.withTransaction(async client => {
+        // Other test files insert intents concurrently. Keep this candidate absent
+        // until the FK check; rollback releases the test-only lock after rejection.
+        await client.query("LOCK TABLE payment_intents IN SHARE MODE");
+        const missing = await client.query("SELECT max(id)+1 AS id FROM payment_intents");
+        await client.query("UPDATE payment_provisioning SET intent_id=$1 WHERE caller_id=$2 AND create_command_id=$3", [missing.rows[0].id,caller,p.create]);
+      }), error => error.code === "23503");
       await assert.rejects(db.query("DELETE FROM payment_intents WHERE id=$1", [first.result.payment_intent.id]), error => error.code === "23503");
       assert.equal((await get(p)).payment_intent.id, first.result.payment_intent.id);
     });
