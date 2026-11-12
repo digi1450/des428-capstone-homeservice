@@ -21,14 +21,35 @@ import * as booking from "../../bangkok-homeservice/lib/modules/booking/service.
 // covered by the authenticated-stack suites). Each scenario runs ROUNDS times with alternating
 // start order plus a random 0–6 ms head start, for both NEW (saga-provisioned) and LEGACY
 // (approved import binding) bookings. After all rounds the read-only C checker must report
-// zero violations. Opt-in, DISPOSABLE PostgreSQL: TEST_PAYMENTS_DATABASE_URL.
+// zero violations. Alternating launch order does not guarantee both database winners.
+// Opt-in, DISPOSABLE PostgreSQL: TEST_PAYMENTS_DATABASE_URL.
 const url = process.env.TEST_PAYMENTS_DATABASE_URL;
 const ROUNDS = Number(process.env.C_RACE_ROUNDS ?? 20);
 const MANIFEST = "c".repeat(64);
 const canonical = (v) => Array.isArray(v) ? `[${v.map(canonical).join(",")}]`
   : v && typeof v === "object" ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(",")}}` : JSON.stringify(v);
 
-test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) => {
+// Check the response AND its durable effect: an empty ledger alone is not a safe cancellation.
+function assertCancellation(result, entries, hasFence, expectedOutcome) {
+  assert.equal(result.status, 200, JSON.stringify(result.body));
+  assert.equal(result.body.state, "ready");
+  assert.equal(result.body.settlement_fenced, true);
+  assert.equal(hasFence, true, "successful cancellation must persist its fence");
+  assert.ok(["voided", "refunded"].includes(result.body.outcome), JSON.stringify(result.body));
+  if (expectedOutcome) assert.equal(result.body.outcome, expectedOutcome);
+  assert.deepEqual(entries, result.body.outcome === "refunded" ? { charge: 1, refund: 1 } : {});
+}
+
+test("cancellation evidence rejects failed requests, absent fences and absent refunds", () => {
+  const ready = (outcome) => ({ status: 200, body: { state: "ready", settlement_fenced: true, outcome } });
+  assert.throws(() => assertCancellation({ status: 500, body: { error: "failure" } }, {}, false));
+  assert.throws(() => assertCancellation(ready("voided"), {}, false));
+  assert.throws(() => assertCancellation(ready("refunded"), { charge: 1 }, true));
+  assert.throws(() => assertCancellation(ready("voided"), { charge: 1 }, true));
+});
+
+test("C/D financial race acceptance over real HTTP", { skip: !url, timeout: 120_000 }, async (t) => {
+  assert.ok(Number.isInteger(ROUNDS) && ROUNDS >= 2 && ROUNDS <= 31, "C_RACE_ROUNDS must be an integer from 2 to 31");
   const db = createDatabase(url);
   await migrate(db);
   const callerId = `booking-race:${randomUUID()}`;
@@ -44,6 +65,7 @@ test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) =
 
   const post = async (path, body, { key, token = "booking-service" } = {}) => {
     const res = await fetch(base + path, { method: "POST", body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(key ? { "Idempotency-Key": key } : {}) } });
     return { status: res.status, body: await res.json().catch(() => null) };
   };
@@ -90,9 +112,8 @@ test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) =
       for (let round = 0; round < ROUNDS; round += 1) {
         const o = await order(origin);
         const [hook, cancel] = await race(round, () => webhook(o.intent), command("cancellation", o));
-        assert.equal(cancel.status, 200, JSON.stringify(cancel.body));
         const l = await ledger(o.id);
-        assert.ok(await fenced(o.id));
+        assertCancellation(cancel, l, await fenced(o.id));
         if (cancel.body.outcome === "refunded") {
           assert.equal(hook.status, 200);
           assert.deepEqual([l.charge, l.refund], [1, 1]);
@@ -113,7 +134,17 @@ test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) =
         const l = await ledger(o.id);
         assert.ok(!(l.payout_credit && l.refund), JSON.stringify(l));
         assert.ok((l.payout_credit ?? 0) <= 1 && (l.refund ?? 0) <= 1 && l.charge === 1, JSON.stringify(l));
-        if (l.payout_credit) assert.equal(done.status, 200); else assert.equal(cancel.status, 200);
+        if (l.payout_credit) {
+          assert.equal(done.status, 200);
+          assert.deepEqual(l, { charge: 1, payout_credit: 1 });
+          assert.equal(cancel.status, 409);
+          assert.equal(cancel.body.reason, "completion_accounted");
+          assert.equal(await fenced(o.id), false);
+        } else {
+          assertCancellation(cancel, l, await fenced(o.id), "refunded");
+          assert.equal(done.status, 409);
+          assert.equal(done.body.reason, "cancellation_fenced");
+        }
         count(`${origin}.complete×cancel`, `complete ${done.status} ${done.body?.reason ?? done.body?.code ?? "ready"} | cancel ${cancel.status} ${cancel.body?.outcome ?? cancel.body?.reason ?? cancel.body?.code}`);
       }
     });
@@ -125,8 +156,12 @@ test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) =
         const cancel = command("cancellation", o);
         const results = await Promise.all([webhook(o.intent, event), webhook(o.intent, event), webhook(o.intent), cancel()]);
         const l = await ledger(o.id);
-        assert.ok((l.charge ?? 0) <= 1 && (l.refund ?? 0) <= 1, JSON.stringify(l));
-        assert.equal(l.charge ?? 0, l.refund ?? 0, "a fenced booking keeps no money");
+        assertCancellation(results[3], l, await fenced(o.id));
+        assert.ok(results.slice(0, 3).every((r) => [200, 409].includes(r.status)), JSON.stringify(results));
+        const late = await webhook(o.intent);
+        assert.equal(late.status, results[3].body.outcome === "voided" ? 409 : 200);
+        if (late.status === 200) assert.equal(late.body.already_settled, true);
+        assert.deepEqual(await ledger(o.id), l, "late payment must not change the cancelled ledger");
         count(`${origin}.webhooks×cancel`, `${results[3].body.outcome} charges=${l.charge ?? 0}`);
       }
     });
@@ -135,7 +170,9 @@ test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) =
       for (let round = 0; round < ROUNDS; round += 1) {
         const o = await order(origin);
         const complete = command("completion", o);
-        const [, first] = await race(round, () => webhook(o.intent), complete);
+        const [hook, first] = await race(round, () => webhook(o.intent), complete);
+        assert.equal(hook.status, 200, JSON.stringify(hook.body));
+        assert.ok([200, 202].includes(first.status), JSON.stringify(first.body));
         let l = await ledger(o.id);
         if (first.status === 202) assert.ok(!l.payout_credit, "pending completion never pays out");
         const retry = await complete(); // same key, as Booking recovery would do
@@ -156,7 +193,11 @@ test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) =
         // Same content; key ORDER may differ (a replay comes from a JSONB column), so compare canonically.
         assert.equal(new Set(results.map((r) => canonical(r.body))).size, 1, JSON.stringify(results.map((r) => r.body)));
         const l = await ledger(o.id);
-        assert.ok((l.refund ?? 0) <= 1);
+        assertCancellation(results[0], l, await fenced(o.id), round % 2 ? "refunded" : "voided");
+        const late = await webhook(o.intent);
+        assert.equal(late.status, round % 2 ? 200 : 409);
+        if (late.status === 200) assert.equal(late.body.already_settled, true);
+        assert.deepEqual(await ledger(o.id), l);
         count(`${origin}.cancel×3`, results[0].body.outcome);
       }
     });
@@ -182,16 +223,16 @@ test("C/D financial race acceptance over real HTTP", { skip: !url }, async (t) =
       await recoverFinalizationOnce();
       const final = sqlite.prepare("SELECT status FROM orders WHERE id = ?").get(id).status;
       const holds = sqlite.prepare("SELECT count(*) AS n FROM slot_holds WHERE order_id = ?").get(id).n;
-      if (final === "cancelled") { assert.equal(holds, 0); assert.ok(s.startsWith("refused"), s); }
-      else { assert.equal(final, "started"); assert.equal(holds, 1); assert.ok(c.startsWith("cancel-refused"), c); }
+      if (final === "cancelled") { assert.equal(holds, 0); assert.equal(s, "refused:409"); assert.equal(c, "cancel:ready"); }
+      else { assert.equal(final, "started"); assert.equal(holds, 1); assert.equal(s, "started"); assert.equal(c, "cancel-refused:409"); }
       count("booking.cancel×start", `${final} (${s}, ${c})`);
     }
   });
 
   await t.test("read-only C checker on Payments after all rounds: zero violations", async () => {
-    const { code, summary } = await consistencyCheck(["--payments-url", url, "--json"]);
+    const { code, summary, output } = await consistencyCheck(["--payments-url", url, "--json"]);
+    assert.equal(code, 0, output);
     assert.equal(summary.violations, 0, JSON.stringify(summary.findings));
-    assert.ok([0].includes(code) || summary.violations === 0);
     t.diagnostic(`checker: ${summary.violations} violations, ${summary.attention} attention, ${summary.pending} pending`);
   });
 

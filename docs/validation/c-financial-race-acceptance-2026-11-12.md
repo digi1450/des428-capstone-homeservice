@@ -8,7 +8,7 @@ TEST_PAYMENTS_DATABASE_URL=… C_RACE_ROUNDS=20 node --test tests/integration/c-
 
 Every request is a real concurrent HTTP call into A's Payments router: strict v1/v1.1 validation, C financial operations, the settlement gate and PostgreSQL advisory locks.
 
-- Each scenario runs 20 rounds. Rounds alternate which side starts first, with a random 0–6 ms head start, so both orders actually occur.
+- Each scenario runs 20 rounds. Rounds alternate which side is launched first, with a random 0–6 ms head start. This does not guarantee database acquisition order; the observed winners are recorded below.
 - Scenarios run for **new** (saga-provisioned) and **legacy** (approved import binding) bookings.
 - After all rounds, the read-only C checker (`tools/consistency/c-check.mjs`) runs on Payments.
 
@@ -37,3 +37,45 @@ The first version of the "same key ×3" assertion compared raw JSON text and fai
 - The Booking scenario runs in one Node process: SQLite transactions are interleaved by the event loop, not truly parallel.
 - No process crash in these runs. E's #61 already covers crash/redelivery and financial recovery; this suite does not duplicate it.
 - D: map these to your required fault list and retry budgets. The numbers above are observations from 2 runs, not a probability claim.
+
+## A review follow-up — 12 November 2026
+
+The original PR81 suite was independently rerun on Node22/PostgreSQL16:
+13 passed, zero failures/skips. Review found that one scenario could accept all
+HTTP failures with an empty ledger, and the new file was absent from CI's explicit
+integration-test list. The original two-run outcome table above remains historical.
+
+The strengthened suite now requires successful cancellation, ready/fenced result,
+a persisted fence, and exact charge/refund effects. It checks duplicate webhook
+statuses, completion/cancellation winner and loser outcomes, same-key refunds/voids,
+and unchanged ledger after late callbacks. A voided intent refuses a late callback;
+a previously settled/refunded intent can acknowledge `already_settled` without
+another money effect, as the existing contract specifies. A negative-evidence
+regression rejects all-500, absent-fence and absent-refund counterexamples.
+ROUNDS must be an integer2–31, requests have a10-second deadline and the suite
+has a120-second deadline. Launch jitter is not a deterministic lock-order proof.
+
+Observed after this correction:
+
+| Run | Result |
+| --- | --- |
+| Strengthened suite alone,20 rounds per scenario |14 passed,0 failed,0 skipped|
+| CI-ordered earlier three boundary files, same disposable PG |15 passed,0 failed,0 skipped|
+| Booking finalization after those files, same disposable PG |7 passed,0 failed,0 skipped|
+| Strengthened race suite after both phases, same disposable PG |14 passed,0 failed,0 skipped|
+
+Both strengthened runs observed void/refund and completion/cancellation winners
+for new and legacy orders, plus pending/ready completion and both Booking start/
+cancel outcomes. The duplicate-webhook scenario observed refunded outcomes in
+all20 rounds per origin; no claim of observing a void winner in that scenario.
+The final report-mode Payments checker found zero violations. It does not inspect
+Booking, Notifications or RabbitMQ in this invocation and is not cutover approval.
+
+Local runs used a fresh no-host-port PostgreSQL16 tmpfs container/network and
+cached Node22 dependencies with the reviewed source mounted read-only. Each run
+removed only its own test resources; no live data or stack was touched.
+The first local sequence attempt omitted TEST_DATABASE_URL and skipped three
+older files; it is superseded by the complete15+7+14 no-skip run above.
+The workflow now explicitly invokes this file after the existing boundary steps
+and checks the configured disposable URL. Hosted CI must validate the pushed head;
+these local results do not claim that GitHub has already run it.
