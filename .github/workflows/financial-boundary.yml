@@ -54,3 +54,10 @@ jobs:
       - name: Booking durable finalization and cancellation recovery against Payments
         # Run after the earlier boundaries; this suite also creates wallet/financial state.
         run: node --test tests/integration/c-booking-finalization-e2e.test.mjs
+      - name: New and legacy financial race acceptance over real HTTP
+        # Run serially after the other boundary suites against this disposable PostgreSQL.
+        env:
+          C_RACE_ROUNDS: "20"
+        run: |
+          test -n "$TEST_PAYMENTS_DATABASE_URL"
+          node --test tests/integration/c-financial-race-acceptance.test.mjs
