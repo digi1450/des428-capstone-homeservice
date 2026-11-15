@@ -12,10 +12,13 @@ backup/restore, signed checkpoint approval, migrated read comparisons and restar
 checks. See [actual local acceptance](docs/validation/a-local-cutover-2026-11-12.md).
 
 Start with [current A–E status and remaining work](docs/current-area-status.md),
-then the [dated implementation history](docs/project-status.md). Remaining work
-includes D/C's final race/fault evidence review and shared browser/offline/demo/
-dossier/defence deliverables. Further extraction after lecturer feedback needs a
-separate scope decision; this milestone does not claim whole-project completion.
+then the [dated implementation history](docs/project-status.md). Area D's merged
+implementation and current evidence boundaries are mapped in
+[docs/d-area-d-evidence-map.md](docs/d-area-d-evidence-map.md); confirm its retry
+budgets with A/C and close the initial create-intent outage case only if the course
+rubric requires that exact real-service scenario. Shared browser/offline/demo/
+dossier/defence deliverables remain. Further extraction after lecturer feedback
+needs a separate scope decision; this milestone does not claim whole-project completion.
 
 - [Area ownership and evidence](OWNERS.md); [Git workflow](CONTRIBUTING.md).
 - [Service setup](services/README.md); [E's six-task evidence](docs/e-task-checklist.md).
