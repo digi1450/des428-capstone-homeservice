@@ -32,7 +32,8 @@ is changed. D remains accountable for the area's final integrated evidence.
 The new two-connection test fails against the original unconditional INSERT
 (`Missing expected exception`: a late bid is inserted). It passes with D's
 conditional INSERT. This is controlled stale-read evidence, not a timing-only
-Promise.all assertion. With main integrated, the monolith suite passed **218 tests**, no failures/skips, Node 20. CI separately checks the latest pushed head.
+Promise.all assertion. With main integrated, the monolith suite passed **218 tests**,
+no failures/skips, Node 20. CI separately checks the latest pushed head.
 
 The worker and parent close their own connections and remove only their temporary
 fixture directory. No useful SQLite file, app stack, token or runtime setting is
@@ -47,3 +48,35 @@ retry budgets/backoff and fault recovery with real A/C services and B credential
 E supplies final processes/observability/evidence. New financial commands, pending
 cancellation, payout/refund/settlement races and restart behavior still require
 integrated D/C acceptance; these fixtures do not complete the full Area D rubric.
+
+## Evidence-map update — 15 November 2026
+
+The earlier "Remaining coordination" paragraph above is a 9 November snapshot.
+Since then:
+
+- PR [#50](https://github.com/digi1450/des428-capstone-homeservice/pull/50)
+  merged C's shared `retryDelay()` helper for saga, activation and Booking
+  financial finalization, with deterministic `random` injection and
+  `booking-backoff.test.js`. Do not add a parallel D helper.
+- PR [#61](https://github.com/digi1450/des428-capstone-homeservice/pull/61)
+  merged E's actual 16-service crash/redelivery and financial-recovery acceptance.
+  It includes a real Payments outage while cancellation is pending, a real
+  standalone Next restart while Payments remains unavailable, and autonomous
+  recovery after Payments returns.
+- PR [#81](https://github.com/digi1450/des428-capstone-homeservice/pull/81)
+  merged the joint C/D financial race suite over real HTTP and disposable
+  PostgreSQL for both new and legacy booking origins. The strengthened evidence
+  is 14 passed, 0 failed, 0 skipped, with 0 consistency-checker violations.
+- PR #47 remains the merged source of the two-connection bid regression and the
+  three Map-backed HTTP fault scenarios.
+
+See [Area D requirement-to-evidence map](d-area-d-evidence-map.md) for the exact
+scenario-to-test links, current retry defaults, evidence boundaries and remaining
+closure decisions. In particular, the one-shot HTTP 500 fixture is not a sustained
+outage. PR #61 proves a real outage/recovery path for financial cancellation, not
+the initial create-intent path. If the assignment requires a real Payments outage
+during initial gateway booking, add that exact disposable-stack acceptance with
+A/B/C/E; do not claim it from the Map fixture.
+
+No runtime code, schema, API, auth, command key or lease logic changed in this
+documentation update.
