@@ -5,6 +5,11 @@ records and the current ownership/evidence links. This is the current two-servic
 milestone, not a claim that the whole course submission or production security is
 complete. Shared browser/offline/demo/dossier/defence work remains separate.
 
+Documentation integration reviewed 17 November 2026: D's evidence map from
+closed PR #85 is carried forward with the E ownership row corrected. The
+implementation snapshot remains PR84; no new runtime acceptance is claimed,
+and D's two closure decisions remain open.
+
 | Area | Implemented and integrated | Remaining closure work |
 | --- | --- | --- |
 | A — Extract and route | Notifications and Payments & Wallet own separate PostgreSQL databases; monolith callers, routing, auth composition, legacy import/bindings and signed operator checkpoint integrated. Actual authorized local cutover passed. | Visual browser acceptance of current UI and final extraction/architecture evidence. Any additional extraction is a separately agreed scope change. |

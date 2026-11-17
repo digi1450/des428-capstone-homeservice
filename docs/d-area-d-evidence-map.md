@@ -94,3 +94,18 @@ joint financial races. The final closure item is not another local edit to
 `saga.js`: it is to confirm the numeric retry budgets and decide whether the
 course's third fault specifically requires a real Payments outage during
 initial booking creation. Keep that limit visible until such a run exists.
+
+## A integration review — 17 November 2026
+
+This documentation carries forward D's six commits from closed, unmerged PR #85.
+A checked the documented timeout/backoff/lease defaults against the source and
+cross-checked the fixture limits and recorded #61/#81 outcomes against their
+existing tests and dated validation records. The E row in `OWNERS.md` now agrees
+with the completed #81 financial-race evidence.
+
+No new application, outage, race or recovery run was performed for this
+Markdown-only integration. The historical results above retain their original
+scope. Retry-budget confirmation and the initial create-intent outage coverage
+decision remain open; integrating this map does not close either item or assert
+that all Area D requirements are complete. PR #50 and #61 are shared C/E evidence,
+not additional implementation authored by D in #85.
